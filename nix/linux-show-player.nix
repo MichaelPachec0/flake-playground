@@ -1,5 +1,5 @@
 { lib, python3, fetchFromGitHub, fetchPypi, libjack2, alsa-lib, qt5, gst_all_1
-, rtmidi, ola, gobject-introspection, cairo, liblo, gnome3, libadwaita }:
+, rtmidi, ola, gobject-introspection, cairo, liblo, libadwaita, wrapGAppsHook }:
 let
   jack-client = python3.pkgs.buildPythonPackage rec {
     pname = "JACK-Client";
@@ -16,7 +16,6 @@ let
     src = fetchFromGitHub {
       owner = "alsa-project";
       repo = "alsa-python";
-      # this is for tag v1.2.7
       rev = "v${version}";
       hash = "sha256-oldWPVtRAL81VZmftnEr7DhmDONpXZkBr91tfII/m2Y=";
     };
@@ -34,12 +33,13 @@ in python3.pkgs.buildPythonApplication rec {
     hash = "sha256-vaYnB7/FZAIql2LPd9QlLV5PVQEtSiPIoU0N1xN+VBM=";
   };
 
-  buildInputs = [ qt5.qtwayland ];
+  buildInputs = [ qt5.qtwayland gobject-introspection ];
   nativeBuildInputs = [
     python3.pkgs.poetry-core
     qt5.wrapQtAppsHook
     libadwaita
-    gnome3.adwaita-icon-theme
+    wrapGAppsHook
+    gobject-introspection
   ];
 
   propagatedBuildInputs = (with python3.pkgs; [
@@ -57,18 +57,20 @@ in python3.pkgs.buildPythonApplication rec {
     requests
     sortedcontainers
     packaging
-  ]) ++ [ gobject-introspection cairo liblo rtmidi ola libjack2 ]
-    ++ (with gst_all_1; [
-      gstreamer
-      gst-plugins-good
-      gst-plugins-ugly
-      gst-plugins-bad
-      gst-libav
-      gst-plugins-base
-    ]);
+  ]) ++ (with gst_all_1; [
+    gstreamer
+    gst-plugins-good
+    gst-plugins-ugly
+    gst-plugins-bad
+    gst-libav
+    gst-plugins-base
+  ]) ++ [ cairo liblo rtmidi ola ];
 
+  # NOTE: assuming this is not the way to avoid double wrapping. This still works, so keep it for now.
   dontWrapQtApps = true;
-  makeWrapperArgs = [ "\${qtWrapperArgs[@]}" ];
+  dontWrapGAppps = true;
+  makeWrapperArgs = [ "\${qtWrapperArgs[@]}" "\${gappsWrapperArgs[@]}" ];
+
   # TODO: fix this.
   # pythonImportsCheck = [ "linux_show_player" ];
 
