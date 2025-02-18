@@ -1,4 +1,6 @@
 # Evaluation result folder (Nix)
 result/
 result*
+test/*
+
 
