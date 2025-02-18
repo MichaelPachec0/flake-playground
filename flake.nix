@@ -24,8 +24,9 @@
     #   cli = pkgs.callPackage ./nix/windscribe/cli.nix {};
     # };
     cynthion = pkgs.callPackage ./nix/cynthion {};
+    memtimings-linux = pkgs.callPackage ./nix/memtimings-linux {};
   in {
-    packages = {x86_64-linux = {inherit linux-show-player cynthion;};};
+    packages = {x86_64-linux = {inherit linux-show-player cynthion memtimings-linux;};};
     overlays = let
       playground = final: prev: {
         playground = {inherit linux-show-player cynthion;};
@@ -37,9 +38,10 @@
     nixosModules.default = import ./nix/module.nix inputs;
     devShells.x86_64-linux = {
       cynthion =
-        pkgs.mkShell {packages = with pkgs; [cynthion];};
+        pkgs.mkShell {packages = [cynthion];};
       linux-show-player =
         pkgs.mkShell {packages = with pkgs; [linux-show-player];};
+      memtimings-linux = pkgs.mkShell {packages = [memtimings-linux];};
       # windscribe = let
       #   cli = with pkgs; [dpkg openvpn stunnel];
       #   desktop = with pkgs; [];
