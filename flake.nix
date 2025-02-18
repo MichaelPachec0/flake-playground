@@ -35,7 +35,9 @@
       inherit playground;
       default = playground;
     };
-    nixosModules.default = import ./nix/module.nix inputs;
+    nixosModules = {
+      cynthion = import ./nix/modules/cynthion inputs;
+    };
     devShells.x86_64-linux = {
       cynthion =
         pkgs.mkShell {packages = [cynthion];};
