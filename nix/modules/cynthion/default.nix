@@ -4,8 +4,10 @@ inputs: {
   pkgs,
   ...
 }: let
-  check = config.hardware.cynthion.enable;
   inherit (pkgs.stdenv.hostPlatform) system;
+  module = "cynthion";
+  priority = "54";
+  check = config.hardware.${module}.enable;
   text = ''
     # Configures Linux to allow access to Cynthion hardware for anyone logged into the physical terminal.
     #
@@ -26,22 +28,22 @@ inputs: {
   '';
 in {
   options = {
-    hardware.cynthion = {
-      enable = lib.mkEnableOption "Enable cynthion hardware support";
+    hardware.${module} = {
+      enable = lib.mkEnableOption "Enable ${module} hardware support";
     };
   };
   config =
     {}
     // (lib.mkIf check {
       environment.systemPackages = [
-        inputs.self.packages.${system}.cynthion
+        inputs.self.packages.${system}.${module}
       ];
       services.udev = {
         packages = [
           (pkgs.writeTextFile {
             inherit text;
-            name = "cynthion rules";
-            destination = "/etc/udev/rules.d/54-cynthion.rules";
+            name = "${module} rules";
+            destination = "/etc/udev/rules.d/${priority}-${module}.rules";
           })
         ];
       };
