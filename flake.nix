@@ -37,6 +37,7 @@
     };
     nixosModules = {
       cynthion = import ./nix/modules/cynthion inputs;
+      realsense = import ./nix/modules/realsense inputs;
     };
     devShells.x86_64-linux = {
       cynthion =
