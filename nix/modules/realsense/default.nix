@@ -130,6 +130,18 @@ in {
             name = "${module} rules";
             destination = "/etc/udev/rules.d/${priority}-${module}.rules";
           })
+          (pkgs.writeTextFile {
+            name = "d4xx dfu rules";
+            text = ''
+              # Device rules for Intel RealSense MIPI devices.
+
+              # DFU rules
+              SUBSYSTEM=="d4xx-class", KERNEL=="d4xx-dfu*", GROUP="video", MODE="0660"
+              # video links for SDK, binding for ipu6
+              SUBSYSTEM=="video4linux", ATTR{name}=="DS5 mux *", RUN+="${lib.getExe pkgs.bash} -c 'rs_ipu6_d457_bind.sh > /dev/kmsg; rs-enum.sh -q > /dev/kmsg'"
+            '';
+            destination = "/etc/udev/rules.d/99-realsense-d4xx-mipi-dfu.rules";
+          })
         ];
       };
     });
