@@ -19,12 +19,12 @@
         inherit system;
       };
     pkgs = prepNixpkgs nixpkgs system;
-    linux-show-player = pkgs.callPackage ./nix/linux-show-player.nix {};
+    linux-show-player = pkgs.callPackage ./nix/pkgs/linux-show-player.nix {};
     # windscribe = {
-    #   cli = pkgs.callPackage ./nix/windscribe/cli.nix {};
+    #   cli = pkgs.callPackage ./nix/pkgs/windscribe/cli.nix {};
     # };
-    cynthion = pkgs.callPackage ./nix/cynthion {};
-    memtimings-linux = pkgs.callPackage ./nix/memtimings-linux {};
+    cynthion = pkgs.callPackage ./nix/pkgs/cynthion {};
+    memtimings-linux = pkgs.callPackage ./nix/pkgs/memtimings-linux {};
   in {
     packages = {x86_64-linux = {inherit linux-show-player cynthion memtimings-linux;};};
     overlays = let
