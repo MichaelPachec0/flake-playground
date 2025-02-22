@@ -146,6 +146,12 @@ in
     nativeBuildInputs = [
       fwup
     ];
+    postPatch = ''
+      substituteInPlace src/commands/cynthion_setup.py \
+      --replace-fail \
+      "        _install_udev(args)" \
+      "        print(\"NixOS has already took care of setup process\nPlease verify with cythion setup --check\")"
+    '';
     propagatedBuildInputs =
       [
         usb-protocol
