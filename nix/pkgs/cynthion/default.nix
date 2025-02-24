@@ -11,6 +11,7 @@
   sby,
   yices,
   yosys,
+  nixosInstall ? false,
 }: let
   amaranth = python3.pkgs.buildPythonPackage rec {
     pname = "amaranth";
@@ -146,12 +147,15 @@ in
     nativeBuildInputs = [
       fwup
     ];
-    postPatch = ''
-      substituteInPlace src/commands/cynthion_setup.py \
-      --replace-fail \
-      "        _install_udev(args)" \
-      "        logging.info(\"✅ NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
-    '';
+    postPatch =
+      if nixosInstall
+      then ''
+        substituteInPlace src/commands/cynthion_setup.py \
+        --replace-fail \
+              "        _install_udev(args)" \
+              "        logging.info(\"✅ NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
+      ''
+      else "";
     propagatedBuildInputs =
       [
         usb-protocol

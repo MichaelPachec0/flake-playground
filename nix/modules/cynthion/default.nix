@@ -36,7 +36,8 @@ in {
     {}
     // (lib.mkIf check {
       environment.systemPackages = [
-        inputs.self.packages.${system}.${module}
+        (inputs.self.packages.${system}.${module}.override
+          {nixosInstall = true;})
       ];
       services.udev = {
         packages = [
