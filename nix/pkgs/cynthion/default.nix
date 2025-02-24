@@ -150,7 +150,7 @@ in
       substituteInPlace src/commands/cynthion_setup.py \
       --replace-fail \
       "        _install_udev(args)" \
-      "        print(\"NixOS has already took care of setup process\nPlease verify with cythion setup --check\")"
+      "        logging.info(\"✅ NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
     '';
     propagatedBuildInputs =
       [
