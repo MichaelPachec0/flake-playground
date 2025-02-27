@@ -147,6 +147,7 @@ in
     nativeBuildInputs = [
       fwup
     ];
+    # NOTE: dont know if postPatch is the right place to do this? There might be a better place to do this.
     postPatch =
       if nixosInstall
       then ''
