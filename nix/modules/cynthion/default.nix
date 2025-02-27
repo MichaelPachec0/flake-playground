@@ -7,7 +7,8 @@ inputs: {
   inherit (pkgs.stdenv.hostPlatform) system;
   module = "cynthion";
   priority = "54";
-  check = config.hardware.${module}.enable;
+  cfg = config.hardware.${module};
+  # TODO: instead of hardcoding, pull it from cynthion pkg, so as not need to track changes here.
   text = ''
     # Configures Linux to allow access to Cynthion hardware for anyone logged into the physical terminal.
     #
@@ -29,24 +30,33 @@ inputs: {
 in {
   options = {
     hardware.${module} = {
-      enable = lib.mkEnableOption "Enable ${module} hardware support";
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Enables ${module} udev rules to use the ${module} as non-root.
+          Also installs the prerequisite software to update and check the status of the ${module}.
+        '';
+      };
     };
   };
-  config =
-    {}
-    // (lib.mkIf check {
-      environment.systemPackages = [
-        (inputs.self.packages.${system}.${module}.override
-          {nixosInstall = true;})
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [
+      # We are using NixOS, make sure that the software knows that we are doing so.
+      # Negative to this is that this wont be cached, but its better for either NixOS users getting errors
+      # when execing "cynthion setup"
+      (inputs.self.packages.${system}.${module}.override
+        {nixosInstall = true;})
+    ];
+    services.udev = {
+      packages = [
+        # TODO: make this a pkg?, hackrf is a package, so it can be setup without the module.
+        (pkgs.writeTextFile {
+          inherit text;
+          name = "${module} rules";
+          destination = "/etc/udev/rules.d/${priority}-${module}.rules";
+        })
       ];
-      services.udev = {
-        packages = [
-          (pkgs.writeTextFile {
-            inherit text;
-            name = "${module} rules";
-            destination = "/etc/udev/rules.d/${priority}-${module}.rules";
-          })
-        ];
-      };
-    });
+    };
+  };
 }
