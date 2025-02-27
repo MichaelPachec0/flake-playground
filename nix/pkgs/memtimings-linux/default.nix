@@ -15,13 +15,17 @@ stdenv.mkDerivation rec {
     hash = "sha256-2zm89j4becgKgQCaeaE4xlXbVhhiE5BI/DGdGvbIS50=";
   };
   buildPhase = ''
+    runHook preBuild
     gcc -o timings timings.c
+    runHook postBuild
   '';
   installPhase = ''
+    runHook preInstall
     mkdir -p $out/bin
     chmod +x timingsaddon.sh
     cp timingsaddon.sh $out/bin
     cp timings $out/bin
+    ruhHook postInstall
   '';
 
 
