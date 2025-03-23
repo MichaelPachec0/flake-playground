@@ -39,8 +39,9 @@
       cynthion = import ./nix/modules/cynthion inputs;
       realsense = import ./nix/modules/realsense inputs;
       zsa = import ./nix/modules/zsa inputs;
+      hyprpolkitagent = import ./nix/modules/hyprpolkitagent;
     in {
-      inherit cynthion realsense zsa;
+      inherit cynthion realsense zsa hyprpolkitagent;
       # default = pkgs.lib.mkMerge [cynthion realsense zsa];
 
       default = import ./nix/modules inputs;
