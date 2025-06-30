@@ -25,11 +25,12 @@
     # };
     cynthion = pkgs.callPackage ./nix/pkgs/cynthion {};
     memtimings-linux = pkgs.callPackage ./nix/pkgs/memtimings-linux {};
+    ryzen-monitor-ng = pkgs.callPackage ./nix/pkgs/ryzen-monitor-ng {};
   in {
-    packages = {x86_64-linux = {inherit linux-show-player cynthion memtimings-linux;};};
+    packages = {x86_64-linux = {inherit linux-show-player cynthion memtimings-linux ryzen-monitor-ng;};};
     overlays = let
       playground = final: prev: {
-        playground = {inherit linux-show-player cynthion;};
+        playground = {inherit linux-show-player cynthion ryzen-monitor-ng;};
       };
     in {
       inherit playground;
@@ -52,6 +53,13 @@
       linux-show-player =
         pkgs.mkShell {packages = with pkgs; [linux-show-player];};
       memtimings-linux = pkgs.mkShell {packages = [memtimings-linux];};
+      ryzen-monitor-ng = pkgs.mkShell {
+        inputsFrom = [ryzen-monitor-ng];
+        shellHook = ''
+          echo "📦 Ready to debug phases"
+          echo "Run: configurePhase, buildPhase, installPhase, etc."
+        '';
+      };
       # windscribe = let
       #   cli = with pkgs; [dpkg openvpn stunnel];
       #   desktop = with pkgs; [];
