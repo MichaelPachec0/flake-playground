@@ -32,17 +32,18 @@
       ryzen-monitor-ng = pkgs.callPackage ./nix/pkgs/ryzen-monitor-ng { };
       ursh = pkgs.callPackage ./nix/pkgs/ursh { };
       urchin = pkgs.callPackage ./nix/pkgs/ursh/urchin.nix { inherit pyproject-nix;};
+      llcat = pkgs.callPackage ./nix/pkgs/ursh/llcat.nix { inherit pyproject-nix;};
     in {
       packages = {
         x86_64-linux = {
           inherit linux-show-player cynthion memtimings-linux ryzen-monitor-ng
-            ursh urchin;
+            ursh urchin llcat;
         };
       };
       overlays = let
         playground = final: prev: {
           playground = {
-            inherit linux-show-player cynthion ryzen-monitor-ng ursh urchin;
+            inherit linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
           };
         };
       in {
