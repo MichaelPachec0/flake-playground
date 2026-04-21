@@ -64,6 +64,11 @@
       setuptools
       setuptools-git-versioning
     ];
+
+    postPatch = ''
+      substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" \
+    '';
   };
   luna-usb = python3.pkgs.buildPythonPackage rec {
     pname = "luna-usb";
@@ -91,6 +96,10 @@
         usb-protocol
         amaranth
       ];
+    postPatch = ''
+      substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" \
+    '';
   };
   apollo-fpga = python3.pkgs.buildPythonPackage rec {
     pname = "apollo-fpga";
@@ -136,6 +145,10 @@
       setuptools
       setuptools-git-versioning
     ];
+    postPatch = ''
+      substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" \
+    '';
   };
 in
   python3.pkgs.buildPythonApplication rec {
@@ -146,6 +159,7 @@ in
       hash = "sha256-eFPyoSs1NxzyBBV/7MAuEbo+cPL3jBg4DPVwift6dPw=";
     };
     pyproject = true;
+
     buildInputs = with python3.pkgs; [
       setuptools
       setuptools-git-versioning
@@ -153,16 +167,22 @@ in
     nativeBuildInputs = [
       fwup
     ];
+    pythonRemoveDeps = [ "future" ];
     # NOTE: dont know if postPatch is the right place to do this? There might be a better place to do this.
     postPatch =
       if nixosInstall
       then ''
+        substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" 
         substituteInPlace src/commands/cynthion_setup.py \
         --replace-fail \
               "        _install_udev(args)" \
               "        logging.info(\"✅ NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
       ''
-      else "";
+      else ''
+      substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" \
+      '';
     propagatedBuildInputs =
       [
         usb-protocol
