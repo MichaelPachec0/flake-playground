@@ -107,6 +107,12 @@
     # nativeBuildInputs = with python3.pkgs; [
     #
     # ];
+
+    postPatch = ''
+      substituteInPlace pyproject.toml \
+        --replace-fail '"setuptools-git-versioning<2"' "" \
+        --replace-fail 'dynamic = ["version"]' 'version = "${version}"'
+    '';
     propagatedBuildInputs = with python3.pkgs; [
       pyusb
       pyvcd
