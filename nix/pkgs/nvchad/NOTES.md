@@ -57,28 +57,25 @@ Context: `main` tracks `nixos-unstable` (**neovim 0.12+**); `stable` tracks
 1. **Treesitter is in core.** 0.12 ships the engine + bundled parsers *and*
    queries for **7** languages (`c lua vim vimdoc query markdown
    markdown_inline`) with highlighting on by default. It does **not** bundle
-   other languages - provide those grammars via nix, and **use
-   `nvim-treesitter-legacy`** (what NvChad v2.5 bundles), not the new
-   `nvim-treesitter` (see point 2):
+   other languages - provide those via nix with the **new** `nvim-treesitter`:
 
    ```nix
-   programs.nvchad.extraLazyPlugins = [ pkgs.vimPlugins.nvim-treesitter-legacy.withAllGrammars ];
-   # or a curated subset:
-   #   builtins.attrValues (lib.getAttrs [ "nix" "python" "rust" ]
-   #     pkgs.vimPlugins.nvim-treesitter-legacy.grammarPlugins)
+   programs.nvchad.extraLazyPlugins = [ pkgs.vimPlugins.nvim-treesitter.withAllGrammars ];
    ```
 
-   Mixing the new `nvim-treesitter` with NvChad's bundled
-   `nvim-treesitter-legacy` trips `vimUtils.packDir`'s *"two different versions
-   of nvim-treesitter"* guard. `:TSInstall` is a non-option - the config dir is
-   a read-only nix store path.
+   The default `lazyPlugins` already includes `nvim-treesitter.withAllGrammars`,
+   so you only need this for extras. `:TSInstall` is a non-option - the config
+   dir is a read-only nix store path.
 
-2. **`nvim-treesitter` was archived (2026-04-03); nixpkgs split it.** The old
-   master-branch plugin (with `configs.setup()`) is now
-   **`nvim-treesitter-legacy`** - deprecated, and an *error* in nixpkgs 26.11 -
-   while the main-branch rewrite took the `nvim-treesitter` name. NvChad v2.5
-   depends on `nvim-treesitter-legacy`; its `configs.setup()` still works, but
-   gets no parser updates and is on borrowed time (26.11).
+2. **This set uses the NEW nvim-treesitter.** When `nvim-treesitter` was archived
+   (2026-04-03), nixpkgs split it: the old master-branch plugin (with
+   `configs.setup()`) became `nvim-treesitter-legacy`, and the main-branch
+   rewrite kept the `nvim-treesitter` name. NvChad core `d042cc9` was already
+   rewritten for the new API (`require("nvim-treesitter").install` / `.setup`),
+   so the **`nvchad` package overrides nixpkgs' default `nvim-treesitter-legacy`
+   dependency with the new `nvim-treesitter`**. (Legacy would both trip packDir's
+   *"two different versions of nvim-treesitter"* guard and crash at runtime - it
+   has no `.install`.) No legacy reference, so no nixpkgs 26.11 deadline.
 
 3. **Avoid the core-vs-treesitter parser clash** for the 7 bundled langs. Pick
    one owner:
@@ -110,7 +107,7 @@ Context: `main` tracks `nixos-unstable` (**neovim 0.12+**); `stable` tracks
 ### Future: NvChad v3.0 core
 
 `ui` and `base46` are already on v3.0; only the **core** remains on v2.5 (no
-v3.0 core branch exists yet). When one ships, bump `nvchad` too: that is what
-moves the set off `nvim-treesitter-legacy` onto the new `nvim-treesitter`
-(escaping the nixpkgs 26.11 removal deadline) and onto the 0.12-native
-treesitter setup.
+v3.0 core branch exists yet). The set already uses the new `nvim-treesitter`
+(core d042cc9 was rewritten for it), so a v3.0 core would mainly let us drop the
+remaining nix-specific shims (the hardcoded dep list, the name-fix postPatch).
+Bump `nvchad` when a v3.0 core ships.

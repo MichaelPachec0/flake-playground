@@ -1,48 +1,131 @@
 { config, lib, pkgs, ... }:
 let
-  inherit (lib) mkEnableOption mkOption mkIf types literalExpression;
+  inherit (lib) mkEnableOption mkOption mkIf mkDefault types literalExpression;
   cfg = config.programs.nvchad;
+
+  # The packaged NvChad set (v2.5 core + v3.0 ui/base46 + nvzone). See
+  # ../../pkgs/nvchad. nvchad.all = [ nvchad nvchad-ui base46 minty volt menu ].
   nvchad = pkgs.callPackage ../../pkgs/nvchad { };
+
+  # Grammar parsers for the rtp:append hack below. The NEW main-branch
+  # nvim-treesitter - NvChad core d042cc9 uses its .install/.setup API, and the
+  # nvchad package swaps its legacy dep for this one.
+  treesitterDeps = pkgs.symlinkJoin {
+    name = "treesitter-dependencies";
+    paths = pkgs.vimPlugins.nvim-treesitter.withAllGrammars.dependencies;
+  };
 in {
   options.programs.nvchad = {
-    enable = mkEnableOption "NvChad plugin set + neovim (you manage init/config in ~/.config/nvim)";
+    enable = mkEnableOption "NvChad";
 
     package = mkOption {
       type = types.package;
-      default = pkgs.neovim;
-      defaultText = literalExpression "pkgs.neovim";
+      default = pkgs.neovim-unwrapped;
+      defaultText = literalExpression "pkgs.neovim-unwrapped";
       description = ''
-        The neovim package to install. Pick whichever version/build you want
-        (e.g. pkgs.neovim, a pinned neovim, or a custom wrapNeovim build).
+        The (unwrapped) neovim package, fed to programs.neovim.package. Also used
+        to strip neovim's bundled treesitter parsers from the runtimepath: they
+        live in ''${package}/lib/nvim and clash with the grammars we ship.
       '';
     };
 
     lazyPlugins = mkOption {
-      type = types.listOf types.package;
-      default = nvchad.all;
-      defaultText = literalExpression "nvchad.all  # base46, nvchad-ui, nvchad, minty, volt, menu";
+      type = with types; listOf package;
+      default =
+        (with pkgs.vimPlugins; [
+          cmp-async-path
+          cmp-buffer
+          cmp-nvim-lsp
+          cmp-nvim-lua
+          cmp-path
+          cmp_luasnip
+          comment-nvim
+          friendly-snippets
+          gitsigns-nvim
+          indent-blankline-nvim
+          luasnip
+          nvim-autopairs
+          nvim-cmp
+          nvim-colorizer-lua
+          nvim-lspconfig
+          nvim-tree-lua
+          nvim-web-devicons
+          nvterm
+          telescope-nvim
+          which-key-nvim
+          # NvChad's default config uses these
+          better-escape-nvim
+          conform-nvim
+          # NEW nvim-treesitter (NvChad core d042cc9 calls its .install/.setup
+          # API). The nvchad package swaps its legacy dep for this, so there is
+          # no "two versions of nvim-treesitter" packDir clash.
+          nvim-treesitter.withAllGrammars
+        ])
+        # base46, nvchad-ui, nvchad, minty, volt, menu - our pinned set.
+        ++ nvchad.all;
+      defaultText = literalExpression "<NvChad plugin set>";
       description = ''
-        Plugins materialised into the lazy.nvim local search path
-        (~/.config/nvim/lazyPlugins/pack/lazyPlugins/start). Defaults to the
-        full NvChad set; override to swap pieces out.
+        Neovim plugins required by NvChad, made available to lazy.nvim's local
+        plugins search path (~/.config/nvim/lazyPlugins/pack/lazyPlugins/start).
+        Normally you don't need to change this option.
+      '';
+    };
+
+    extraEarlyPlugins = mkOption {
+      type = with types; listOf package;
+      default = [ ];
+      example = literalExpression ''
+        with pkgs.vimPlugins; [
+          fidget-nvim
+        ]
+      '';
+      description = ''
+        Extra plugins to load along with the usual nvchad ones. These are NOT
+        lazy loaded (they go on programs.neovim.plugins), so use sparingly.
       '';
     };
 
     extraLazyPlugins = mkOption {
-      type = types.listOf types.package;
+      type = with types; listOf package;
       default = [ ];
-      example = literalExpression "[ pkgs.vimPlugins.nvim-treesitter.withAllGrammars ]";
+      example = literalExpression ''
+        with pkgs.vimPlugins; [
+          neogit
+          null-ls-nvim
+        ]
+      '';
       description = ''
-        Extra plugins added to the lazy.nvim local search path, e.g. treesitter
-        grammars or plugins you reference from your own NvChad config.
+        Extra plugins added to lazy.nvim's local search path. If you follow
+        <https://nvchad.com/docs/config/plugins> to set up additional plugins,
+        use this to avoid lazy.nvim downloading them.
       '';
     };
   };
 
   config = mkIf cfg.enable {
-    home.packages = [ cfg.package ];
     xdg.configFile."nvim/lazyPlugins".source = pkgs.vimUtils.packDir {
-      lazyPlugins.start = cfg.lazyPlugins ++ cfg.extraLazyPlugins;
+      lazyPlugins = {
+        start = cfg.lazyPlugins ++ cfg.extraLazyPlugins;
+      };
+    };
+
+    # Replaces the old programs.nixneovim wrapper with home-manager's stock
+    # programs.neovim. extraEarlyPlugins -> non-lazy plugins; extraPackages and
+    # the lua prelude carry over from the nixneovim config.
+    programs.neovim = {
+      enable = true;
+      package = cfg.package;
+      extraPackages = [ pkgs.ripgrep ];
+      plugins = [ nvchad.base46 pkgs.vimPlugins.lazy-nvim ] ++ cfg.extraEarlyPlugins;
+      extraLuaConfig = mkDefault ''
+        -- HACK: remove the default nvim parsers, they clash with treesitter.
+        vim.opt.rtp:remove("${cfg.package}/lib/nvim")
+        dofile(vim.fn.stdpath "config" .. "/init_nv.lua")
+        -- HACK: make sure treesitter's grammar parsers are in view. lazy.nvim
+        -- clears rtp by default, so this must be appended last; the alternative
+        -- is loading treesitter non-lazy, which murders startup time.
+        vim.opt.rtp:append("${treesitterDeps}")
+      '';
     };
   };
 }

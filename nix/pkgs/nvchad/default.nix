@@ -79,6 +79,21 @@ in rec {
       rev = "d042cc975247c2aa55fcb228e5d146dc1dc6c648";
       hash = "sha256-WNQMaM5EQBRQC9JfvEIgFhn3K5n8q0YeiJ9NdG3E+z4=";
     };
+    # Core d042cc9 uses the NEW nvim-treesitter API
+    # (require("nvim-treesitter").install / .setup via lazy), so it must NOT get
+    # nixpkgs' default nvim-treesitter-legacy dependency. Hardcode the dep list
+    # (mirrors nixpkgs' nvchad deps with legacy -> nvim-treesitter) so the
+    # deprecated legacy plugin is never referenced. Update if nixpkgs changes
+    # nvchad's deps. Grammars are supplied by the module's lazyPlugins.
+    dependencies = (with vimPlugins; [
+      gitsigns-nvim
+      luasnip
+      mason-nvim
+      nvim-cmp
+      nvim-lspconfig
+      telescope-nvim
+      nvim-treesitter
+    ]) ++ [ nvchad-ui ];
     # nix-specific plugin-name fixes (nixpkgs ships these as `luasnip` and
     # `nvchad-ui`); still present in v2.5 HEAD's lua/nvchad/plugins/init.lua.
     postPatch = ''
