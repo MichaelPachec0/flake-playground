@@ -168,6 +168,10 @@ in
       fwup
     ];
     pythonRemoveDeps = [ "future" ];
+    # nixpkgs-unstable ships pygreat 2026.x; cynthion 0.1.8 pins pygreat~=2024.0.
+    # Relax the bound so pythonRuntimeDepsCheck passes (on `stable`/25.11 the
+    # versions still line up, so this is a no-op there).
+    pythonRelaxDeps = [ "pygreat" ];
     # NOTE: dont know if postPatch is the right place to do this? There might be a better place to do this.
     postPatch =
       if nixosInstall
