@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "cspell-dicts": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781592513,
+        "narHash": "sha256-QkQI3WYrZRhjzFIIVaHfyG7pU5jxH2tY1Eph3foCL/A=",
+        "owner": "streetsidesoftware",
+        "repo": "cspell-dicts",
+        "rev": "e4f4a293503d15d1739b1d3e88717d72ab6fa16b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "streetsidesoftware",
+        "repo": "cspell-dicts",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -55,6 +71,7 @@
     },
     "root": {
       "inputs": {
+        "cspell-dicts": "cspell-dicts",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "pyproject-nix": "pyproject-nix"

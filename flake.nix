@@ -11,6 +11,11 @@
       url = "github:nix-community/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Dictionary packs for the cspell home-manager module (plain source tree).
+    cspell-dicts = {
+      url = "github:streetsidesoftware/cspell-dicts";
+      flake = false;
+    };
 
   };
   outputs = { self, nixpkgs, pyproject-nix, ... }@inputs:
@@ -70,8 +75,9 @@
       };
       homeManagerModules = let
         nvchad = import ./nix/modules/nvchad;
+        cspell = import ./nix/modules/cspell inputs;
       in {
-        inherit nvchad;
+        inherit nvchad cspell;
         default = nvchad;
       };
       devShells.x86_64-linux = {
