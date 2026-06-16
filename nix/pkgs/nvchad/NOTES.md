@@ -9,48 +9,45 @@ Covers the NvChad set packaged in `default.nix` (`nvchad`, `nvchad-ui`,
 | plugin      | repo            | branch     | rev (short) | date       |
 |-------------|-----------------|------------|-------------|------------|
 | `nvchad`    | `NvChad/NvChad` | `v2.5`     | `d042cc9`   | 2026-04-13 |
-| `nvchad-ui` | `NvChad/ui`     | (off-tip)  | `adcc97d`   | 2025-01-15 |
-| `base46`    | `NvChad/base46` | `v2.5`     | `fde7a2c`   | 2025-01-17 |
+| `nvchad-ui` | `NvChad/ui`     | `v3.0`     | `3e67e9d`   | 2026-05-10 |
+| `base46`    | `NvChad/base46` | `v3.0`     | `884b990`   | 2026-01-16 |
 | `volt`      | `nvzone/volt`   | `main`     | `620de13`   | 2025-09-13 |
 | `minty`     | `nvzone/minty`  | `main`     | `aafc9e8`   | 2025-02-28 |
 | `menu`      | `nvzone/menu`   | `main`     | `7a0a4a2`   | 2025-06-01 |
 
 Key decisions:
 
-- **Stay on the NvChad v2.5 line.** There is no v3.0 *core* yet -
-  `NvChad/NvChad` tops out at `v2.5`/`dev`, and `dev` is byte-identical to
-  `v2.5`. The `ui`/`base46` `v3.0` branches are ahead of any released core, so
-  bundling them would orphan them against a v2.5 core. Revisit when a v3.0 core
-  ships (see bottom).
+- **Mixed set: core on v2.5, ui + base46 on v3.0.** `NvChad/NvChad` has no v3.0
+  branch yet (it tops out at `v2.5`/`dev`, which are byte-identical), but the
+  `ui` and `base46` repos have moved to `v3.0`, and v3.0 ui/base46 are
+  backward-compatible with the v2.5 core - verified on neovim 0.12: the set
+  builds, loads, and `list_themes` finds all 94 themes. nixpkgs-unstable itself
+  tracks v3.0 for ui/base46.
 - **The core was the only 0.12 break.** Older `nvchad` revs used APIs neovim
   0.12 removed (`vim.tbl_islist`, the legacy `nvim-treesitter.configs.setup`,
-  ...). Core **v2.5 HEAD (2026-04-13)** dropped them - that is the 0.12 fix. `ui`
-  and `base46` were already 0.12-clean (they use `vim.uv`, etc.).
-- **`nvchad-ui` stays at `adcc97d`.** It is *newer* than the current v2.5 branch
-  tip (NvChad reset `v2.5` backward), and the tip (`e0f06a9`, 2024-09-30) fails
-  `nvim-require-check`. `adcc97d` builds, is 0.12-clean, and pairs with the
-  updated core.
+  ...). Core **v2.5 HEAD (2026-04-13)** dropped them - that is the 0.12 fix.
+- **History note.** The previous ui pin (`adcc97d`, Jan 2025) was *not* a v2.5
+  commit - `git branch --contains` puts it on `v3.0`/`dev` (89 behind the v3.0
+  tip, 201 ahead of the v2.5 tip). It was an early v3.0-line commit all along;
+  this migration just moves ui (and base46) to the current v3.0 tip.
 
 ## Patches
 
 - **`nvchad` `postPatch`** - renames `"L3MON4D3/LuaSnip"` -> `"L3MON4D3/luasnip"`
   and names the `"nvchad/ui"` lazy spec `nvchad-ui` (nixpkgs plugin names).
-- **`nvchad-ui` `postPatch`** (was `ui.patch`) - redirects base46 theme
-  discovery from lazy.nvim's `stdpath "data" .. "/lazy/base46/..."` to our packDir
-  path `stdpath "config" .. "/lazyPlugins/pack/lazyPlugins/start/base46/..."`.
-  Converted from a context `.patch` to `substituteInPlace --replace-fail` so it
-  survives surrounding-line churn and fails loudly if upstream moves the line.
-  (NvChad `ui` **v3.0** computes this path dynamically and would need no patch.)
+- **`nvchad-ui`: no patch.** v3.0 resolves the base46 themes directory
+  dynamically (`debug.getinfo` on the loaded `base46` module), so it finds our
+  packDir copy with no path patch. (The old `ui.patch` / `substituteInPlace`
+  that hardcoded lazy.nvim's `data` path is gone as of the v3.0 bump.)
 
 ## nvim-require-check skips
 
-`buildVimPlugin` require-checks every Lua module at build time. Two can't be:
+`buildVimPlugin` require-checks every Lua module at build time. One is excluded:
 - `menus.neo-tree` (`menu`) - optional `neo-tree.nvim` integration we don't
   bundle.
-- `nvchad.tabufline.modules` (`nvchad-ui`) - `require("nvconfig")`, your runtime
-  config, never present at build time. **Appended** to the base derivation's
-  skip list (`(old.nvimSkipModules or []) ++ ...`), not replacing it - the base
-  list already covers `term`, `themes`, `cheatsheet`, etc.
+
+(`nvchad-ui` needs no extra skip on v3.0: the base derivation's own
+`nvimSkipModules` already covers its `nvconfig`-only modules.)
 
 ## neovim 0.11 -> 0.12 migration
 
@@ -110,10 +107,10 @@ Context: `main` tracks `nixos-unstable` (**neovim 0.12+**); `stable` tracks
 6. **`vim.pack`** (native plugin manager) exists but we keep lazy.nvim via the
    packDir; no change needed.
 
-### Future: NvChad v3.0
+### Future: NvChad v3.0 core
 
-When a v3.0 **core** ships, the cleaner 0.12-native path opens: `ui` v3.0
-already resolves the base46 path dynamically (drop the `nvchad-ui` postPatch),
-and the set moves off `nvim-treesitter-legacy` onto the new `nvim-treesitter`,
-escaping the nixpkgs 26.11 removal deadline. Bump all three NvChad repos to v3.0
-**together** - never mix v3.0 `ui`/`base46` with a v2.5 core.
+`ui` and `base46` are already on v3.0; only the **core** remains on v2.5 (no
+v3.0 core branch exists yet). When one ships, bump `nvchad` too: that is what
+moves the set off `nvim-treesitter-legacy` onto the new `nvim-treesitter`
+(escaping the nixpkgs 26.11 removal deadline) and onto the 0.12-native
+treesitter setup.

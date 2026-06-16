@@ -45,45 +45,31 @@ in rec {
     nvimSkipModules = [ "menus.neo-tree" ];
   };
 
-  # NvChad v2.5 line. The core (NvChad/NvChad) is the piece that regressed on
-  # neovim 0.12 - older revs used removed APIs (vim.tbl_islist, the legacy
-  # nvim-treesitter configs.setup, etc.). v2.5 HEAD (2026-04-13) dropped them.
-  # ui/base46 v2.5 are stable and already 0.12-clean. See ./NOTES.md.
+  # NvChad set: the core stays on v2.5 (the only repo that regressed on neovim
+  # 0.12 - v2.5 HEAD 2026-04-13 dropped vim.tbl_islist / the legacy
+  # nvim-treesitter configs.setup), while ui + base46 track the v3.0 line. The
+  # v2.5 core and v3.0 ui/base46 are verified compatible on 0.12 (the prior ui
+  # pin adcc97d was itself an early v3.0-line commit). See ./NOTES.md.
   base46 = vimPlugins.base46.overrideAttrs (old: {
-    version = "2.5-unstable-2025-01-17";
+    version = "3.0-unstable-2026-01-16";
     src = fetchFromGitHub {
       inherit (old.src) owner repo;
-      rev = "fde7a2cd54599e148d376f82980407c2d24b0fa2";
-      hash = "sha256-Pw/tH69xkk0+HKiWSbTHsBIR904IGDO48TlufM1rkoM=";
+      rev = "884b990dcdbe07520a0892da6ba3e8d202b46337";
+      hash = "sha256-AUdBZbGcPDtixHMFms9Y0EyUdAXOzvcA2AbrRdYQ4ig=";
     };
   });
 
-  # ui stays at this rev: it's NEWER than the current v2.5 branch tip (NvChad
-  # reset v2.5 backward) and the older tip fails nixpkgs' nvim-require-check
-  # (nvchad.nvdash.init). This rev builds, is 0.12-clean, and pairs with the
-  # updated core. See ./NOTES.md.
+  # ui on the v3.0 tip. v3.0 resolves the base46 themes path dynamically
+  # (debug.getinfo on the loaded base46 module), so it needs no theme-path
+  # patch, and the base derivation's nvimSkipModules already covers its
+  # nvconfig-only modules - hence a minimal override.
   nvchad-ui = vimPlugins.nvchad-ui.overrideAttrs (old: {
-    version = "2.5-unstable-2025-01-15";
+    version = "3.0-unstable-2026-05-10";
     src = fetchFromGitHub {
       inherit (old.src) owner repo;
-      rev = "adcc97d7c7b97d3527a31338615751d2503fe0a4";
-      hash = "sha256-lwFWqJy0yR/wGOF3T2yO9ZiIuBTIGcWr06G0510G+/k=";
+      rev = "3e67e9d5325fd47fdbc90ca00a147db2f3525754";
+      hash = "sha256-bl2erzyZCZp9seb4E7o/SFsBUHwocVOmQNv0mbO5yR0=";
     };
-    # tabufline/modules.lua require("nvconfig") - nvconfig is your runtime
-    # NvChad config, never present at build time. Append (don't replace) the
-    # base derivation's skip list, which already covers the other nvconfig-only
-    # modules (term, themes, cheatsheet, ...).
-    nvimSkipModules = (old.nvimSkipModules or [ ]) ++ [ "nvchad.tabufline.modules" ];
-    # Redirect base46 theme discovery from lazy.nvim's data path to our packDir
-    # location. Done as substituteInPlace (not a .patch) so it survives
-    # surrounding-context churn; --replace-fail trips loudly if upstream changes
-    # the line (e.g. ui v3.0 computes this path dynamically and needs no patch).
-    postPatch = ''
-      substituteInPlace lua/nvchad/utils.lua \
-        --replace-fail \
-          'vim.fn.stdpath "data" .. "/lazy/base46/lua/base46/themes"' \
-          'vim.fn.stdpath "config" .. "/lazyPlugins/pack/lazyPlugins/start" .. "/base46/lua/base46/themes"'
-    '';
   });
 
   nvchad = vimPlugins.nvchad.overrideAttrs (old: {
