@@ -1,8 +1,11 @@
 {
   inputs = {
+    # Branch strategy (see README.md):
+    #   main/master -> nixos-unstable  (neovim 0.12+, latest pkgs)
+    #   stable      -> nixos-25.11     (neovim 0.11.x)
     # old nixpkgs
     # github:NixOS/nixpkgs/0b73e36b1962620a8ac551a37229dd8662dac5c8?narHash=sha256-wjWLzdM7PIq4ZAe7k3vyjtgVJn6b0UeodtRFlM/6W5U%3D
-    nixpkgs.url = "nixpkgs/nixos-25.11";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     pyproject-nix = {
       url = "github:nix-community/pyproject.nix";
