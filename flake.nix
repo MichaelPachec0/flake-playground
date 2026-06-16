@@ -33,17 +33,21 @@
       ursh = pkgs.callPackage ./nix/pkgs/ursh { };
       urchin = pkgs.callPackage ./nix/pkgs/ursh/urchin.nix { inherit pyproject-nix;};
       llcat = pkgs.callPackage ./nix/pkgs/ursh/llcat.nix { inherit pyproject-nix;};
+      nvchadPlugins = pkgs.callPackage ./nix/pkgs/nvchad { };
     in {
       packages = {
         x86_64-linux = {
           inherit linux-show-player cynthion memtimings-linux ryzen-monitor-ng
             ursh urchin llcat;
+          inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
         };
       };
       overlays = let
         playground = final: prev: {
           playground = {
             inherit linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
+            # nvchad set: pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}
+            nvchad = nvchadPlugins;
           };
         };
       in {
@@ -60,6 +64,12 @@
         # default = pkgs.lib.mkMerge [cynthion realsense zsa];
 
         default = import ./nix/modules inputs;
+      };
+      homeManagerModules = let
+        nvchad = import ./nix/modules/nvchad;
+      in {
+        inherit nvchad;
+        default = nvchad;
       };
       devShells.x86_64-linux = {
       cynthion =
