@@ -14,6 +14,13 @@ stdenv.mkDerivation rec {
     rev = "d0cb4d2ce6f8434c242e7bb0ccb78fa48482c53d";
     hash = "sha256-2zm89j4becgKgQCaeaE4xlXbVhhiE5BI/DGdGvbIS50=";
   };
+  # x86 variable shift takes its count in %cl, not %ecx; newer binutils (gas, on
+  # nixos-unstable) rejects `shll %ecx, %edx`. Upstream bug - the value is
+  # unaffected (%cl is %ecx's low byte and the count here is 0-31).
+  postPatch = ''
+    substituteInPlace timings.c \
+      --replace-fail '%%ecx, %%edx' '%%cl, %%edx'
+  '';
   buildPhase = ''
     runHook preBuild
     gcc -o timings timings.c
@@ -25,7 +32,7 @@ stdenv.mkDerivation rec {
     chmod +x timingsaddon.sh
     cp timingsaddon.sh $out/bin
     cp timings $out/bin
-    ruhHook postInstall
+    runHook postInstall
   '';
 
 
