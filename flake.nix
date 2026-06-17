@@ -42,6 +42,9 @@
       urchin = pkgs.callPackage ./nix/pkgs/ursh/urchin.nix { inherit pyproject-nix;};
       llcat = pkgs.callPackage ./nix/pkgs/ursh/llcat.nix { inherit pyproject-nix;};
       nvchadPlugins = pkgs.callPackage ./nix/pkgs/nvchad { };
+      # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
+      customVimPlugins = import ./nix/pkgs/vimPlugins { inherit pkgs; };
+      nvimLoads = import ./nix/tests/nvim-loads.nix { inherit pkgs; };
     in {
       packages = {
         x86_64-linux = {
@@ -49,6 +52,19 @@
             ursh urchin llcat;
           inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
         };
+      };
+
+      # Nested tree of the migrated custom plugins; build one with e.g.
+      #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
+      legacyPackages.x86_64-linux.vimPlugins = customVimPlugins;
+
+      # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
+      # (each runs its own nvim-require-check); `nvim-loads` boots headless nvim
+      # with the whole set. The daily nvfetcher bump only commits if these pass.
+      checks.x86_64-linux = {
+        nvim-loads = nvimLoads;
+        vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
+        default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ [nvimLoads]);
       };
       overlays = let
         playground = final: prev: {
@@ -58,8 +74,14 @@
             nvchad = nvchadPlugins;
           };
         };
+        # Inject the migrated custom vim plugins into pkgs.vimPlugins. Drop-in for
+        # nix-config's old `local` overlay, so `pkgs.vimPlugins.<name>` keeps
+        # resolving for consumers.
+        vimPlugins = final: prev: {
+          vimPlugins = prev.vimPlugins // (import ./nix/pkgs/vimPlugins {pkgs = prev;});
+        };
       in {
-        inherit playground;
+        inherit playground vimPlugins;
         default = playground;
       };
       nixosModules = let
@@ -81,6 +103,8 @@
         default = nvchad;
       };
       devShells.x86_64-linux = {
+        # `nix develop` -> nvfetcher for regenerating nix/pkgs/vimPlugins/_sources.
+        default = pkgs.mkShell {packages = [pkgs.nvfetcher];};
       cynthion =
         pkgs.mkShell {packages = [cynthion];};
         linux-show-player =

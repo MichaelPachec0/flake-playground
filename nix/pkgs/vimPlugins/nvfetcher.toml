@@ -1,0 +1,117 @@
+# Sources for the custom neovim plugins, tracked by nvfetcher.
+#
+# Each entry tracks the latest commit on the upstream default branch; the daily
+# `update.yml` workflow re-runs nvfetcher, rebuilds `checks.default` (which boots
+# headless nvim with the set), and only commits the regenerated `_sources/` when
+# that passes. Regenerate locally with:
+#
+#   nix develop -c nvfetcher -c nix/pkgs/vimPlugins/nvfetcher.toml -o nix/pkgs/vimPlugins/_sources
+#
+# NOTE: the NvChad set (nix/pkgs/nvchad) is intentionally NOT tracked here - its
+# revs are hand-pinned for the v2.5-core / v3.0-ui compat documented in
+# nix/pkgs/nvchad/NOTES.md. It could be migrated under nvfetcher later if that
+# pinning is relaxed.
+
+[blockNvim]
+src.git = "https://github.com/HampusHauffman/block.nvim"
+fetch.git = "https://github.com/HampusHauffman/block.nvim"
+
+[clearActionNvim]
+src.git = "https://github.com/luckasRanarison/clear-action.nvim"
+fetch.git = "https://github.com/luckasRanarison/clear-action.nvim"
+
+[cocElixir]
+src.git = "https://github.com/elixir-lsp/coc-elixir"
+fetch.git = "https://github.com/elixir-lsp/coc-elixir"
+
+[cocLightbulb]
+src.git = "https://github.com/xiyaowong/coc-lightbulb-"
+fetch.git = "https://github.com/xiyaowong/coc-lightbulb-"
+
+[cspellNvim]
+src.git = "https://github.com/davidmh/cspell.nvim"
+fetch.git = "https://github.com/davidmh/cspell.nvim"
+
+[gitNvim]
+src.git = "https://github.com/dinhhuy258/git.nvim"
+fetch.git = "https://github.com/dinhhuy258/git.nvim"
+
+[guihuaLua]
+src.git = "https://github.com/ray-x/guihua.lua"
+fetch.git = "https://github.com/ray-x/guihua.lua"
+
+[indentmini]
+src.git = "https://github.com/nvimdev/indentmini.nvim"
+fetch.git = "https://github.com/nvimdev/indentmini.nvim"
+
+[inlayHints]
+src.git = "https://github.com/simrat39/inlay-hints.nvim"
+fetch.git = "https://github.com/simrat39/inlay-hints.nvim"
+
+[kittyScrollback]
+src.git = "https://github.com/mikesmithgh/kitty-scrollback.nvim"
+fetch.git = "https://github.com/mikesmithgh/kitty-scrollback.nvim"
+
+[miniMove]
+src.git = "https://github.com/echasnovski/mini.move"
+fetch.git = "https://github.com/echasnovski/mini.move"
+
+[neoai]
+src.git = "https://github.com/bryley/neoai.nvim"
+fetch.git = "https://github.com/bryley/neoai.nvim"
+
+[neotestGtest]
+src.git = "https://github.com/alfaix/neotest-gtest"
+fetch.git = "https://github.com/alfaix/neotest-gtest"
+
+[noneLsExtras]
+src.git = "https://github.com/nvimtools/none-ls-extras.nvim"
+fetch.git = "https://github.com/nvimtools/none-ls-extras.nvim"
+
+[noneLs]
+src.git = "https://github.com/nvimtools/none-ls.nvim"
+fetch.git = "https://github.com/nvimtools/none-ls.nvim"
+
+[nvimDapReplHighlights]
+src.git = "https://github.com/LiadOz/nvim-dap-repl-highlights"
+fetch.git = "https://github.com/LiadOz/nvim-dap-repl-highlights"
+
+[nvimEmmet]
+src.git = "https://github.com/olrtg/nvim-emmet"
+fetch.git = "https://github.com/olrtg/nvim-emmet"
+
+[oneSmallStep]
+src.git = "https://github.com/jbyuki/one-small-step-for-vimkind"
+fetch.git = "https://github.com/jbyuki/one-small-step-for-vimkind"
+
+[pfpVim]
+src.git = "https://github.com/d0c-s4vage/pfp-vim"
+fetch.git = "https://github.com/d0c-s4vage/pfp-vim"
+
+[sgNvim]
+src.git = "https://github.com/sourcegraph/sg.nvim"
+fetch.git = "https://github.com/sourcegraph/sg.nvim"
+
+[stayCentered]
+src.git = "https://github.com/arnamak/stay-centered.nvim"
+fetch.git = "https://github.com/arnamak/stay-centered.nvim"
+
+[telescopeDocker]
+src.git = "https://github.com/lpoto/telescope-docker.nvim"
+fetch.git = "https://github.com/lpoto/telescope-docker.nvim"
+
+[tsSoftwareLicenses]
+src.git = "https://github.com/chip/telescope-software-licenses.nvim"
+fetch.git = "https://github.com/chip/telescope-software-licenses.nvim"
+
+[vimBeGood]
+src.git = "https://github.com/ThePrimeagen/vim-be-good"
+fetch.git = "https://github.com/ThePrimeagen/vim-be-good"
+
+[virtColumn]
+src.git = "https://github.com/lukas-reineke/virt-column.nvim"
+fetch.git = "https://github.com/lukas-reineke/virt-column.nvim"
+
+[wtfNvim]
+src.git = "https://github.com/piersolenski/wtf.nvim"
+fetch.git = "https://github.com/piersolenski/wtf.nvim"
