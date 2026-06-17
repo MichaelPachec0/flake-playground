@@ -93,13 +93,13 @@ Build one with `nix build .#legacyPackages.x86_64-linux.vimPlugins.<name>`.
 | `zsa` | `hardware.zsa.{wally,oryx,legacy}.enable` | udev rules for ZSA keyboards (Moonlander, Ergodox EZ, Planck EZ). |
 | `hyprpolkitagent` | `services.hyprpolkitagent.enable` | systemd user service running the hypr polkit agent. |
 
-`default` imports all four modules above (from `nix/modules/default.nix`); enable
-only the ones you want, since each module's config is gated behind its own
+`default` imports all four modules above (from `nix/modules/nixos/default.nix`);
+enable only the ones you want, since each module's config is gated behind its own
 enable option.
 
 ### `homeManagerModules`
 
-- `nvchad` (also `default`) - `programs.nvchad`. Installs neovim through
+- `nvchad` - `programs.nvchad`. Installs neovim through
   `programs.neovim` and materializes the NvChad plugin set into a lazy.nvim local
   packdir at `~/.config/nvim/lazyPlugins`. Options:
   - `enable`
@@ -114,6 +114,9 @@ enable option.
     `xdg.configFile`.
 - `cspell` - `programs.cspell`. Writes `~/.config/cspell/cspell.json`, importing
   the dictionary packs from the `cspell-dicts` input.
+
+`default` imports both modules above (from
+`nix/modules/home-manager/default.nix`).
 
 ### `devShells.x86_64-linux`
 
@@ -162,8 +165,10 @@ nix/pkgs/                      package definitions (callPackage style)
   ursh/                        ursh (Go), urchin + llcat (Python via pyproject-nix)
   nvchad/                      NvChad plugin set + NOTES.md (0.11 -> 0.12 notes)
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
-nix/modules/                  cynthion, realsense, zsa, hyprpolkitagent (NixOS);
-                              nvchad, cspell (home-manager); tuwunel (see gaps)
+nix/modules/
+  nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel;
+                               default.nix imports all but tuwunel (see gaps)
+  home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
 .github/workflows/            CI: pr.yaml, update.yml, update-flake-lock.yml
 ```
@@ -202,9 +207,9 @@ nix/tests/nvim-loads.nix      headless-nvim integration smoke test
 
 - `x86_64-linux` only; the system is hardcoded in `flake.nix`.
 - `allowUnfree = true` is set inside the flake.
-- `nix/modules/tuwunel` (a NixOS module for the tuwunel Matrix server, option
-  `services.matrix-tuwunel.enable`) is present in the tree but is not yet wired
-  into the `nixosModules` output.
+- `nix/modules/nixos/tuwunel` (a NixOS module for the tuwunel Matrix server,
+  option `services.matrix-tuwunel.enable`) is present in the tree but is not yet
+  wired into the `nixosModules` output or the `nixos` aggregate.
 
 ## License
 

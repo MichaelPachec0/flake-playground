@@ -85,22 +85,22 @@
         default = playground;
       };
       nixosModules = let
-        cynthion = import ./nix/modules/cynthion inputs;
-        realsense = import ./nix/modules/realsense inputs;
-        zsa = import ./nix/modules/zsa inputs;
-        hyprpolkitagent = import ./nix/modules/hyprpolkitagent;
+        cynthion = import ./nix/modules/nixos/cynthion inputs;
+        realsense = import ./nix/modules/nixos/realsense inputs;
+        zsa = import ./nix/modules/nixos/zsa inputs;
+        hyprpolkitagent = import ./nix/modules/nixos/hyprpolkitagent;
       in {
         inherit cynthion realsense zsa hyprpolkitagent;
-        # default = pkgs.lib.mkMerge [cynthion realsense zsa];
-
-        default = import ./nix/modules inputs;
+        # default imports every NixOS module under nix/modules/nixos.
+        default = import ./nix/modules/nixos inputs;
       };
       homeManagerModules = let
-        nvchad = import ./nix/modules/nvchad;
-        cspell = import ./nix/modules/cspell inputs;
+        nvchad = import ./nix/modules/home-manager/nvchad;
+        cspell = import ./nix/modules/home-manager/cspell inputs;
       in {
         inherit nvchad cspell;
-        default = nvchad;
+        # default imports every home-manager module under nix/modules/home-manager.
+        default = import ./nix/modules/home-manager inputs;
       };
       devShells.x86_64-linux = {
         # `nix develop` -> nvfetcher for regenerating nix/pkgs/vimPlugins/_sources.
