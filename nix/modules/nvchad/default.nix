@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 let
-  inherit (lib) mkEnableOption mkOption mkIf mkDefault types literalExpression;
+  inherit (lib) mkEnableOption mkOption mkIf types literalExpression;
   cfg = config.programs.nvchad;
 
   # The packaged NvChad set (v2.5 core + v3.0 ui/base46 + nvzone). See
@@ -100,6 +100,31 @@ in {
         use this to avoid lazy.nvim downloading them.
       '';
     };
+
+    extraEarlyConfig = mkOption {
+      type = types.lines;
+      default = "";
+      example = "vim.g.mapleader = ' '";
+      description = ''
+        Lua placed EARLY in the generated ~/.config/nvim/init.lua - before
+        extraConfig (and before the treesitter rtp:append postlude). For leader
+        keys, options, anything that must run before your plugin bootstrap.
+      '';
+    };
+
+    extraConfig = mkOption {
+      type = types.lines;
+      default = "";
+      example = literalExpression "builtins.readFile ./nv/init.lua";
+      description = ''
+        Lua placed in the generated ~/.config/nvim/init.lua, after
+        extraEarlyConfig. Put your NvChad starter's init bootstrap here (lazy
+        setup, requires, ...). home-manager manages init.lua from initLua, so do
+        not also place your own ~/.config/nvim/init.lua - it would collide. Your
+        starter's lua/ modules are require-able if placed at ~/.config/nvim/lua,
+        e.g. xdg.configFile."nvim/lua".source = ./nv/lua;
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -110,22 +135,29 @@ in {
     };
 
     # Replaces the old programs.nixneovim wrapper with home-manager's stock
-    # programs.neovim. extraEarlyPlugins -> non-lazy plugins; extraPackages and
-    # the lua prelude carry over from the nixneovim config.
+    # programs.neovim. init.lua is assembled as a \n-joined list of strings
+    # (home-manager's initLua is types.lines): the treesitter rtp prelude and
+    # postlude bracket your extraEarlyConfig/extraConfig, and the rtp:append
+    # must stay last (lazy.nvim clears rtp). extraEarlyPlugins -> non-lazy
+    # plugins; extraPackages carries ripgrep.
     programs.neovim = {
       enable = true;
       package = cfg.package;
       extraPackages = [ pkgs.ripgrep ];
       plugins = [ nvchad.base46 pkgs.vimPlugins.lazy-nvim ] ++ cfg.extraEarlyPlugins;
-      extraLuaConfig = mkDefault ''
-        -- HACK: remove the default nvim parsers, they clash with treesitter.
-        vim.opt.rtp:remove("${cfg.package}/lib/nvim")
-        dofile(vim.fn.stdpath "config" .. "/init_nv.lua")
-        -- HACK: make sure treesitter's grammar parsers are in view. lazy.nvim
-        -- clears rtp by default, so this must be appended last; the alternative
-        -- is loading treesitter non-lazy, which murders startup time.
-        vim.opt.rtp:append("${treesitterDeps}")
-      '';
+      initLua = lib.concatStringsSep "\n" [
+        ''
+          -- HACK: remove the default nvim parsers, they clash with treesitter.
+          vim.opt.rtp:remove("${cfg.package}/lib/nvim")
+        ''
+        cfg.extraEarlyConfig
+        cfg.extraConfig
+        ''
+          -- HACK: make sure treesitter's grammar parsers are in view. lazy.nvim
+          -- clears rtp by default, so this must be appended last.
+          vim.opt.rtp:append("${treesitterDeps}")
+        ''
+      ];
     };
   };
 }
