@@ -89,8 +89,9 @@
         realsense = import ./nix/modules/nixos/realsense inputs;
         zsa = import ./nix/modules/nixos/zsa inputs;
         hyprpolkitagent = import ./nix/modules/nixos/hyprpolkitagent;
+        tuwunel = import ./nix/modules/nixos/tuwunel inputs;
       in {
-        inherit cynthion realsense zsa hyprpolkitagent;
+        inherit cynthion realsense zsa hyprpolkitagent tuwunel;
         # default imports every NixOS module under nix/modules/nixos.
         default = import ./nix/modules/nixos inputs;
       };

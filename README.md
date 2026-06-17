@@ -92,8 +92,9 @@ Build one with `nix build .#legacyPackages.x86_64-linux.vimPlugins.<name>`.
 | `realsense` | `hardware.realsense.{enable,gui.enable,cli.enable}` | udev rules for Intel RealSense cameras, plus `librealsense` (gui or cli build). |
 | `zsa` | `hardware.zsa.{wally,oryx,legacy}.enable` | udev rules for ZSA keyboards (Moonlander, Ergodox EZ, Planck EZ). |
 | `hyprpolkitagent` | `services.hyprpolkitagent.enable` | systemd user service running the hypr polkit agent. |
+| `tuwunel` | `services.tuwunel.enable` | systemd service for the tuwunel Matrix server (`pkgs.matrix-tuwunel`). `registration_token_file` is loaded as a systemd credential and the generated config points at it. |
 
-`default` imports all four modules above (from `nix/modules/nixos/default.nix`);
+`default` imports all five modules above (from `nix/modules/nixos/default.nix`);
 enable only the ones you want, since each module's config is gated behind its own
 enable option.
 
@@ -166,8 +167,8 @@ nix/pkgs/                      package definitions (callPackage style)
   nvchad/                      NvChad plugin set + NOTES.md (0.11 -> 0.12 notes)
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
 nix/modules/
-  nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel;
-                               default.nix imports all but tuwunel (see gaps)
+  nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel
+                               (+ default.nix importing all)
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
 .github/workflows/            CI: pr.yaml, update.yml, update-flake-lock.yml
@@ -207,9 +208,6 @@ nix/tests/nvim-loads.nix      headless-nvim integration smoke test
 
 - `x86_64-linux` only; the system is hardcoded in `flake.nix`.
 - `allowUnfree = true` is set inside the flake.
-- `nix/modules/nixos/tuwunel` (a NixOS module for the tuwunel Matrix server,
-  option `services.matrix-tuwunel.enable`) is present in the tree but is not yet
-  wired into the `nixosModules` output or the `nixos` aggregate.
 
 ## License
 

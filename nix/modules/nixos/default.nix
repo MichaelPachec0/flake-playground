@@ -3,13 +3,14 @@
 # the ones you want - each module's config is gated behind its own enable
 # option, so importing them all is inert until enabled.
 #
-# cynthion/realsense/zsa are `inputs`-prefixed (they reference inputs.self for
-# the packaged tools); hyprpolkitagent is a plain module taking no inputs.
+# cynthion/realsense/zsa/tuwunel are `inputs`-prefixed; hyprpolkitagent is a
+# plain module taking no inputs.
 inputs: {
   imports = [
     (import ./cynthion inputs)
     (import ./realsense inputs)
     (import ./zsa inputs)
     (import ./hyprpolkitagent)
+    (import ./tuwunel inputs)
   ];
 }
