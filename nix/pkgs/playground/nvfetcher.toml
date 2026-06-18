@@ -1,0 +1,16 @@
+# Sources for the "playground" package set, tracked by nvfetcher (mirrors the
+# nix/pkgs/vimPlugins setup). Each entry tracks the latest commit on the
+# upstream default branch; the daily `update-playground.yml` workflow re-runs
+# nvfetcher, rebuilds the `playground` check, and only commits the regenerated
+# `_sources/` when that passes.
+#
+# Regenerate locally with:
+#
+#   nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
+#
+# Per-package build metadata (cargoLock, meta, ...) lives next to default.nix,
+# not here -- this file only pins where the source comes from.
+
+[workstyle]
+src.git = "https://github.com/pierrechevalier83/workstyle"
+fetch.git = "https://github.com/pierrechevalier83/workstyle"

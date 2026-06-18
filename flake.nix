@@ -45,6 +45,9 @@
       # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
       customVimPlugins = import ./nix/pkgs/vimPlugins { inherit pkgs; };
       nvimLoads = import ./nix/tests/nvim-loads.nix { inherit pkgs; };
+      # third-party packages tracked at latest upstream via nvfetcher
+      # (nix/pkgs/playground) -- exposed under the `playground` attrset.
+      playgroundPkgs = import ./nix/pkgs/playground { inherit pkgs; };
     in {
       packages = {
         x86_64-linux = {
@@ -54,9 +57,13 @@
         };
       };
 
-      # Nested tree of the migrated custom plugins; build one with e.g.
+      # Nested trees; build one with e.g.
       #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
-      legacyPackages.x86_64-linux.vimPlugins = customVimPlugins;
+      #   nix build .#legacyPackages.x86_64-linux.playground.workstyle
+      legacyPackages.x86_64-linux = {
+        vimPlugins = customVimPlugins;
+        playground = playgroundPkgs;
+      };
 
       # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
       # (each runs its own nvim-require-check); `nvim-loads` boots headless nvim
@@ -64,7 +71,8 @@
       checks.x86_64-linux = {
         nvim-loads = nvimLoads;
         vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
-        default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ [nvimLoads]);
+        playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundPkgs);
+        default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ (builtins.attrValues playgroundPkgs) ++ [nvimLoads]);
       };
       overlays = let
         playground = final: prev: {
@@ -72,7 +80,9 @@
             inherit linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
             # nvchad set: pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}
             nvchad = nvchadPlugins;
-          };
+          }
+          # nvfetcher-tracked latest-upstream packages: pkgs.playground.workstyle, ...
+          // playgroundPkgs;
         };
         # Inject the migrated custom vim plugins into pkgs.vimPlugins. Drop-in for
         # nix-config's old `local` overlay, so `pkgs.vimPlugins.<name>` keeps

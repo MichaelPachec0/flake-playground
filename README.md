@@ -62,24 +62,43 @@ old overlay, so the `vimPlugins` overlay below is a drop-in replacement.
 
 Build one with `nix build .#legacyPackages.x86_64-linux.vimPlugins.<name>`.
 
+### `legacyPackages.x86_64-linux.playground`
+
+A nested set of third-party packages we want at their latest upstream commit
+rather than the (often stale) nixpkgs revision. Same nvfetcher arrangement as
+`vimPlugins`: sources are tracked in `nix/pkgs/playground/nvfetcher.toml` ->
+`_sources/`, and per-package build metadata lives next to
+`nix/pkgs/playground/default.nix`.
+
+- `workstyle` - pierrechevalier83/workstyle, "workspaces with style" for sway/i3
+  (nixpkgs pins a 2023 revision; this tracks the default branch). Built with
+  `buildRustPackage`; crates.io deps resolve from upstream's `Cargo.lock`
+  (`cargoLock.lockFile`) so a source bump needs no `cargoHash`, and only the
+  `swayipc-rs` git dependency carries a pinned `outputHashes` entry.
+
+Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
+
 ### `checks.x86_64-linux`
 
 - `vimplugins` - a `linkFarm` of every custom plugin. Each plugin runs
   `buildVimPlugin`'s `nvim-require-check` at build time, so a plugin whose Lua
   modules no longer load fails the build.
+- `playground` - a `linkFarm` of every `playground` package, so a source bump
+  that no longer builds fails the build.
 - `nvim-loads` - boots a headless neovim with the whole set on the packpath (the
   NvChad plugins, a representative slice of the runtime plugins the nvchad module
   ships, and every custom plugin) and `pcall(require)`s the framework modules.
   This catches breakage that only appears when the set is loaded together:
   startup-script errors, removed APIs after a source bump, version conflicts.
-- `default` - both of the above. CI builds this.
+- `default` - all of the above. CI builds this.
 
 ### `overlays`
 
 - `playground` (also `default`) - exposes the packages under `pkgs.playground.*`:
   `linux-show-player`, `cynthion`, `ryzen-monitor-ng`, `ursh`, `urchin`, `llcat`,
-  and `nvchad` (the full set, i.e.
-  `pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}`).
+  `nvchad` (the full set, i.e.
+  `pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}`), and the
+  nvfetcher-tracked latest-upstream packages (`workstyle`).
 - `vimPlugins` - merges the custom plugins into `pkgs.vimPlugins`, so
   `pkgs.vimPlugins.<name>` resolves for consumers. This is the drop-in for
   `nix-config`'s old `local` overlay.
@@ -121,7 +140,7 @@ enable option.
 
 ### `devShells.x86_64-linux`
 
-- `default` - `nvfetcher`, for regenerating `nix/pkgs/vimPlugins/_sources`.
+- `default` - `nvfetcher`, for regenerating the `nix/pkgs/{vimPlugins,playground}/_sources`.
 - `cynthion`, `linux-show-player`, `memtimings-linux`, `ryzen-monitor-ng` -
   per-package shells (`ryzen-monitor-ng` uses `inputsFrom` for phase-by-phase
   debugging).
@@ -149,6 +168,9 @@ loads the whole set):
 - `.github/workflows/update.yml` - daily (and on `nvfetcher.toml` changes),
   re-runs nvfetcher, builds the checks, and commits the regenerated `_sources`
   only if they pass.
+- `.github/workflows/update-playground.yml` - the same, for the `playground` set
+  (`nix/pkgs/playground/nvfetcher.toml`); gates its commit on
+  `checks.x86_64-linux.playground`.
 - `.github/workflows/update-flake-lock.yml` - weekly, runs `nix flake update`,
   builds the checks, and commits `flake.lock` only if it passes.
 
@@ -166,12 +188,13 @@ nix/pkgs/                      package definitions (callPackage style)
   ursh/                        ursh (Go), urchin + llcat (Python via pyproject-nix)
   nvchad/                      NvChad plugin set + NOTES.md (0.11 -> 0.12 notes)
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
+  playground/                  latest-upstream pkgs (workstyle): nvfetcher.toml, _sources/, default.nix
 nix/modules/
   nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel
                                (+ default.nix importing all)
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
-.github/workflows/            CI: pr.yaml, update.yml, update-flake-lock.yml
+.github/workflows/            CI: pr.yaml, update.yml, update-playground.yml, update-flake-lock.yml
 ```
 
 ## Consuming this flake
