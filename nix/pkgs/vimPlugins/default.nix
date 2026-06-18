@@ -4,6 +4,11 @@
 #
 # Attribute names match what nix-config's overlay called them, so consuming this
 # set as a `pkgs.vimPlugins` overlay is a drop-in replacement.
+#
+# Once both nvfetcher.toml and default.nix have a plugin set run nvfetch with
+# the new plugin to create the needed code in _sources
+# nix develop -c nvfetcher -c nix/pkgs/vimPlugins/nvfetcher.toml -o nix/pkgs/vimPlugins/_sources -f <plugin>
+# where plugin is the name in nvfetcher.toml
 {pkgs}: let
   inherit (pkgs) vimUtils vimPlugins luajitPackages;
   sources = pkgs.callPackage ./_sources/generated.nix {};
