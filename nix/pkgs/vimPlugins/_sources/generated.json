@@ -99,6 +99,26 @@
         },
         "version": "5feecef8d109f5460c576596aba44a6253127aa4"
     },
+    "direnvVim": {
+        "cargoLock": null,
+        "date": "2023-12-02",
+        "extract": null,
+        "name": "direnvVim",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "rev": "ab2a7e08dd630060cd81d7946739ac7442a4f269",
+            "sha256": "sha256-Lwwm95UEkS8Q0Qsoh10o3sFn48wf7v7eCX/FJJV1HMI=",
+            "sparseCheckout": [],
+            "type": "git",
+            "url": "https://github.com/direnv/direnv.vim"
+        },
+        "version": "ab2a7e08dd630060cd81d7946739ac7442a4f269"
+    },
     "gitNvim": {
         "cargoLock": null,
         "date": "2026-03-08",

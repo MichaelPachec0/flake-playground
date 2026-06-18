@@ -76,6 +76,20 @@
     };
     date = "2025-12-17";
   };
+  direnvVim = {
+    pname = "direnvVim";
+    version = "ab2a7e08dd630060cd81d7946739ac7442a4f269";
+    src = fetchgit {
+      url = "https://github.com/direnv/direnv.vim";
+      rev = "ab2a7e08dd630060cd81d7946739ac7442a4f269";
+      fetchSubmodules = false;
+      deepClone = false;
+      leaveDotGit = false;
+      sparseCheckout = [ ];
+      sha256 = "sha256-Lwwm95UEkS8Q0Qsoh10o3sFn48wf7v7eCX/FJJV1HMI=";
+    };
+    date = "2023-12-02";
+  };
   gitNvim = {
     pname = "gitNvim";
     version = "7cfb3080c68125dbf6b7ee129f3108fdb275c4dd";

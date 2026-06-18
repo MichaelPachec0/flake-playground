@@ -35,6 +35,8 @@ in {
     dependencies = with vimPlugins; [plenary-nvim null-ls-nvim];
   };
 
+  direnv-vim = build "direnv.vim" sources.direnvVim {};
+
   git-nvim = build "git.nvim" sources.gitNvim {};
 
   guihua-lua = build "guihua.lua" sources.guihuaLua {

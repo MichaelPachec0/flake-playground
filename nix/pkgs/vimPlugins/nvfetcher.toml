@@ -32,6 +32,10 @@ fetch.git = "https://github.com/xiyaowong/coc-lightbulb-"
 src.git = "https://github.com/davidmh/cspell.nvim"
 fetch.git = "https://github.com/davidmh/cspell.nvim"
 
+[direnvVim]
+src.git = "https://github.com/direnv/direnv.vim"
+fetch.git = "https://github.com/direnv/direnv.vim"
+
 [gitNvim]
 src.git = "https://github.com/dinhhuy258/git.nvim"
 fetch.git = "https://github.com/dinhhuy258/git.nvim"
