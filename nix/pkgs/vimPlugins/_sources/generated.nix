@@ -162,17 +162,17 @@
   };
   miniMove = {
     pname = "miniMove";
-    version = "a776027e68fe763987a0132d59877d651a7c0130";
+    version = "b9e452f9c83565a1520e14f7531632160f3b0170";
     src = fetchgit {
       url = "https://github.com/echasnovski/mini.move";
-      rev = "a776027e68fe763987a0132d59877d651a7c0130";
+      rev = "b9e452f9c83565a1520e14f7531632160f3b0170";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-f+MHsSCR9Y2gVV7X/o+HIVzbwZZVG7eL7Q9XILbqAsc=";
+      sha256 = "sha256-HVTI8k5KJeULmW6AC1qgCUXF5lHDcCzzp1aaI4H1PgU=";
     };
-    date = "2026-05-12";
+    date = "2026-06-19";
   };
   neoai = {
     pname = "neoai";

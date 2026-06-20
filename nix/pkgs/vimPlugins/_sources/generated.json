@@ -221,7 +221,7 @@
     },
     "miniMove": {
         "cargoLock": null,
-        "date": "2026-05-12",
+        "date": "2026-06-19",
         "extract": null,
         "name": "miniMove",
         "passthru": null,
@@ -231,13 +231,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "a776027e68fe763987a0132d59877d651a7c0130",
-            "sha256": "sha256-f+MHsSCR9Y2gVV7X/o+HIVzbwZZVG7eL7Q9XILbqAsc=",
+            "rev": "b9e452f9c83565a1520e14f7531632160f3b0170",
+            "sha256": "sha256-HVTI8k5KJeULmW6AC1qgCUXF5lHDcCzzp1aaI4H1PgU=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/echasnovski/mini.move"
         },
-        "version": "a776027e68fe763987a0132d59877d651a7c0130"
+        "version": "b9e452f9c83565a1520e14f7531632160f3b0170"
     },
     "neoai": {
         "cargoLock": null,
