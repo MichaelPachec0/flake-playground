@@ -16,6 +16,13 @@
       url = "github:streetsidesoftware/cspell-dicts";
       flake = false;
     };
+    # Eval-only: lets CI evaluate the home-manager modules (hm-nvchad, hm-cspell)
+    # via home-manager.lib.homeManagerConfiguration. follows nixpkgs to avoid a
+    # second nixpkgs in the closure.
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
   outputs = {
     self,
@@ -51,21 +58,22 @@
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
-  in {
-    packages = {
-      x86_64-linux = {
-        inherit
-          linux-show-player
-          cynthion
-          memtimings-linux
-          ryzen-monitor-ng
-          ursh
-          urchin
-          llcat
-          ;
-        inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
-      };
+    # The first-class package set. Factored into a let-binding so both
+    # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
+    mainPackages = {
+      inherit
+        linux-show-player
+        cynthion
+        memtimings-linux
+        ryzen-monitor-ng
+        ursh
+        urchin
+        llcat
+        ;
+      inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
     };
+  in {
+    packages.x86_64-linux = mainPackages;
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
