@@ -72,6 +72,15 @@
         ;
       inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
     };
+    # Per-module eval checks (enable + evaluate each module). See
+    # nix/tests/eval-modules.nix. Attr names: nixos-* and hm-*.
+    moduleChecks = import ./nix/tests/eval-modules.nix {
+      lib = nixpkgs.lib;
+      inherit pkgs system;
+      home-manager = inputs.home-manager;
+      nixosModules = self.nixosModules;
+      homeManagerModules = self.homeManagerModules;
+    };
   in {
     packages.x86_64-linux = mainPackages;
 
@@ -86,12 +95,14 @@
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
     # (each runs its own nvim-require-check); `nvim-loads` boots headless nvim
     # with the whole set. The daily nvfetcher bump only commits if these pass.
-    checks.x86_64-linux = {
-      nvim-loads = nvimLoads;
-      vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
-      playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundPkgs);
-      default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ (builtins.attrValues playgroundPkgs) ++ [nvimLoads]);
-    };
+    checks.x86_64-linux =
+      {
+        nvim-loads = nvimLoads;
+        vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
+        playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundPkgs);
+        default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ (builtins.attrValues playgroundPkgs) ++ [nvimLoads]);
+      }
+      // moduleChecks;
     overlays = let
       playground = final: prev: {
         playground =
