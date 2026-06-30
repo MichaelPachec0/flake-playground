@@ -1,0 +1,22 @@
+name: "CI"
+
+# The merge gate: build every package and evaluate every module on PRs and on
+# pushes to main/master. Same checks reproducible locally via
+#   nix run nixpkgs#nix-fast-build -- --flake .#checks.x86_64-linux --impure
+# or `nix build .#checks.x86_64-linux.default`.
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run flake checks
+        uses: ./.github/actions/nix-checks
