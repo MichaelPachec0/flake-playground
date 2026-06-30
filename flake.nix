@@ -100,7 +100,18 @@
         nvim-loads = nvimLoads;
         vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
         playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundPkgs);
-        default = pkgs.linkFarmFromDrvs "checks-default" ((builtins.attrValues customVimPlugins) ++ (builtins.attrValues playgroundPkgs) ++ [nvimLoads]);
+        # Build every first-class package. This is the coverage that was missing:
+        # nothing under packages.x86_64-linux was built in CI before.
+        packages = pkgs.linkFarmFromDrvs "packages" (builtins.attrValues mainPackages);
+        # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
+        # exercises the full surface locally even without nix-fast-build.
+        default = pkgs.linkFarmFromDrvs "checks-default" (
+          (builtins.attrValues customVimPlugins)
+          ++ (builtins.attrValues playgroundPkgs)
+          ++ (builtins.attrValues mainPackages)
+          ++ (builtins.attrValues moduleChecks)
+          ++ [nvimLoads]
+        );
       }
       // moduleChecks;
     overlays = let
