@@ -1,0 +1,69 @@
+name: "Nix flake checks"
+description: "Set up Nix, optionally regenerate inputs, then build every flake check in parallel with nix-fast-build."
+
+inputs:
+  pre-build-command:
+    description: "Optional shell command run after Nix is set up but before the checks build (e.g. nvfetcher or `nix flake update`). The cron bump workflows use this."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Free disk space
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+
+    # free-disk-space deletes the runner's default /mnt/swapfile, leaving the
+    # 16 GB runner with zero swap. Nix eval + parallel builds spike past 16 GB
+    # and stall the swapless VM until GitHub reclaims it ("runner received a
+    # shutdown signal"). Re-add a generous swapfile as a pressure-relief valve.
+    - name: Add swap space
+      shell: bash
+      run: |
+        sudo fallocate -l 10G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        free -h
+
+    - name: Install nix
+      uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+          access-tokens = github.com=${{ github.token }}
+
+    - name: Cache nix store
+      uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+        gc-max-store-size-linux: 5G
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-
+        purge-created: 0
+        purge-primary-key: never
+
+    - name: Regenerate inputs (optional)
+      if: ${{ inputs.pre-build-command != '' }}
+      shell: bash
+      run: ${{ inputs.pre-build-command }}
+
+    - name: Build all flake checks (nix-fast-build)
+      shell: bash
+      env:
+        NIXPKGS_ALLOW_UNFREE: "1"
+      run: |
+        # Bound concurrency so peak memory stays under the runner's 16 GB.
+        # Default is --eval-workers = nproc (4) each capped at 4 GiB = a 16 GB
+        # eval ceiling, which over-subscribes RAM when builds run alongside.
+        nix run nixpkgs#nix-fast-build -- \
+          --flake ".#checks.x86_64-linux" \
+          --skip-cached \
+          --no-nom \
+          --eval-workers 2 \
+          --max-jobs 2 \
+          --impure

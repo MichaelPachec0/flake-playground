@@ -32,7 +32,7 @@ in {
   coc-lightbulb = build "coc-lightbulb" sources.cocLightbulb {};
 
   cspell-nvim = build "cspell.nvim" sources.cspellNvim {
-    dependencies = with vimPlugins; [plenary-nvim null-ls-nvim];
+    dependencies = with vimPlugins; [plenary-nvim none-ls-nvim];
   };
 
   direnv-vim = build "direnv.vim" sources.direnvVim {};
