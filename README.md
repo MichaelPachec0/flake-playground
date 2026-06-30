@@ -80,6 +80,8 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 
 ### `checks.x86_64-linux`
 
+- `packages` - a `linkFarm` of every first-class package in
+  `packages.x86_64-linux`. A package that fails to build fails the check.
 - `vimplugins` - a `linkFarm` of every custom plugin. Each plugin runs
   `buildVimPlugin`'s `nvim-require-check` at build time, so a plugin whose Lua
   modules no longer load fails the build.
@@ -90,6 +92,11 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
   ships, and every custom plugin) and `pcall(require)`s the framework modules.
   This catches breakage that only appears when the set is loaded together:
   startup-script errors, removed APIs after a source bump, version conflicts.
+- `nixos-cynthion`, `nixos-realsense`, `nixos-zsa`, `nixos-hyprpolkitagent`,
+  `nixos-tuwunel` - *evaluate* the resulting NixOS system with each module
+  enabled. These catch option-name typos, missing references, and structural
+  breakage without building the full system closure.
+- `hm-nvchad`, `hm-cspell` - the same, for the home-manager modules.
 - `default` - all of the above. CI builds this.
 
 ### `overlays`
@@ -159,24 +166,38 @@ The custom vim plugin sources are decoupled from their build definitions:
     -o nix/pkgs/vimPlugins/_sources
   ```
 
-CI keeps the set building (all workflows gate their commit on
-`checks.x86_64-linux.default`, i.e. every custom plugin builds and headless nvim
-loads the whole set):
+All bump workflows gate their commit on `checks.x86_64-linux.default` (the
+comprehensive CI gate — see [CI](#ci) below):
 
-- `.github/workflows/pr.yaml` - on PRs to `main`/`master`, builds the checks. A
-  change that breaks a plugin build or stops nvim loading cannot merge.
 - `.github/workflows/update.yml` - daily (and on `nvfetcher.toml` changes),
   re-runs nvfetcher, builds the checks, and commits the regenerated `_sources`
   only if they pass.
 - `.github/workflows/update-playground.yml` - the same, for the `playground` set
-  (`nix/pkgs/playground/nvfetcher.toml`); gates its commit on
-  `checks.x86_64-linux.playground`.
+  (`nix/pkgs/playground/nvfetcher.toml`); gates its commit on the full
+  `checks.x86_64-linux.default`.
 - `.github/workflows/update-flake-lock.yml` - weekly, runs `nix flake update`,
   builds the checks, and commits `flake.lock` only if it passes.
 
 The NvChad set (`nix/pkgs/nvchad`) is deliberately not nvfetcher-tracked: its
 revs are hand-pinned for the v2.5-core / v3.0-ui compatibility documented in
 `nix/pkgs/nvchad/NOTES.md`.
+
+## CI
+
+All CI runs a single gate over `checks.x86_64-linux`:
+
+- **What it covers:** every first-class package (`packages` check), every custom
+  vim plugin + the headless-nvim load test, the playground packages, and an
+  *evaluation* of every NixOS and home-manager module (`nixos-*` / `hm-*` checks
+  — each enables the module and evaluates the resulting system without building
+  its full closure).
+- **Run it locally:** `nix build .#checks.x86_64-linux.default`  
+  or `nix run nixpkgs#nix-fast-build -- --flake .#checks.x86_64-linux --impure`.
+- **When it runs:** on PRs and pushes to `main`/`master` (`ci.yml`), manually
+  (workflow_dispatch), and inside the nightly/weekly bump workflows — which only
+  commit a bump if the full check passes.
+
+Not yet enforced (planned): warnings-as-errors and VM boot tests.
 
 ## Repository layout
 
@@ -194,7 +215,8 @@ nix/modules/
                                (+ default.nix importing all)
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
-.github/workflows/            CI: pr.yaml, update.yml, update-playground.yml, update-flake-lock.yml
+.github/workflows/            CI: ci.yml, update.yml, update-playground.yml, update-flake-lock.yml
+.github/actions/nix-checks/   composite action: runs nix-fast-build over checks
 ```
 
 ## Consuming this flake
