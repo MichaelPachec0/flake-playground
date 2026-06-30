@@ -15,6 +15,19 @@ runs:
       with:
         tool-cache: false
 
+    # free-disk-space deletes the runner's default /mnt/swapfile, leaving the
+    # 16 GB runner with zero swap. Nix eval + parallel builds spike past 16 GB
+    # and stall the swapless VM until GitHub reclaims it ("runner received a
+    # shutdown signal"). Re-add a generous swapfile as a pressure-relief valve.
+    - name: Add swap space
+      shell: bash
+      run: |
+        sudo fallocate -l 10G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        free -h
+
     - name: Install nix
       uses: cachix/install-nix-action@v31
       with:
@@ -44,8 +57,13 @@ runs:
       env:
         NIXPKGS_ALLOW_UNFREE: "1"
       run: |
+        # Bound concurrency so peak memory stays under the runner's 16 GB.
+        # Default is --eval-workers = nproc (4) each capped at 4 GiB = a 16 GB
+        # eval ceiling, which over-subscribes RAM when builds run alongside.
         nix run nixpkgs#nix-fast-build -- \
           --flake ".#checks.x86_64-linux" \
           --skip-cached \
           --no-nom \
+          --eval-workers 2 \
+          --max-jobs 2 \
           --impure
