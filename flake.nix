@@ -42,9 +42,20 @@
       };
     pkgs = prepNixpkgs nixpkgs system;
     linux-show-player = pkgs.callPackage ./nix/pkgs/linux-show-player.nix {};
-    # windscribe = {
-    #   cli = pkgs.callPackage ./nix/pkgs/windscribe/cli.nix {};
-    # };
+    # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
+    # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
+    # package is self-contained: it fetches the Windscribe Desktop source (v2.23.9) and
+    # its Go/prebuilt deps itself. `devMode = false` is the hardened production build the
+    # NixOS module consumes.
+    windscribePkgs = import nixpkgs {
+      inherit system;
+      config.allowUnfree = true;
+      overlays = [ (import ./nix/pkgs/windscribe/overlay.nix) ];
+    };
+    windscribe = import ./nix/pkgs/windscribe {
+      pkgs = windscribePkgs;
+      devMode = false;
+    };
     cynthion = pkgs.callPackage ./nix/pkgs/cynthion {};
     memtimings-linux = pkgs.callPackage ./nix/pkgs/memtimings-linux {};
     ryzen-monitor-ng = pkgs.callPackage ./nix/pkgs/ryzen-monitor-ng {};
@@ -82,7 +93,10 @@
       homeManagerModules = self.homeManagerModules;
     };
   in {
-    packages.x86_64-linux = mainPackages;
+    # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
+    # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
+    # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
+    packages.x86_64-linux = mainPackages // { inherit windscribe; };
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
@@ -141,8 +155,9 @@
       zsa = import ./nix/modules/nixos/zsa inputs;
       hyprpolkitagent = import ./nix/modules/nixos/hyprpolkitagent;
       tuwunel = import ./nix/modules/nixos/tuwunel inputs;
+      windscribe = import ./nix/modules/nixos/windscribe inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe;
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };
