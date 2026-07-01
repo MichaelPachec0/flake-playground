@@ -12,5 +12,6 @@ inputs: {
     (import ./zsa inputs)
     (import ./hyprpolkitagent)
     (import ./tuwunel inputs)
+    (import ./windscribe inputs)
   ];
 }

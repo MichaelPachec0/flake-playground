@@ -1,0 +1,30 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ecf3985c..1ef709ec 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -51,6 +51,7 @@ endif()
+ option(BUILD_SYMBOLS "Collect PDB symbol files" OFF)
+ option(STATIC_ANALYSIS "Run clang-tidy static analysis" OFF)
+ option(UPDATE_TRANSLATIONS "Run lupdate to regenerate .ts translation files" OFF)
++option(WS_USE_SYSTEM_DEPS "Use system/Nix-provided deps instead of vcpkg" OFF)
+ 
+ # Platform-specific build options (these use WIN32/APPLE which are set before project()
+ # when using a platform-native generator, e.g. Visual Studio on Windows)
+@@ -95,7 +96,7 @@ endif()
+ # ------------------------------------------------------------------------------
+ 
+ # vcpkg integration (only needed for build operations, must be before project())
+-if(BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP)
++if((BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP) AND NOT WS_USE_SYSTEM_DEPS)
+     include(cmake/vcpkg.cmake)
+ endif()
+ 
+@@ -214,7 +215,7 @@ endif()
+ message(STATUS "==================================================")
+ message(STATUS "")
+ 
+-if(BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP)
++if((BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP) AND NOT WS_USE_SYSTEM_DEPS)
+     install_vcpkg_dependencies()
+ endif()
+ 

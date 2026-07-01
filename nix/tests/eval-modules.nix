@@ -68,6 +68,7 @@ in {
     services.tuwunel.enable = true;
     services.tuwunel.settings.global.server_name = "ci.example";
   };
+  nixos-windscribe = evalNixos "windscribe" {services.windscribe.enable = true;};
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};

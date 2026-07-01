@@ -1,0 +1,54 @@
+diff --git a/src/client/client-common/CMakeLists.txt b/src/client/client-common/CMakeLists.txt
+index 3dedd381..e1568343 100644
+--- a/src/client/client-common/CMakeLists.txt
++++ b/src/client/client-common/CMakeLists.txt
+@@ -13,6 +13,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ find_package(Qt6 REQUIRED COMPONENTS Network)
+ 
++# dnschecker.cpp (under utils/network_utils) calls into c-ares directly. With shared
++# wsnet (which links c-ares PRIVATE) those symbols are not re-exported, so link c-ares
++# here explicitly. find_package(c-ares CONFIG) resolves in both the vcpkg and the
++# system-deps (Nix) builds.
++find_package(c-ares CONFIG)
++
+ set(PROJECT_SOURCES
+     version/appversion.cpp
+     version/appversion.h
+@@ -21,6 +27,9 @@ set(PROJECT_SOURCES
+ add_library(client-common STATIC ${PROJECT_SOURCES})
+ 
+ target_link_libraries(client-common PRIVATE Qt6::Core Qt6::Network OpenSSL::Crypto spdlog::spdlog wsnet::wsnet)
++if(TARGET c-ares::cares)
++    target_link_libraries(client-common PRIVATE c-ares::cares)
++endif()
+ target_compile_definitions(client-common PRIVATE CMAKE_LIBRARY_LIBRARY
+                                   WINVER=0x0601
+                                   _WIN32_WINNT=0x0601
+diff --git a/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h b/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
+index 7df7fa00..73b9a18a 100644
+--- a/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
++++ b/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
+@@ -5,6 +5,10 @@
+ #include <optional>
+ #include <wsnet/WSNet.h>
+ #include <boost/asio.hpp>
++// Boost >= 1.87 no longer pulls deadline_timer in via <boost/asio.hpp>; include it
++// explicitly. The header self-enables BOOST_ASIO_HAS_BOOST_DATE_TIME when the
++// Boost.Date_Time headers are present (they are in nixpkgs boost).
++#include <boost/asio/deadline_timer.hpp>
+ 
+ // measuring time in ms helper
+ template <
+diff --git a/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp b/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
+index 3fb67258..230acbb5 100644
+--- a/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
++++ b/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
+@@ -5,6 +5,7 @@
+ #include <boost/asio.hpp>
+ #include <boost/algorithm/hex.hpp>
+ #include <sys/socket.h>
++#include <sys/time.h>
+ #include <spdlog/spdlog.h>
+ 
+ bool KernelModuleCommunicator::start(const std::string &deviceName, bool verboseLogging)
