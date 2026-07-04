@@ -1,11 +1,15 @@
-{ config, lib, pkgs, ... }:
-let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
   inherit (lib) mkEnableOption mkOption mkIf types literalExpression;
   cfg = config.programs.nvchad;
 
   # The packaged NvChad set (v2.5 core + v3.0 ui/base46 + nvzone). See
   # ../../../pkgs/nvchad. nvchad.all = [ nvchad nvchad-ui base46 minty volt menu ].
-  nvchad = pkgs.callPackage ../../../pkgs/nvchad { };
+  nvchad = pkgs.callPackage ../../../pkgs/nvchad {};
 
   # Grammar parsers for the rtp:append hack below. The NEW main-branch
   # nvim-treesitter - NvChad core d042cc9 uses its .install/.setup API, and the
@@ -73,7 +77,7 @@ in {
 
     extraEarlyPlugins = mkOption {
       type = with types; listOf package;
-      default = [ ];
+      default = [];
       example = literalExpression ''
         with pkgs.vimPlugins; [
           fidget-nvim
@@ -87,7 +91,7 @@ in {
 
     extraLazyPlugins = mkOption {
       type = with types; listOf package;
-      default = [ ];
+      default = [];
       example = literalExpression ''
         with pkgs.vimPlugins; [
           neogit
@@ -142,9 +146,9 @@ in {
     # plugins; extraPackages carries ripgrep.
     programs.neovim = {
       enable = true;
-      package = cfg.package;
-      extraPackages = [ pkgs.ripgrep ];
-      plugins = [ nvchad.base46 pkgs.vimPlugins.lazy-nvim ] ++ cfg.extraEarlyPlugins;
+      inherit (cfg) package;
+      extraPackages = [pkgs.ripgrep];
+      plugins = [nvchad.base46 pkgs.vimPlugins.lazy-nvim] ++ cfg.extraEarlyPlugins;
       initLua = lib.concatStringsSep "\n" [
         ''
           -- HACK: remove the default nvim parsers, they clash with treesitter.
@@ -156,6 +160,7 @@ in {
           -- HACK: make sure treesitter's grammar parsers are in view. lazy.nvim
           -- clears rtp by default, so this must be appended last.
           vim.opt.rtp:append("${treesitterDeps}")
+          vim.opt.rtp:append("${pkgs.vimPlugins.nvim-treesitter}/runtime")
         ''
       ];
     };
