@@ -18,6 +18,17 @@
     name = "treesitter-dependencies";
     paths = pkgs.vimPlugins.nvim-treesitter.withAllGrammars.dependencies;
   };
+  # Parser-less shared query bases (ecma, jsx, html_tags, …) that grammar
+  # packages don't ship but that per-language queries `; inherits:`. Derived as
+  # "runtime queries the grammar bundle doesn't already provide" — nothing
+  # hardcoded, and nothing duplicated on the runtimepath.
+  treesitterBaseQueries = pkgs.runCommandLocal "treesitter-base-queries" {} ''
+    mkdir -p "$out/queries"
+    for d in ${pkgs.vimPlugins.nvim-treesitter}/runtime/queries/*/; do
+      name=$(basename "$d")
+      [ -e "${treesitterDeps}/queries/$name" ] || ln -s "$d" "$out/queries/$name"
+    done
+  '';
 in {
   options.programs.nvchad = {
     enable = mkEnableOption "NvChad";
@@ -160,7 +171,7 @@ in {
           -- HACK: make sure treesitter's grammar parsers are in view. lazy.nvim
           -- clears rtp by default, so this must be appended last.
           vim.opt.rtp:append("${treesitterDeps}")
-          vim.opt.rtp:append("${pkgs.vimPlugins.nvim-treesitter}/runtime")
+          vim.opt.rtp:append("${treesitterBaseQueries}")
         ''
       ];
     };
