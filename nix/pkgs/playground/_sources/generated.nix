@@ -6,6 +6,14 @@
   dockerTools,
 }:
 {
+  electron-mail = {
+    pname = "electron-mail";
+    version = "5.3.8";
+    src = fetchurl {
+      url = "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.8/electron-mail-5.3.8-linux-x86_64.AppImage";
+      sha256 = "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=";
+    };
+  };
   workstyle = {
     pname = "workstyle";
     version = "dae15018c84c4f0feaf498d3676271ca0e3bec44";

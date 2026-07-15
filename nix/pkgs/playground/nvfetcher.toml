@@ -14,3 +14,13 @@
 [workstyle]
 src.git = "https://github.com/pierrechevalier83/workstyle"
 fetch.git = "https://github.com/pierrechevalier83/workstyle"
+
+# ElectronMail: unofficial ProtonMail desktop client. Unlike workstyle (default
+# branch), this tracks the latest GitHub *release* and fetches the prebuilt
+# linux x86_64 AppImage asset. Note the version shape mismatch handled in the
+# fetch URL: the release tag is `v$ver` but the asset filename uses the bare
+# `$ver` (e.g. tag v5.3.8 -> electron-mail-5.3.8-linux-x86_64.AppImage).
+[electron-mail]
+src.github = "vladimiry/ElectronMail"
+src.prefix = "v"
+fetch.url = "https://github.com/vladimiry/ElectronMail/releases/download/v$ver/electron-mail-$ver-linux-x86_64.AppImage"
