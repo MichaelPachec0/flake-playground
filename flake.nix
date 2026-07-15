@@ -161,8 +161,9 @@
       hyprpolkitagent = import ./nix/modules/nixos/hyprpolkitagent;
       tuwunel = import ./nix/modules/nixos/tuwunel inputs;
       windscribe = import ./nix/modules/nixos/windscribe inputs;
+      affine = import ./nix/modules/nixos/affine inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine;
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };

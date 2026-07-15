@@ -13,5 +13,6 @@ inputs: {
     (import ./hyprpolkitagent)
     (import ./tuwunel inputs)
     (import ./windscribe inputs)
+    (import ./affine inputs)
   ];
 }
