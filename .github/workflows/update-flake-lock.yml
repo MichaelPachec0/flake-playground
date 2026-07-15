@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.PAT }}
 
       - name: Update inputs + run flake checks
         uses: ./.github/actions/nix-checks
