@@ -51,7 +51,11 @@ inputs: {
       set -euo pipefail
       creds="''${CREDENTIALS_DIRECTORY:-}"
       ${lib.optionalString (!cfg.database.manage && cfg.database.passwordFile != null) ''
-        export DATABASE_URL="postgresql://${cfg.database.user}:$(cat "$creds/db-password")@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
+        # Percent-encode the password so reserved chars (@ : / ? # %) don't
+        # corrupt the DATABASE_URL. Pass via env (not argv) to keep it out of ps.
+        dbpw="$(cat "$creds/db-password")"
+        dbpw_enc="$(DBPW="$dbpw" ${node}/bin/node -e 'process.stdout.write(encodeURIComponent(process.env.DBPW))')"
+        export DATABASE_URL="postgresql://${cfg.database.user}:''${dbpw_enc}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
       ''}
       ${lib.optionalString (cfg.admin.passwordFile != null) ''
         export AFFINE_ADMIN_EMAIL="${toString cfg.admin.email}"
