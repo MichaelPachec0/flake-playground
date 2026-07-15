@@ -95,7 +95,7 @@ in
       homepage = "https://affine.pro";
       mainProgram = "affine-server";
       platforms = ["x86_64-linux"];
-      # AFFiNE server is source-available; confirm exact license at review.
+      # MIT, matching nixpkgs' own `affine` (desktop) package for the same codebase.
       license = lib.licenses.mit;
     };
   }
