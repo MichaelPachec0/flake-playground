@@ -12,6 +12,67 @@ inputs: {
   defaultUser = "affine";
   defaultGroup = "affine";
   stateDir = "/var/lib/affine";
+
+  node = cfg.package.nodejs;
+  appDir = "${cfg.package}/app";
+
+  commonEnv =
+    {
+      AFFINE_SERVER_HOST = cfg.host;
+      AFFINE_SERVER_PORT = toString cfg.port;
+      AFFINE_SERVER_EXTERNAL_URL = cfg.externalUrl;
+      REDIS_SERVER_HOST = cfg.redis.host;
+      REDIS_SERVER_PORT = toString cfg.redis.port;
+      AFFINE_INDEXER_ENABLED = lib.boolToString cfg.indexer.enable;
+      HOME = stateDir;
+    }
+    // cfg.extraEnvironment;
+
+  # Verified-for-Node systemd hardening (spec §7.1). Differs from the tuwunel
+  # (Rust) profile: MemoryDenyWriteExecute must be false (V8 JIT) and the syscall
+  # filter must KEEP @ipc (V8 memfd_create). PrivateUsers off for PG peer auth.
+  hardening = {
+    NoNewPrivileges = true;
+    ProtectSystem = "strict";
+    ProtectHome = true;
+    ProtectProc = "invisible";
+    ProtectClock = true;
+    ProtectControlGroups = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+    PrivateTmp = true;
+    PrivateDevices = true;
+    PrivateMounts = true;
+    PrivateIPC = true;
+    PrivateUsers = false;
+    RemoveIPC = true;
+    DevicePolicy = "closed";
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    MemoryDenyWriteExecute = false;
+    RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+    CapabilityBoundingSet = [];
+    AmbientCapabilities = [];
+    SystemCallArchitectures = "native";
+    SystemCallErrorNumber = "EPERM";
+    SystemCallFilter = [
+      "@system-service"
+      "~@clock @debug @module @mount @reboot @swap @cpu-emulation @obsolete @timer @chown @setuid @privileged @keyring"
+    ];
+    UMask = "0077";
+  };
+
+  baseService = {
+    WorkingDirectory = appDir;
+    User = cfg.user;
+    Group = cfg.group;
+    StateDirectory = "affine";
+    StateDirectoryMode = "0700";
+  };
 in {
   options.services.affine = {
     enable = lib.mkEnableOption "AFFiNE self-hosted server";
@@ -189,6 +250,42 @@ in {
     };
     users.groups = lib.mkIf (cfg.group == defaultGroup) {
       ${defaultGroup} = {};
+    };
+
+    systemd.services.affine-migrate = {
+      description = "AFFiNE database migration / predeploy";
+      after = ["network-online.target"];
+      wants = ["network-online.target"];
+      requiredBy = ["affine.service"];
+      before = ["affine.service"];
+      environment = commonEnv;
+      serviceConfig =
+        baseService
+        // hardening
+        // {
+          Type = "oneshot";
+          ExecStart = "${node}/bin/node ${appDir}/scripts/self-host-predeploy.js";
+          RemainAfterExit = false;
+        };
+    };
+
+    systemd.services.affine = {
+      description = "AFFiNE server";
+      documentation = ["https://docs.affine.pro/self-host-affine/"];
+      wantedBy = ["multi-user.target"];
+      after = ["network-online.target" "affine-migrate.service"];
+      wants = ["network-online.target"];
+      requires = ["affine-migrate.service"];
+      environment = commonEnv;
+      serviceConfig =
+        baseService
+        // hardening
+        // {
+          Type = "exec";
+          ExecStart = "${node}/bin/node ${appDir}/dist/main.js";
+          Restart = "on-failure";
+          RestartSec = 10;
+        };
     };
   };
 }
