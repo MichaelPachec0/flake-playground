@@ -19,7 +19,11 @@
   openssl,
   source,
 }: let
-  inherit (source) pname version src;
+  # Fixed pname: the aarch64 build is fed the `affine-server-arm64` nvfetcher
+  # source (different digest/arch), but the package is the same thing — don't let
+  # the source's name leak into the derivation name.
+  pname = "affine-server";
+  inherit (source) version src;
 
   # Flatten the docker-archive into a single rootfs. Observed layout of this
   # image (docker save / dockerTools.pullImage): manifest.json's `.[0].Layers`
@@ -94,7 +98,7 @@ in
       description = "Self-hosted AFFiNE server (patched from the upstream OCI image)";
       homepage = "https://affine.pro";
       mainProgram = "affine-server";
-      platforms = ["x86_64-linux"];
+      platforms = ["x86_64-linux" "aarch64-linux"];
       # MIT, matching nixpkgs' own `affine` (desktop) package for the same codebase.
       license = lib.licenses.mit;
     };

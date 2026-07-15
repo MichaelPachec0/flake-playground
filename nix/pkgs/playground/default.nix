@@ -15,7 +15,12 @@ in {
   electron-mail = pkgs.callPackage ./electron-mail.nix {
     source = sources.electron-mail;
   };
+  # Multi-arch: pick the nvfetcher source whose pinned digest matches the build
+  # host platform (amd64 vs arm64). Both track the same AFFiNE release.
   affine-server = pkgs.callPackage ./affine-server.nix {
-    source = sources.affine-server;
+    source =
+      if pkgs.stdenv.hostPlatform.isAarch64
+      then sources.affine-server-arm64
+      else sources.affine-server;
   };
 }

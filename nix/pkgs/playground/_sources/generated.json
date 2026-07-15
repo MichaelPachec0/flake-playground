@@ -19,6 +19,26 @@
         },
         "version": "0.27.0"
     },
+    "affine-server-arm64": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "affine-server-arm64",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "arch": "arm64",
+            "finalImageName": null,
+            "finalImageTag": null,
+            "imageDigest": "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9",
+            "imageName": "ghcr.io/toeverything/affine",
+            "imageTag": "0.27.0",
+            "os": "linux",
+            "sha256": "sha256-jF3uCrP7857qg5dtlQ9N6kanVqz4efSAcpohuFH0s9A=",
+            "tlsVerify": null
+        },
+        "version": "0.27.0"
+    },
     "electron-mail": {
         "cargoLock": null,
         "date": null,

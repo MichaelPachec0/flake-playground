@@ -30,7 +30,12 @@ fetch.url = "https://github.com/vladimiry/ElectronMail/releases/download/v$ver/e
 # registry field), so it cannot watch a ghcr.io image. Instead we DECOUPLE: watch
 # AFFiNE's GitHub stable *releases* for the version (use_latest_release excludes
 # the -canary/-beta prereleases; prefix strips the leading `v`), and fetch the
-# matching image from ghcr via `fetch.docker` (skopeo speaks any registry). amd64 only.
+# matching image from ghcr via `fetch.docker` (skopeo speaks any registry).
+#
+# The upstream image is a multi-arch index; `docker.arch` selects one platform's
+# manifest and pins its digest. We track amd64 and arm64 as SEPARATE entries (a
+# single nvfetcher entry pins one arch's digest); nix/pkgs/playground/default.nix
+# picks the entry matching the build's host platform. Both track the same release.
 [affine-server]
 src.github = "toeverything/AFFiNE"
 src.use_latest_release = true
@@ -38,3 +43,11 @@ src.prefix = "v"
 fetch.docker = "ghcr.io/toeverything/affine"
 docker.os = "linux"
 docker.arch = "amd64"
+
+[affine-server-arm64]
+src.github = "toeverything/AFFiNE"
+src.use_latest_release = true
+src.prefix = "v"
+fetch.docker = "ghcr.io/toeverything/affine"
+docker.os = "linux"
+docker.arch = "arm64"

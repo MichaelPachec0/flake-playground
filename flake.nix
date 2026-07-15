@@ -74,6 +74,14 @@
     # buildable on demand and available to the NixOS module. Bumps are still
     # tracked by nvfetcher; the module is eval-checked cheaply (nixos-affine).
     playgroundCiPkgs = builtins.removeAttrs playgroundPkgs ["affine-server"];
+    # aarch64 support for affine-server (e.g. an ARM server). Build the playground
+    # set against an aarch64 pkgs so the NixOS module's default package
+    # (self.packages.${system}.affine-server) resolves on aarch64-linux hosts.
+    # playground/default.nix picks the arm64 nvfetcher source automatically.
+    # Only affine-server is exposed for aarch64 (see packages.aarch64-linux below);
+    # the rest of the flake stays x86_64-only. Building it needs an aarch64 builder.
+    pkgsAarch64 = prepNixpkgs nixpkgs "aarch64-linux";
+    playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -102,6 +110,10 @@
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
     # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
     packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server; };
+
+    # aarch64: only affine-server, so `services.affine` (default package =
+    # self.packages.${system}.affine-server) works on an aarch64-linux host.
+    packages.aarch64-linux.affine-server = playgroundPkgsAarch64.affine-server;
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
