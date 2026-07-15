@@ -1,4 +1,19 @@
 {
+    "electron-mail": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "electron-mail",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=",
+            "type": "url",
+            "url": "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.8/electron-mail-5.3.8-linux-x86_64.AppImage"
+        },
+        "version": "5.3.8"
+    },
     "workstyle": {
         "cargoLock": null,
         "date": "2025-10-19",
