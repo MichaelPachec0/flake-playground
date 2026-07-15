@@ -16,6 +16,12 @@ inputs: {
   node = cfg.package.nodejs;
   appDir = "${cfg.package}/app";
 
+  # Local peer auth => no password in the URL; the socket dir is the default.
+  databaseUrl =
+    if cfg.database.manage
+    then "postgresql://${cfg.database.user}@/${cfg.database.name}?host=/run/postgresql"
+    else "postgresql://${cfg.database.user}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}";
+
   commonEnv =
     {
       AFFINE_SERVER_HOST = cfg.host;
@@ -24,6 +30,7 @@ inputs: {
       REDIS_SERVER_HOST = cfg.redis.host;
       REDIS_SERVER_PORT = toString cfg.redis.port;
       AFFINE_INDEXER_ENABLED = lib.boolToString cfg.indexer.enable;
+      DATABASE_URL = databaseUrl;
       HOME = stateDir;
     }
     // cfg.extraEnvironment;
@@ -252,10 +259,48 @@ in {
       ${defaultGroup} = {};
     };
 
+    services.postgresql = lib.mkIf cfg.database.manage {
+      enable = true;
+      ensureDatabases = [cfg.database.name];
+      ensureUsers = [
+        {
+          name = cfg.database.user;
+          ensureDBOwnership = true;
+        }
+      ];
+      extensions = ps: [ps.pgvector];
+    };
+    # NB: `extensions` shape drifts across nixpkgs. If eval errors with a type
+    # mismatch here, use the list form instead: `extensions = [pkgs.postgresqlPackages.pgvector];`
+    # (older trees may only accept `extraPlugins = with pkgs.postgresqlPackages; [pgvector];`).
+
+    services.redis.servers.affine = lib.mkIf cfg.redis.manage {
+      enable = true;
+      bind = cfg.redis.host;
+      port = cfg.redis.port;
+    };
+
+    # pgvector is not a "trusted" extension, so the non-superuser affine role
+    # can't CREATE EXTENSION itself. Pre-create it as the postgres superuser
+    # before migrations run (defensive; migrations may reference vector types
+    # even with the indexer off — spec §14 #3).
+    systemd.services.affine-db-init = lib.mkIf cfg.database.manage {
+      description = "AFFiNE: ensure pgvector extension exists";
+      after = ["postgresql.service"];
+      requires = ["postgresql.service"];
+      before = ["affine-migrate.service"];
+      requiredBy = ["affine-migrate.service"];
+      serviceConfig = {
+        Type = "oneshot";
+        User = "postgres";
+        ExecStart = ''${config.services.postgresql.package}/bin/psql -d ${cfg.database.name} -c "CREATE EXTENSION IF NOT EXISTS vector"'';
+      };
+    };
+
     systemd.services.affine-migrate = {
       description = "AFFiNE database migration / predeploy";
-      after = ["network-online.target"];
-      wants = ["network-online.target"];
+      after = ["network-online.target" "postgresql.service" "redis-affine.service" "affine-db-init.service"];
+      wants = ["postgresql.service" "redis-affine.service"];
       requiredBy = ["affine.service"];
       before = ["affine.service"];
       environment = commonEnv;
@@ -273,8 +318,8 @@ in {
       description = "AFFiNE server";
       documentation = ["https://docs.affine.pro/self-host-affine/"];
       wantedBy = ["multi-user.target"];
-      after = ["network-online.target" "affine-migrate.service"];
-      wants = ["network-online.target"];
+      after = ["network-online.target" "affine-migrate.service" "postgresql.service" "redis-affine.service"];
+      wants = ["network-online.target" "postgresql.service" "redis-affine.service"];
       requires = ["affine-migrate.service"];
       environment = commonEnv;
       serviceConfig =
