@@ -1,4 +1,24 @@
 {
+    "affine-server": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "affine-server",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "arch": "amd64",
+            "finalImageName": null,
+            "finalImageTag": null,
+            "imageDigest": "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9",
+            "imageName": "ghcr.io/toeverything/affine",
+            "imageTag": "0.27.0",
+            "os": "linux",
+            "sha256": "sha256-3WLinu+MvcOM8JCvTM5Cinj6F4e+PiA5+jvI+Z1R7eY=",
+            "tlsVerify": null
+        },
+        "version": "0.27.0"
+    },
     "electron-mail": {
         "cargoLock": null,
         "date": null,

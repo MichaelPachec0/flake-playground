@@ -24,3 +24,17 @@ fetch.git = "https://github.com/pierrechevalier83/workstyle"
 src.github = "vladimiry/ElectronMail"
 src.prefix = "v"
 fetch.url = "https://github.com/vladimiry/ElectronMail/releases/download/v$ver/electron-mail-$ver-linux-x86_64.AppImage"
+
+# AFFiNE self-host server. Tracked as an OCI image (no upstream source package).
+# NOTE: nvfetcher's `src.container` is Docker-Hub-ONLY (its Haskell type has no
+# registry field), so it cannot watch a ghcr.io image. Instead we DECOUPLE: watch
+# AFFiNE's GitHub stable *releases* for the version (use_latest_release excludes
+# the -canary/-beta prereleases; prefix strips the leading `v`), and fetch the
+# matching image from ghcr via `fetch.docker` (skopeo speaks any registry). amd64 only.
+[affine-server]
+src.github = "toeverything/AFFiNE"
+src.use_latest_release = true
+src.prefix = "v"
+fetch.docker = "ghcr.io/toeverything/affine"
+docker.os = "linux"
+docker.arch = "amd64"
