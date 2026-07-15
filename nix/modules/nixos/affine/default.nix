@@ -33,7 +33,45 @@ inputs: {
       DATABASE_URL = databaseUrl;
       HOME = stateDir;
     }
-    // cfg.extraEnvironment;
+    // cfg.extraEnvironment
+    // storageEnv;
+
+  # Credentials loaded by systemd (sops file paths) that the wrapper turns into
+  # env at runtime, so no secret ever lands in the Nix store or static env.
+  credentials =
+    lib.optional (cfg.database.passwordFile != null) "db-password:${cfg.database.passwordFile}"
+    ++ lib.optional (cfg.admin.passwordFile != null) "admin-password:${cfg.admin.passwordFile}"
+    ++ lib.optional (cfg.storage.s3.accessKeyIdFile != null) "s3-access-key-id:${cfg.storage.s3.accessKeyIdFile}"
+    ++ lib.optional (cfg.storage.s3.secretAccessKeyFile != null) "s3-secret-access-key:${cfg.storage.s3.secretAccessKeyFile}";
+
+  # Build the env-composing prelude then exec node. Only assembles vars whose
+  # secret files were provided.
+  mkWrapped = entry:
+    pkgs.writeShellScript "affine-${builtins.baseNameOf entry}" ''
+      set -euo pipefail
+      creds="''${CREDENTIALS_DIRECTORY:-}"
+      ${lib.optionalString (!cfg.database.manage && cfg.database.passwordFile != null) ''
+        export DATABASE_URL="postgresql://${cfg.database.user}:$(cat "$creds/db-password")@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
+      ''}
+      ${lib.optionalString (cfg.admin.passwordFile != null) ''
+        export AFFINE_ADMIN_EMAIL="${toString cfg.admin.email}"
+        export AFFINE_ADMIN_PASSWORD="$(cat "$creds/admin-password")"
+      ''}
+      ${lib.optionalString (cfg.storage.provider == "s3") ''
+        export AWS_ACCESS_KEY_ID="$(cat "$creds/s3-access-key-id")"
+        export AWS_SECRET_ACCESS_KEY="$(cat "$creds/s3-secret-access-key")"
+      ''}
+      exec ${node}/bin/node ${appDir}/${entry}
+    '';
+
+  storageEnv = lib.optionalAttrs (cfg.storage.provider == "s3") {
+    # Best-effort S3 (spec §9/§14 #6): confirm the exact var/config mechanism the
+    # pinned AFFiNE version uses before relying on this in production.
+    AFFINE_STORAGE_PROVIDER = "s3";
+    AFFINE_STORAGE_S3_ENDPOINT = cfg.storage.s3.endpoint;
+    AFFINE_STORAGE_S3_REGION = cfg.storage.s3.region;
+    AFFINE_STORAGE_S3_BUCKET = cfg.storage.s3.bucket;
+  };
 
   # Verified-for-Node systemd hardening (spec §7.1). Differs from the tuwunel
   # (Rust) profile: MemoryDenyWriteExecute must be false (V8 JIT) and the syscall
@@ -309,7 +347,8 @@ in {
         // hardening
         // {
           Type = "oneshot";
-          ExecStart = "${node}/bin/node ${appDir}/scripts/self-host-predeploy.js";
+          ExecStart = mkWrapped "scripts/self-host-predeploy.js";
+          LoadCredential = credentials;
           RemainAfterExit = false;
         };
     };
@@ -327,7 +366,8 @@ in {
         // hardening
         // {
           Type = "exec";
-          ExecStart = "${node}/bin/node ${appDir}/dist/main.js";
+          ExecStart = mkWrapped "dist/main.js";
+          LoadCredential = credentials;
           Restart = "on-failure";
           RestartSec = 10;
         };
