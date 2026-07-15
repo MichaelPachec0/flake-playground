@@ -288,6 +288,18 @@ in {
         assertion = cfg.nginx.enable -> cfg.nginx.hostName != "";
         message = "services.affine.nginx.enable requires nginx.hostName.";
       }
+      {
+        assertion = cfg.database.manage -> cfg.database.user == cfg.database.name;
+        message = "services.affine: with database.manage = true, database.user must equal database.name (the local peer-auth role owns its own database; nixpkgs ensureDBOwnership requires the role name to be one of ensureDatabases).";
+      }
+      {
+        assertion = cfg.user != defaultUser -> config ? users.users.${cfg.user};
+        message = "services.affine: if `user` is changed from the default, that user must already exist.";
+      }
+      {
+        assertion = cfg.group != defaultGroup -> config ? users.groups.${cfg.group};
+        message = "services.affine: if `group` is changed from the default, that group must already exist.";
+      }
     ];
 
     users.users = lib.mkIf (cfg.user == defaultUser) {
@@ -328,8 +340,11 @@ in {
     # even with the indexer off — spec §14 #3).
     systemd.services.affine-db-init = lib.mkIf cfg.database.manage {
       description = "AFFiNE: ensure pgvector extension exists";
-      after = ["postgresql.service"];
-      requires = ["postgresql.service"];
+      # nixpkgs runs ensureDatabases/ensureUsers in a SEPARATE
+      # postgresql-setup.service (not inside postgresql.service); order after it
+      # so `psql -d affine` cannot race the database's creation.
+      after = ["postgresql.service" "postgresql-setup.service"];
+      requires = ["postgresql.service" "postgresql-setup.service"];
       before = ["affine-migrate.service"];
       requiredBy = ["affine-migrate.service"];
       serviceConfig = {
@@ -342,7 +357,7 @@ in {
     systemd.services.affine-migrate = {
       description = "AFFiNE database migration / predeploy";
       after = ["network-online.target" "postgresql.service" "redis-affine.service" "affine-db-init.service"];
-      wants = ["postgresql.service" "redis-affine.service"];
+      wants = ["network-online.target" "postgresql.service" "redis-affine.service"];
       requiredBy = ["affine.service"];
       before = ["affine.service"];
       environment = commonEnv;
