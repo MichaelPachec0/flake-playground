@@ -15,4 +15,7 @@ in {
   electron-mail = pkgs.callPackage ./electron-mail.nix {
     source = sources.electron-mail;
   };
+  affine-server = pkgs.callPackage ./affine-server.nix {
+    source = sources.affine-server;
+  };
 }

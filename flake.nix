@@ -69,6 +69,11 @@
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
+    # affine-server pulls+patches a ~1GB OCI image; like windscribe it's kept OUT
+    # of the always-built CI aggregates (playground/default checks) but stays
+    # buildable on demand and available to the NixOS module. Bumps are still
+    # tracked by nvfetcher; the module is eval-checked cheaply (nixos-affine).
+    playgroundCiPkgs = builtins.removeAttrs playgroundPkgs ["affine-server"];
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -96,7 +101,7 @@
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
     # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
-    packages.x86_64-linux = mainPackages // { inherit windscribe; };
+    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server; };
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
@@ -113,7 +118,7 @@
       {
         nvim-loads = nvimLoads;
         vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
-        playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundPkgs);
+        playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundCiPkgs);
         # Build every first-class package. This is the coverage that was missing:
         # nothing under packages.x86_64-linux was built in CI before.
         packages = pkgs.linkFarmFromDrvs "packages" (builtins.attrValues mainPackages);
@@ -121,7 +126,7 @@
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
           (builtins.attrValues customVimPlugins)
-          ++ (builtins.attrValues playgroundPkgs)
+          ++ (builtins.attrValues playgroundCiPkgs)
           ++ (builtins.attrValues mainPackages)
           ++ (builtins.attrValues moduleChecks)
           ++ [nvimLoads]
