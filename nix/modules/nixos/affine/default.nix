@@ -376,5 +376,18 @@ in {
           RestartSec = 10;
         };
     };
+
+    services.nginx = lib.mkIf cfg.nginx.enable {
+      enable = true;
+      recommendedProxySettings = true;
+      virtualHosts.${cfg.nginx.hostName} = {
+        enableACME = true;
+        forceSSL = true;
+        locations."/" = {
+          proxyPass = "http://${cfg.host}:${toString cfg.port}";
+          proxyWebsockets = true; # AFFiNE realtime doc-sync uses WebSockets
+        };
+      };
+    };
   };
 }
