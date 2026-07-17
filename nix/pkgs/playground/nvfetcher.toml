@@ -8,6 +8,16 @@
 #
 #   nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
 #
+# The affine-server* entries use `fetch.docker`, which shells out to
+# `nix-prefetch-docker`/skopeo. If your host's /etc/containers/registries.conf is
+# in the old v1 format, that command aborts ("registries.conf must be in v2
+# format but is in v1"). Point it at a minimal v2 file for the run (host-only
+# quirk; CI and the sandboxed build are unaffected):
+#
+#   printf 'unqualified-search-registries = ["docker.io"]\n' > /tmp/registries-v2.conf
+#   CONTAINERS_REGISTRIES_CONF=/tmp/registries-v2.conf \
+#     nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
+#
 # Per-package build metadata (cargoLock, meta, ...) lives next to default.nix,
 # not here -- this file only pins where the source comes from.
 
