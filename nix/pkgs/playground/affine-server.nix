@@ -99,7 +99,25 @@ in
       homepage = "https://affine.pro";
       mainProgram = "affine-server";
       platforms = ["x86_64-linux" "aarch64-linux"];
-      # MIT, matching nixpkgs' own `affine` (desktop) package for the same codebase.
-      license = lib.licenses.mit;
+      # AFFiNE's server is NOT MIT. It is a mash: an MIT core plus portions
+      # (collaboration/enterprise features, etc.) under AFFiNE's own custom,
+      # non-free terms. This Path-B build ships the whole prebuilt image, which
+      # INCLUDES the non-MIT code, so the package is UNFREE. (nixpkgs' `affine`
+      # desktop is labelled MIT, but the self-host server bundle is a different
+      # licensing story — don't infer one from the other.)
+      #
+      # TODO(license, post-v1): split into two packages behind the same output
+      # contract —
+      #   * affine-server     : build from source with the non-MIT code stripped
+      #                         out, so it is genuinely free (MIT), free = true.
+      #   * affine-server-bin : the full prebuilt image (this build), everything
+      #                         included, free = false, plus a build-time warning
+      #                         that surfaces the AFFiNE license terms to the user.
+      license = {
+        shortName = "affine";
+        fullName = "AFFiNE license (MIT core + custom non-free portions)";
+        url = "https://github.com/toeverything/AFFiNE/blob/canary/LICENSE";
+        free = false;
+      };
     };
   }
