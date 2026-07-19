@@ -6,6 +6,30 @@
   dockerTools,
 }:
 {
+  affine-server = {
+    pname = "affine-server";
+    version = "0.27.0";
+    src = dockerTools.pullImage {
+      imageName = "ghcr.io/toeverything/affine";
+      imageDigest = "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9";
+      sha256 = "sha256-3WLinu+MvcOM8JCvTM5Cinj6F4e+PiA5+jvI+Z1R7eY=";
+      finalImageTag = "0.27.0";
+      os = "linux";
+      arch = "amd64";
+    };
+  };
+  affine-server-arm64 = {
+    pname = "affine-server-arm64";
+    version = "0.27.0";
+    src = dockerTools.pullImage {
+      imageName = "ghcr.io/toeverything/affine";
+      imageDigest = "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9";
+      sha256 = "sha256-jF3uCrP7857qg5dtlQ9N6kanVqz4efSAcpohuFH0s9A=";
+      finalImageTag = "0.27.0";
+      os = "linux";
+      arch = "arm64";
+    };
+  };
   electron-mail = {
     pname = "electron-mail";
     version = "5.3.8";

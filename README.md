@@ -50,6 +50,13 @@ Build any with `nix build .#<attr>`.
 | `llcat` | day50-dev/llcat v0.13.19, a Python package built via pyproject-nix. |
 | `nvchad`, `nvchad-ui`, `base46`, `minty`, `volt`, `menu` | The NvChad neovim plugin set: core on the `v2.5` branch, `ui`/`base46` on `v3.0`, plus the nvzone plugins (`volt`, `minty`, `menu`). Revs are hand-pinned. The `nvchad` package replaces NvChad's `nvim-treesitter-legacy` dependency with the new `nvim-treesitter` (which core `d042cc9` requires) and carries small nixpkgs-name patches. See `nix/pkgs/nvchad/NOTES.md`. |
 
+`affine-server` isn't in the table above (it's sourced from the `playground`
+set, see below) but is exposed directly at `packages.x86_64-linux.affine-server`
+for `nix build .#affine-server`. It patches a ~1-2 GB upstream OCI image, so -
+like `windscribe` - it's deliberately kept out of the `packages`/`default` CI
+check aggregates while staying buildable on demand; `nixosModules.affine`
+uses it as `services.affine.package`'s default.
+
 ### `legacyPackages.x86_64-linux.vimPlugins`
 
 A nested set of roughly thirty neovim plugins migrated from `nix-config` that are
@@ -75,6 +82,12 @@ rather than the (often stale) nixpkgs revision. Same nvfetcher arrangement as
   `buildRustPackage`; crates.io deps resolve from upstream's `Cargo.lock`
   (`cargoLock.lockFile`) so a source bump needs no `cargoHash`, and only the
   `swayipc-rs` git dependency carries a pinned `outputHashes` entry.
+- `affine-server` - the self-hosted AFFiNE server (`toeverything/affine` ghcr
+  image, nvfetcher-pinned by digest). Built Path B: the OCI image is unpacked
+  and `autoPatchelf`-ed into a native `node dist/main.js` bundle, no container
+  runtime required. Pulls a ~1-2 GB image at build time, so it's excluded from
+  the `playground`/`default` CI checks; build on demand with
+  `nix build .#affine-server`. Backs the `services.affine` NixOS module below.
 
 Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 
@@ -93,9 +106,11 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
   This catches breakage that only appears when the set is loaded together:
   startup-script errors, removed APIs after a source bump, version conflicts.
 - `nixos-cynthion`, `nixos-realsense`, `nixos-zsa`, `nixos-hyprpolkitagent`,
-  `nixos-tuwunel` - *evaluate* the resulting NixOS system with each module
-  enabled. These catch option-name typos, missing references, and structural
-  breakage without building the full system closure.
+  `nixos-tuwunel`, `nixos-affine` - *evaluate* the resulting NixOS system with
+  each module enabled. These catch option-name typos, missing references, and
+  structural breakage without building the full system closure. `affine`'s
+  package build is heavy (see `packages.x86_64-linux` above), so this check
+  only evaluates the module - it does not build `affine-server`.
 - `hm-nvchad`, `hm-cspell` - the same, for the home-manager modules.
 - `default` - all of the above. CI builds this.
 
@@ -119,10 +134,34 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 | `zsa` | `hardware.zsa.{wally,oryx,legacy}.enable` | udev rules for ZSA keyboards (Moonlander, Ergodox EZ, Planck EZ). |
 | `hyprpolkitagent` | `services.hyprpolkitagent.enable` | systemd user service running the hypr polkit agent. |
 | `tuwunel` | `services.tuwunel.enable` | systemd service for the tuwunel Matrix server (`pkgs.matrix-tuwunel`). `registration_token_file` is loaded as a systemd credential and the generated config points at it. |
+| `affine` | `services.affine.enable` | Runs a self-hosted AFFiNE server (`pkgs.playground.affine-server`) natively under hardened systemd units - no container runtime. Provisions PostgreSQL (+pgvector) and Redis, loads sops-nix secrets via `LoadCredential`, serves local-FS (or best-effort S3) blob storage, and can front itself with an optional nginx+ACME reverse proxy. |
 
-`default` imports all five modules above (from `nix/modules/nixos/default.nix`);
+`default` imports every module above (from `nix/modules/nixos/default.nix`);
 enable only the ones you want, since each module's config is gated behind its own
 enable option.
+
+**`affine` prerequisites & first admin.** `x86_64-linux` only; ~4 vCPU / 2 GB
+RAM at runtime. Building `affine-server` needs network egress to `ghcr.io` and
+~1-2 GB of scratch/disk to unpack the pinned OCI image. PostgreSQL and Redis
+are provided by the module itself - no separate install unless you bring your
+own. sops-nix (or agenix) is only needed for a remote/BYO database, S3
+storage, or seeding the first admin account; a domain with ports 80/443 open
+is only needed for the optional nginx+ACME path
+(`services.affine.nginx.enable`). Minimal usage:
+
+```nix
+services.affine = {
+  enable = true;
+  externalUrl = "https://affine.example.com";
+};
+```
+
+Seed the first admin with `services.affine.admin.email` +
+`admin.passwordFile` (sops), or leave both unset and create the account at
+`<externalUrl>/admin` after first boot. Post-v1 (not yet built): the
+pgvector-backed AI/full-text indexer, S3 storage promoted out of best-effort,
+a from-source (Path A) build behind the same package contract, a `nixosTest`
+VM integration test, and ARM64.
 
 ### `homeManagerModules`
 
@@ -211,7 +250,7 @@ nix/pkgs/                      package definitions (callPackage style)
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
   playground/                  latest-upstream pkgs (workstyle): nvfetcher.toml, _sources/, default.nix
 nix/modules/
-  nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel
+  nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel, affine
                                (+ default.nix importing all)
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test

@@ -8,6 +8,24 @@
 #
 #   nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
 #
+# The affine-server* entries use `fetch.docker`, which shells out to
+# `nix-prefetch-docker`/skopeo. skopeo (from nixpkgs) requires the containers
+# registries config in v2 format; if the environment's
+# /etc/containers/registries.conf is the old v1 format, it aborts
+# ("registries.conf must be in v2 format but is in v1"). This bites BOTH local
+# runs (many distros still ship a v1 file) AND CI (the GitHub ubuntu-latest
+# runner ships a v1 registries.conf via containers-common) -- it is NOT a
+# host-only quirk. It only fires on a run that actually re-fetches a digest
+# (i.e. when the tracked release changed); steady-state runs skip the fetch.
+# Override the config with a minimal v2 file for the run:
+#
+#   printf 'unqualified-search-registries = ["docker.io"]\n' > /tmp/registries-v2.conf
+#   CONTAINERS_REGISTRIES_CONF=/tmp/registries-v2.conf \
+#     nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
+#
+# The .github/workflows/update-playground.yml bump job applies this same override
+# around its nvfetcher invocation, so the daily bump survives a release-day fetch.
+#
 # Per-package build metadata (cargoLock, meta, ...) lives next to default.nix,
 # not here -- this file only pins where the source comes from.
 
@@ -24,3 +42,30 @@ fetch.git = "https://github.com/pierrechevalier83/workstyle"
 src.github = "vladimiry/ElectronMail"
 src.prefix = "v"
 fetch.url = "https://github.com/vladimiry/ElectronMail/releases/download/v$ver/electron-mail-$ver-linux-x86_64.AppImage"
+
+# AFFiNE self-host server. Tracked as an OCI image (no upstream source package).
+# NOTE: nvfetcher's `src.container` is Docker-Hub-ONLY (its Haskell type has no
+# registry field), so it cannot watch a ghcr.io image. Instead we DECOUPLE: watch
+# AFFiNE's GitHub stable *releases* for the version (use_latest_release excludes
+# the -canary/-beta prereleases; prefix strips the leading `v`), and fetch the
+# matching image from ghcr via `fetch.docker` (skopeo speaks any registry).
+#
+# The upstream image is a multi-arch index; `docker.arch` selects one platform's
+# manifest and pins its digest. We track amd64 and arm64 as SEPARATE entries (a
+# single nvfetcher entry pins one arch's digest); nix/pkgs/playground/default.nix
+# picks the entry matching the build's host platform. Both track the same release.
+[affine-server]
+src.github = "toeverything/AFFiNE"
+src.use_latest_release = true
+src.prefix = "v"
+fetch.docker = "ghcr.io/toeverything/affine"
+docker.os = "linux"
+docker.arch = "amd64"
+
+[affine-server-arm64]
+src.github = "toeverything/AFFiNE"
+src.use_latest_release = true
+src.prefix = "v"
+fetch.docker = "ghcr.io/toeverything/affine"
+docker.os = "linux"
+docker.arch = "arm64"
