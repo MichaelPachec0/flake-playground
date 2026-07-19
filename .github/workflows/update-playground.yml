@@ -22,7 +22,17 @@ jobs:
       - name: Regenerate sources + run flake checks
         uses: ./.github/actions/nix-checks
         with:
+          # The affine-server* entries fetch OCI images via skopeo, which aborts
+          # when the runner's /etc/containers/registries.conf is v1 format. The
+          # ubuntu-latest runner ships a v1 file (containers-common), while
+          # nixpkgs' skopeo requires v2 -> "registries.conf must be in v2 format
+          # but is in v1". Point skopeo at a minimal v2 file for the nvfetcher run
+          # (the env var propagates to the skopeo grandchild). This only bites on
+          # a day the tracked release changes and a digest is actually re-fetched.
+          # See nix/pkgs/playground/nvfetcher.toml for the same workaround locally.
           pre-build-command: >-
+            printf 'unqualified-search-registries = ["docker.io"]\n' > /tmp/registries-v2.conf &&
+            CONTAINERS_REGISTRIES_CONF=/tmp/registries-v2.conf
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/playground/nvfetcher.toml
             -o nix/pkgs/playground/_sources
