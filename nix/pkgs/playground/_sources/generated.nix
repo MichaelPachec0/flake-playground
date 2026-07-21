@@ -8,24 +8,24 @@
 {
   affine-server = {
     pname = "affine-server";
-    version = "0.27.0";
+    version = "0.27.2";
     src = dockerTools.pullImage {
       imageName = "ghcr.io/toeverything/affine";
-      imageDigest = "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9";
-      sha256 = "sha256-3WLinu+MvcOM8JCvTM5Cinj6F4e+PiA5+jvI+Z1R7eY=";
-      finalImageTag = "0.27.0";
+      imageDigest = "sha256:69c70101cc8074d84aa54922f392b2b4982a874c525699796fa75c6e19ca0b1f";
+      sha256 = "sha256-uvSN+BZR2kzTZ8X6hVygIVAoE4hfePMvWVTD/ighIGc=";
+      finalImageTag = "0.27.2";
       os = "linux";
       arch = "amd64";
     };
   };
   affine-server-arm64 = {
     pname = "affine-server-arm64";
-    version = "0.27.0";
+    version = "0.27.2";
     src = dockerTools.pullImage {
       imageName = "ghcr.io/toeverything/affine";
-      imageDigest = "sha256:cc309913620e153f7aaea47cd40d1eff993030cf2b2df8f88270663459db37c9";
-      sha256 = "sha256-jF3uCrP7857qg5dtlQ9N6kanVqz4efSAcpohuFH0s9A=";
-      finalImageTag = "0.27.0";
+      imageDigest = "sha256:69c70101cc8074d84aa54922f392b2b4982a874c525699796fa75c6e19ca0b1f";
+      sha256 = "sha256-sIkusWtUCly1WmiRzIoZZUKXFpXozoj9MIgQlVYQlj8=";
+      finalImageTag = "0.27.2";
       os = "linux";
       arch = "arm64";
     };
