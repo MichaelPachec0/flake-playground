@@ -106,17 +106,17 @@
   };
   guihuaLua = {
     pname = "guihuaLua";
-    version = "f8e06bd8a26dee3377d63c2adf1e57cdb58ac474";
+    version = "4c513d5dac550af77034cced421967b393261509";
     src = fetchgit {
       url = "https://github.com/ray-x/guihua.lua";
-      rev = "f8e06bd8a26dee3377d63c2adf1e57cdb58ac474";
+      rev = "4c513d5dac550af77034cced421967b393261509";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-lupDg/yt75164H8zQs/HTKqC3Y1FnQCzoMq90nwapO8=";
+      sha256 = "sha256-e0Almh8wWGp5NxHX48Y4XGEUHtPCYOXi4BIlfeSzaIs=";
     };
-    date = "2026-05-27";
+    date = "2026-07-03";
   };
   indentmini = {
     pname = "indentmini";
@@ -148,31 +148,31 @@
   };
   kittyScrollback = {
     pname = "kittyScrollback";
-    version = "53fd294658941719d7622471f28e70179d6737a6";
+    version = "1c2ac18420078525b7a4279aade891c1602b35c2";
     src = fetchgit {
       url = "https://github.com/mikesmithgh/kitty-scrollback.nvim";
-      rev = "53fd294658941719d7622471f28e70179d6737a6";
+      rev = "1c2ac18420078525b7a4279aade891c1602b35c2";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-PN9mzliyoIQ5BhG57p7obhsbDaLkbbWdltLLNL1Ti20=";
+      sha256 = "sha256-8IkvoJ8nTlP5WCqMpJqUhBsz7OYB/Mlp1lH5TJRpvOE=";
     };
-    date = "2026-05-13";
+    date = "2026-07-18";
   };
   miniMove = {
     pname = "miniMove";
-    version = "b9e452f9c83565a1520e14f7531632160f3b0170";
+    version = "48fcaac289a19b8eff2fd5fe203267d478a8abdc";
     src = fetchgit {
       url = "https://github.com/echasnovski/mini.move";
-      rev = "b9e452f9c83565a1520e14f7531632160f3b0170";
+      rev = "48fcaac289a19b8eff2fd5fe203267d478a8abdc";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-HVTI8k5KJeULmW6AC1qgCUXF5lHDcCzzp1aaI4H1PgU=";
+      sha256 = "sha256-rPcX2Qql7UtPxNhMHW0W5ZDM5s1apw6AMI+orOW9dqc=";
     };
-    date = "2026-06-19";
+    date = "2026-07-07";
   };
   neoai = {
     pname = "neoai";
@@ -218,17 +218,17 @@
   };
   noneLsExtras = {
     pname = "noneLsExtras";
-    version = "27681d797a26f1b4d6119296df42f5204c88a2dc";
+    version = "9a8b8a9aeb43382e5aaf49b00b7cfb5d42d32118";
     src = fetchgit {
       url = "https://github.com/nvimtools/none-ls-extras.nvim";
-      rev = "27681d797a26f1b4d6119296df42f5204c88a2dc";
+      rev = "9a8b8a9aeb43382e5aaf49b00b7cfb5d42d32118";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-GZLT8X1eLeSkiV5EN1nOkCQg5nwNATURi/KMj90i40I=";
+      sha256 = "sha256-YmDhDUqSJPOllXzkyrVUgnshrI5+Kt5Te8tEmnjOAVQ=";
     };
-    date = "2026-06-06";
+    date = "2026-07-17";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";
