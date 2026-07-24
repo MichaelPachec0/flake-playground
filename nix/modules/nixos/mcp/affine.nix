@@ -22,8 +22,6 @@ inputs: {
   hasEmailAuth = cfg.emailFile != null && cfg.passwordFile != null;
   hasAnyAuth = hasEmailAuth || cfg.cookieFile != null || cfg.apiTokenFile != null;
 
-  entry = "${cfg.package}/lib/node_modules/affine-mcp-server/dist/index.js";
-
   # Non-secret environment; only emit vars that are set/relevant.
   serviceEnv =
     {
@@ -51,7 +49,7 @@ inputs: {
     ++ lib.optional (cfg.apiTokenFile != null) "affine-api-token:${cfg.apiTokenFile}"
     ++ lib.optional (cfg.http.tokenFile != null) "http-token:${cfg.http.tokenFile}";
 
-  # Compose secret env from credential files at runtime, then exec node.
+  # Compose secret env from credential files at runtime, then exec the package's launcher.
   wrapper = pkgs.writeShellScript "mcp-affine-start" ''
     set -euo pipefail
     creds="''${CREDENTIALS_DIRECTORY:-}"
@@ -60,7 +58,7 @@ inputs: {
     ${lib.optionalString (cfg.cookieFile != null) ''export AFFINE_COOKIE="$(cat "$creds/affine-cookie")"''}
     ${lib.optionalString (cfg.apiTokenFile != null) ''export AFFINE_API_TOKEN="$(cat "$creds/affine-api-token")"''}
     ${lib.optionalString (cfg.http.tokenFile != null) ''export AFFINE_MCP_HTTP_TOKEN="$(cat "$creds/http-token")"''}
-    exec ${pkgs.nodejs_22}/bin/node ${entry}
+    exec ${lib.getExe cfg.package}
   '';
 
   # Node-safe hardening (V8 JIT needs MemoryDenyWriteExecute=false + @ipc kept).
@@ -260,9 +258,9 @@ in {
           DynamicUser = true;
           StateDirectory = "mcp-affine";
           StateDirectoryMode = "0700";
-          RuntimeDirectory = "mcp-affine";
           ExecStart = wrapper;
           LoadCredential = credList;
+          Type = "exec";
           Restart = "on-failure";
           RestartSec = 5;
           MemoryMax = "512M";
