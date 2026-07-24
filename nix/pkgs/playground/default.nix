@@ -15,6 +15,9 @@ in {
   electron-mail = pkgs.callPackage ./electron-mail.nix {
     source = sources.electron-mail;
   };
+  affine-mcp-server = pkgs.callPackage ./affine-mcp-server.nix {
+    source = sources.affine-mcp-server;
+  };
   # Multi-arch: pick the nvfetcher source whose pinned digest matches the build
   # host platform (amd64 vs arm64). Both track the same AFFiNE release.
   affine-server = pkgs.callPackage ./affine-server.nix {
