@@ -174,8 +174,9 @@
       tuwunel = import ./nix/modules/nixos/tuwunel inputs;
       windscribe = import ./nix/modules/nixos/windscribe inputs;
       affine = import ./nix/modules/nixos/affine inputs;
+      mcp = import ./nix/modules/nixos/mcp inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp;
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };

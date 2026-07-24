@@ -14,5 +14,6 @@ inputs: {
     (import ./tuwunel inputs)
     (import ./windscribe inputs)
     (import ./affine inputs)
+    (import ./mcp inputs)
   ];
 }
