@@ -65,6 +65,15 @@ inputs: {
         export AWS_ACCESS_KEY_ID="$(cat "$creds/s3-access-key-id")"
         export AWS_SECRET_ACCESS_KEY="$(cat "$creds/s3-secret-access-key")"
       ''}
+      # Prisma cannot auto-detect (or download, on the read-only store) its native
+      # engines on NixOS, so point it at the bundled, autopatchelfed ones. We run
+      # `node <entry>` directly rather than the package's bin wrapper, so nothing
+      # else sets these. Discover at runtime so it stays arch/openssl-agnostic:
+      # migrate needs the schema engine, the server needs the query engine library.
+      qe="$(find ${appDir}/node_modules/@prisma/engines -maxdepth 1 -name 'libquery_engine*.node' -type f 2>/dev/null | head -n1 || true)"
+      if [ -n "$qe" ]; then export PRISMA_QUERY_ENGINE_LIBRARY="$qe"; fi
+      se="$(find ${appDir}/node_modules/@prisma/engines -maxdepth 1 -name 'schema-engine*' -type f 2>/dev/null | head -n1 || true)"
+      if [ -n "$se" ]; then export PRISMA_SCHEMA_ENGINE_BINARY="$se"; fi
       exec ${node}/bin/node ${appDir}/${entry}
     '';
 
@@ -361,6 +370,12 @@ in {
       requiredBy = ["affine.service"];
       before = ["affine.service"];
       environment = commonEnv;
+      # self-host-predeploy.js shells out to `yarn prisma migrate deploy` / `yarn
+      # cli run`; the Path-B bundle ships neither yarn nor node on PATH. Provide
+      # classic yarn (the upstream image uses node:22's bundled yarn; node-modules
+      # linker => `yarn prisma` just runs node_modules/.bin/prisma) plus the pinned
+      # node for prisma's `env node` shebang and its native engines.
+      path = [pkgs.yarn node];
       serviceConfig =
         baseService
         // hardening
