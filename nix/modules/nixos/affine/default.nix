@@ -404,6 +404,13 @@ in {
           LoadCredential = credentials;
           Restart = "on-failure";
           RestartSec = 10;
+          # NestJS regenerates the GraphQL schema to `${projectRoot}/src/schema.gql`
+          # on every start. projectRoot is derived from import.meta.url (= the
+          # read-only /app bundle), so it can't be redirected. It's a regenerated
+          # artifact, so bind an ephemeral tmpfs over it. The package ships an empty
+          # `app/src` because systemd can't create the mountpoint under the ro store.
+          RuntimeDirectory = "affine-schema";
+          BindPaths = ["/run/affine-schema:${appDir}/src"];
         };
     };
 

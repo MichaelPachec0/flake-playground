@@ -72,6 +72,13 @@ in
       # than being papered over with an ignore.
       find $out/app -name '*.musl.node' -delete
 
+      # NestJS regenerates the GraphQL schema to <projectRoot>/src/schema.gql on
+      # every start (projectRoot is import.meta.url-derived, so it always points at
+      # this read-only bundle). Ship an empty app/src so a runtime tmpfs can be
+      # bind-mounted over it (the consuming module does this) -- systemd can't create
+      # the mountpoint itself under the read-only store.
+      mkdir -p $out/app/src
+
       # Pin the Prisma library query engine (a .node addon) for the wrapped
       # process. Only add the flag if an engine is actually present, so the
       # wrapper stays correct if a future image relocates or drops it.
