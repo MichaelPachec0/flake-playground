@@ -10,14 +10,14 @@
             "arch": "amd64",
             "finalImageName": null,
             "finalImageTag": null,
-            "imageDigest": "sha256:69c70101cc8074d84aa54922f392b2b4982a874c525699796fa75c6e19ca0b1f",
+            "imageDigest": "sha256:d9d145f9f47b862d1fa96e2a887052b5762846237f75fbb077be990ef646e05c",
             "imageName": "ghcr.io/toeverything/affine",
-            "imageTag": "0.27.2",
+            "imageTag": "0.27.3",
             "os": "linux",
-            "sha256": "sha256-uvSN+BZR2kzTZ8X6hVygIVAoE4hfePMvWVTD/ighIGc=",
+            "sha256": "sha256-4RPZClicwO1oWSwJRt5gWGLPvWniWBkHN9yjgHA+ciY=",
             "tlsVerify": null
         },
-        "version": "0.27.2"
+        "version": "0.27.3"
     },
     "affine-server-arm64": {
         "cargoLock": null,
@@ -30,14 +30,14 @@
             "arch": "arm64",
             "finalImageName": null,
             "finalImageTag": null,
-            "imageDigest": "sha256:69c70101cc8074d84aa54922f392b2b4982a874c525699796fa75c6e19ca0b1f",
+            "imageDigest": "sha256:d9d145f9f47b862d1fa96e2a887052b5762846237f75fbb077be990ef646e05c",
             "imageName": "ghcr.io/toeverything/affine",
-            "imageTag": "0.27.2",
+            "imageTag": "0.27.3",
             "os": "linux",
-            "sha256": "sha256-sIkusWtUCly1WmiRzIoZZUKXFpXozoj9MIgQlVYQlj8=",
+            "sha256": "sha256-rWWnXDqQytDER9cQzOkDZ74q8+dcCx58XxhXbjyajDI=",
             "tlsVerify": null
         },
-        "version": "0.27.2"
+        "version": "0.27.3"
     },
     "electron-mail": {
         "cargoLock": null,
