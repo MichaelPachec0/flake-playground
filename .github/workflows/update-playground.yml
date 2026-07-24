@@ -35,11 +35,14 @@ jobs:
             CONTAINERS_REGISTRIES_CONF=/tmp/registries-v2.conf
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/playground/nvfetcher.toml
-            -o nix/pkgs/playground/_sources
+            -o nix/pkgs/playground/_sources &&
+            bash nix/pkgs/playground/refresh-npm-deps-hash.sh affine-mcp-server
 
       - name: Commit bumped sources
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: bump playground package sources"
-          file_pattern: "nix/pkgs/playground/_sources/"
+          file_pattern: |
+            nix/pkgs/playground/_sources/
+            nix/pkgs/playground/affine-mcp-server.npm-deps.hash
