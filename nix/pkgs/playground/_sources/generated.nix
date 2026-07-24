@@ -6,6 +6,17 @@
   dockerTools,
 }:
 {
+  affine-mcp-server = {
+    pname = "affine-mcp-server";
+    version = "v3.0.1";
+    src = fetchFromGitHub {
+      owner = "DAWNCR0W";
+      repo = "affine-mcp-server";
+      rev = "v3.0.1";
+      fetchSubmodules = false;
+      sha256 = "sha256-VjCs/DmO790hzQO67/SngyKB6M7Ud9heIOnbQoRHhUc=";
+    };
+  };
   affine-server = {
     pname = "affine-server";
     version = "0.27.0";

@@ -69,3 +69,25 @@ src.prefix = "v"
 fetch.docker = "ghcr.io/toeverything/affine"
 docker.os = "linux"
 docker.arch = "arm64"
+
+# DAWNCR0W/affine-mcp-server — write-capable MCP server for AFFiNE workspaces.
+# Tracks the latest GitHub *release* (excludes prereleases) and fetches the repo
+# at that tag as a source TREE (fetchFromGitHub) for buildNpmPackage.
+#
+# IMPORTANT: no `src.prefix = "v"` here. The upstream tags carry a leading `v`
+# (e.g. v3.0.1). nvfetcher 0.8.0 has no rev-template for `fetch.github`, so it
+# reuses the (post-prefix) version string verbatim as the git rev. Stripping the
+# prefix would make it fetch rev `3.0.1` -> archive/3.0.1.tar.gz -> HTTP 404
+# (only `v3.0.1` exists). So we keep the `v` in `version` and strip it at the
+# package level instead (affine-mcp-server.nix: lib.removePrefix "v"). Do NOT use
+# the electron-mail-style `fetch.url` tarball workaround: that makes `src` a
+# tarball FILE, which breaks the deps-hash refresh (`$src/package-lock.json`
+# needs `src` to be an unpacked directory).
+#
+# buildNpmPackage also needs npmDepsHash, which nvfetcher does NOT compute; it
+# lives in ../affine-mcp-server.npm-deps.hash and is refreshed by the daily
+# update-playground.yml workflow (see that file + affine-mcp-server.nix).
+[affine-mcp-server]
+src.github = "DAWNCR0W/affine-mcp-server"
+src.use_latest_release = true
+fetch.github = "DAWNCR0W/affine-mcp-server"
