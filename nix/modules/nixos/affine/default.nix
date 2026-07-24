@@ -44,7 +44,6 @@ inputs: {
   # env at runtime, so no secret ever lands in the Nix store or static env.
   credentials =
     lib.optional (cfg.database.passwordFile != null) "db-password:${cfg.database.passwordFile}"
-    ++ lib.optional (cfg.admin.passwordFile != null) "admin-password:${cfg.admin.passwordFile}"
     ++ lib.optional (cfg.storage.s3.accessKeyIdFile != null) "s3-access-key-id:${cfg.storage.s3.accessKeyIdFile}"
     ++ lib.optional (cfg.storage.s3.secretAccessKeyFile != null) "s3-secret-access-key:${cfg.storage.s3.secretAccessKeyFile}";
 
@@ -60,10 +59,6 @@ inputs: {
         dbpw="$(cat "$creds/db-password")"
         dbpw_enc="$(DBPW="$dbpw" ${node}/bin/node -e 'process.stdout.write(encodeURIComponent(process.env.DBPW))')"
         export DATABASE_URL="postgresql://${cfg.database.user}:''${dbpw_enc}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
-      ''}
-      ${lib.optionalString (cfg.admin.passwordFile != null) ''
-        export AFFINE_ADMIN_EMAIL="${toString cfg.admin.email}"
-        export AFFINE_ADMIN_PASSWORD="$(cat "$creds/admin-password")"
       ''}
       ${lib.optionalString (cfg.storage.provider == "s3") ''
         export AWS_ACCESS_KEY_ID="$(cat "$creds/s3-access-key-id")"
@@ -258,16 +253,22 @@ in {
       };
     };
 
+    # NOTE: AFFiNE (as of 0.2x) does NOT seed the first admin from environment
+    # variables -- the account is created interactively at <externalUrl>/admin on
+    # first visit, and self-host-predeploy.js never reads AFFINE_ADMIN_*. These
+    # options therefore currently have NO effect; they are retained (behind a
+    # warning) so consumers don't break and so seeding can be wired if a future
+    # AFFiNE release exposes a create-admin path. See config.warnings below.
     admin = {
       email = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Optional first-admin email to seed (AFFINE_ADMIN_EMAIL). Falls back to /admin if unset.";
+        description = "First-admin email. NO-OP on AFFiNE 0.2x (create the admin at <externalUrl>/admin instead).";
       };
       passwordFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
-        description = "sops path to the first-admin password (AFFINE_ADMIN_PASSWORD).";
+        description = "sops path to the first-admin password. NO-OP on AFFiNE 0.2x (admin is created via the web UI).";
       };
     };
 
@@ -280,6 +281,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    warnings =
+      lib.optional (cfg.admin.email != null || cfg.admin.passwordFile != null)
+      "services.affine.admin.* has no effect on AFFiNE 0.2x: it does not seed the first admin from environment variables. Create the admin interactively at ${cfg.externalUrl}/admin on first visit.";
+
     assertions = [
       {
         assertion = cfg.externalUrl != "";
