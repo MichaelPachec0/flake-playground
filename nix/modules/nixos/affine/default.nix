@@ -17,9 +17,13 @@ inputs: {
   appDir = "${cfg.package}/app";
 
   # Local peer auth => no password in the URL; the socket dir is the default.
+  # NOTE the `localhost` placeholder authority: prisma rejects an empty host
+  # (P1013 "empty host in database URL") even though libpq accepts it. The
+  # `?host=/run/postgresql` socket dir still takes precedence for the connection,
+  # so this stays a peer-auth unix-socket connect while satisfying prisma's parser.
   databaseUrl =
     if cfg.database.manage
-    then "postgresql://${cfg.database.user}@/${cfg.database.name}?host=/run/postgresql"
+    then "postgresql://${cfg.database.user}@localhost/${cfg.database.name}?host=/run/postgresql"
     else "postgresql://${cfg.database.user}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}";
 
   commonEnv =
