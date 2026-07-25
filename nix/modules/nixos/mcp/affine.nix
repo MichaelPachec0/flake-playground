@@ -85,7 +85,11 @@ inputs: {
     RestrictSUIDSGID = true;
     LockPersonality = true;
     MemoryDenyWriteExecute = false;
-    RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+    # AF_NETLINK is needed for outbound DNS: unlike the affine module this profile
+    # was copied from (which only talks to a local Postgres over AF_UNIX), this
+    # service resolves a possibly-remote AFFiNE host, and glibc getaddrinfo opens
+    # an AF_NETLINK socket for RFC-3484 source-address sorting.
+    RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK"];
     CapabilityBoundingSet = [];
     AmbientCapabilities = [];
     SystemCallArchitectures = "native";
