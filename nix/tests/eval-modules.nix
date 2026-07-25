@@ -73,6 +73,14 @@ in {
     services.affine.enable = true;
     services.affine.externalUrl = "https://ci.example";
   };
+  nixos-mcp-affine = evalNixos "mcp" {
+    mcp.affine.enable = true;
+    mcp.affine.baseUrl = "https://ci.example";
+    # path literals; eval never reads them (LoadCredential is a runtime concern)
+    mcp.affine.emailFile = "/run/secrets/affine-email";
+    mcp.affine.passwordFile = "/run/secrets/affine-password";
+    mcp.affine.http.allowUnauthenticated = true;
+  };
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};

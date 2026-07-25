@@ -109,7 +109,7 @@
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
     # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
-    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server; };
+    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server affine-mcp-server; };
 
     # aarch64: only affine-server, so `services.affine` (default package =
     # self.packages.${system}.affine-server) works on an aarch64-linux host.
@@ -174,8 +174,9 @@
       tuwunel = import ./nix/modules/nixos/tuwunel inputs;
       windscribe = import ./nix/modules/nixos/windscribe inputs;
       affine = import ./nix/modules/nixos/affine inputs;
+      mcp = import ./nix/modules/nixos/mcp inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp;
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };

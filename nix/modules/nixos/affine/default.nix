@@ -17,9 +17,13 @@ inputs: {
   appDir = "${cfg.package}/app";
 
   # Local peer auth => no password in the URL; the socket dir is the default.
+  # NOTE the `localhost` placeholder authority: prisma rejects an empty host
+  # (P1013 "empty host in database URL") even though libpq accepts it. The
+  # `?host=/run/postgresql` socket dir still takes precedence for the connection,
+  # so this stays a peer-auth unix-socket connect while satisfying prisma's parser.
   databaseUrl =
     if cfg.database.manage
-    then "postgresql://${cfg.database.user}@/${cfg.database.name}?host=/run/postgresql"
+    then "postgresql://${cfg.database.user}@localhost/${cfg.database.name}?host=/run/postgresql"
     else "postgresql://${cfg.database.user}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}";
 
   commonEnv =
@@ -40,7 +44,6 @@ inputs: {
   # env at runtime, so no secret ever lands in the Nix store or static env.
   credentials =
     lib.optional (cfg.database.passwordFile != null) "db-password:${cfg.database.passwordFile}"
-    ++ lib.optional (cfg.admin.passwordFile != null) "admin-password:${cfg.admin.passwordFile}"
     ++ lib.optional (cfg.storage.s3.accessKeyIdFile != null) "s3-access-key-id:${cfg.storage.s3.accessKeyIdFile}"
     ++ lib.optional (cfg.storage.s3.secretAccessKeyFile != null) "s3-secret-access-key:${cfg.storage.s3.secretAccessKeyFile}";
 
@@ -57,14 +60,19 @@ inputs: {
         dbpw_enc="$(DBPW="$dbpw" ${node}/bin/node -e 'process.stdout.write(encodeURIComponent(process.env.DBPW))')"
         export DATABASE_URL="postgresql://${cfg.database.user}:''${dbpw_enc}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
       ''}
-      ${lib.optionalString (cfg.admin.passwordFile != null) ''
-        export AFFINE_ADMIN_EMAIL="${toString cfg.admin.email}"
-        export AFFINE_ADMIN_PASSWORD="$(cat "$creds/admin-password")"
-      ''}
       ${lib.optionalString (cfg.storage.provider == "s3") ''
         export AWS_ACCESS_KEY_ID="$(cat "$creds/s3-access-key-id")"
         export AWS_SECRET_ACCESS_KEY="$(cat "$creds/s3-secret-access-key")"
       ''}
+      # Prisma cannot auto-detect (or download, on the read-only store) its native
+      # engines on NixOS, so point it at the bundled, autopatchelfed ones. We run
+      # `node <entry>` directly rather than the package's bin wrapper, so nothing
+      # else sets these. Discover at runtime so it stays arch/openssl-agnostic:
+      # migrate needs the schema engine, the server needs the query engine library.
+      qe="$(find ${appDir}/node_modules/@prisma/engines -maxdepth 1 -name 'libquery_engine*.node' -type f 2>/dev/null | head -n1 || true)"
+      if [ -n "$qe" ]; then export PRISMA_QUERY_ENGINE_LIBRARY="$qe"; fi
+      se="$(find ${appDir}/node_modules/@prisma/engines -maxdepth 1 -name 'schema-engine*' -type f 2>/dev/null | head -n1 || true)"
+      if [ -n "$se" ]; then export PRISMA_SCHEMA_ENGINE_BINARY="$se"; fi
       exec ${node}/bin/node ${appDir}/${entry}
     '';
 
@@ -245,16 +253,22 @@ in {
       };
     };
 
+    # NOTE: AFFiNE (as of 0.2x) does NOT seed the first admin from environment
+    # variables -- the account is created interactively at <externalUrl>/admin on
+    # first visit, and self-host-predeploy.js never reads AFFINE_ADMIN_*. These
+    # options therefore currently have NO effect; they are retained (behind a
+    # warning) so consumers don't break and so seeding can be wired if a future
+    # AFFiNE release exposes a create-admin path. See config.warnings below.
     admin = {
       email = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Optional first-admin email to seed (AFFINE_ADMIN_EMAIL). Falls back to /admin if unset.";
+        description = "First-admin email. NO-OP on AFFiNE 0.2x (create the admin at <externalUrl>/admin instead).";
       };
       passwordFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
-        description = "sops path to the first-admin password (AFFINE_ADMIN_PASSWORD).";
+        description = "sops path to the first-admin password. NO-OP on AFFiNE 0.2x (admin is created via the web UI).";
       };
     };
 
@@ -267,6 +281,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    warnings =
+      lib.optional (cfg.admin.email != null || cfg.admin.passwordFile != null)
+      "services.affine.admin.* has no effect on AFFiNE 0.2x: it does not seed the first admin from environment variables. Create the admin interactively at ${cfg.externalUrl}/admin on first visit.";
+
     assertions = [
       {
         assertion = cfg.externalUrl != "";
@@ -361,6 +379,12 @@ in {
       requiredBy = ["affine.service"];
       before = ["affine.service"];
       environment = commonEnv;
+      # self-host-predeploy.js shells out to `yarn prisma migrate deploy` / `yarn
+      # cli run`; the Path-B bundle ships neither yarn nor node on PATH. Provide
+      # classic yarn (the upstream image uses node:22's bundled yarn; node-modules
+      # linker => `yarn prisma` just runs node_modules/.bin/prisma) plus the pinned
+      # node for prisma's `env node` shebang and its native engines.
+      path = [pkgs.yarn node];
       serviceConfig =
         baseService
         // hardening
@@ -389,6 +413,13 @@ in {
           LoadCredential = credentials;
           Restart = "on-failure";
           RestartSec = 10;
+          # NestJS regenerates the GraphQL schema to `${projectRoot}/src/schema.gql`
+          # on every start. projectRoot is derived from import.meta.url (= the
+          # read-only /app bundle), so it can't be redirected. It's a regenerated
+          # artifact, so bind an ephemeral tmpfs over it. The package ships an empty
+          # `app/src` because systemd can't create the mountpoint under the ro store.
+          RuntimeDirectory = "affine-schema";
+          BindPaths = ["/run/affine-schema:${appDir}/src"];
         };
     };
 
