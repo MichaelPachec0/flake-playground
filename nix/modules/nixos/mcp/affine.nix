@@ -216,6 +216,13 @@ in {
       example = {AFFINE_LOGIN_AT_START = "sync";};
       description = "Freeform environment passthrough for any other AFFINE_*/MCP_* var (WebSocket tuning, OAuth, CORS, ...).";
     };
+
+    memoryMax = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      default = "1024M";
+      example = "2G";
+      description = "systemd MemoryMax cap for the service. Bump for blob-heavy tool use (large uploads); on OOM the cgroup kill + Restart=on-failure recovers.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -267,7 +274,7 @@ in {
           Type = "exec";
           Restart = "on-failure";
           RestartSec = 5;
-          MemoryMax = "512M";
+          MemoryMax = cfg.memoryMax;
         }
         // hardening;
     };
