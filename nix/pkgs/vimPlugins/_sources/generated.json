@@ -141,7 +141,7 @@
     },
     "guihuaLua": {
         "cargoLock": null,
-        "date": "2026-05-27",
+        "date": "2026-07-03",
         "extract": null,
         "name": "guihuaLua",
         "passthru": null,
@@ -151,13 +151,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "f8e06bd8a26dee3377d63c2adf1e57cdb58ac474",
-            "sha256": "sha256-lupDg/yt75164H8zQs/HTKqC3Y1FnQCzoMq90nwapO8=",
+            "rev": "4c513d5dac550af77034cced421967b393261509",
+            "sha256": "sha256-e0Almh8wWGp5NxHX48Y4XGEUHtPCYOXi4BIlfeSzaIs=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/ray-x/guihua.lua"
         },
-        "version": "f8e06bd8a26dee3377d63c2adf1e57cdb58ac474"
+        "version": "4c513d5dac550af77034cced421967b393261509"
     },
     "indentmini": {
         "cargoLock": null,
@@ -201,7 +201,7 @@
     },
     "kittyScrollback": {
         "cargoLock": null,
-        "date": "2026-05-13",
+        "date": "2026-07-18",
         "extract": null,
         "name": "kittyScrollback",
         "passthru": null,
@@ -211,17 +211,17 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "53fd294658941719d7622471f28e70179d6737a6",
-            "sha256": "sha256-PN9mzliyoIQ5BhG57p7obhsbDaLkbbWdltLLNL1Ti20=",
+            "rev": "1c2ac18420078525b7a4279aade891c1602b35c2",
+            "sha256": "sha256-8IkvoJ8nTlP5WCqMpJqUhBsz7OYB/Mlp1lH5TJRpvOE=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/mikesmithgh/kitty-scrollback.nvim"
         },
-        "version": "53fd294658941719d7622471f28e70179d6737a6"
+        "version": "1c2ac18420078525b7a4279aade891c1602b35c2"
     },
     "miniMove": {
         "cargoLock": null,
-        "date": "2026-06-19",
+        "date": "2026-07-07",
         "extract": null,
         "name": "miniMove",
         "passthru": null,
@@ -231,13 +231,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "b9e452f9c83565a1520e14f7531632160f3b0170",
-            "sha256": "sha256-HVTI8k5KJeULmW6AC1qgCUXF5lHDcCzzp1aaI4H1PgU=",
+            "rev": "48fcaac289a19b8eff2fd5fe203267d478a8abdc",
+            "sha256": "sha256-rPcX2Qql7UtPxNhMHW0W5ZDM5s1apw6AMI+orOW9dqc=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/echasnovski/mini.move"
         },
-        "version": "b9e452f9c83565a1520e14f7531632160f3b0170"
+        "version": "48fcaac289a19b8eff2fd5fe203267d478a8abdc"
     },
     "neoai": {
         "cargoLock": null,
@@ -301,7 +301,7 @@
     },
     "noneLsExtras": {
         "cargoLock": null,
-        "date": "2026-06-06",
+        "date": "2026-07-17",
         "extract": null,
         "name": "noneLsExtras",
         "passthru": null,
@@ -311,13 +311,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "27681d797a26f1b4d6119296df42f5204c88a2dc",
-            "sha256": "sha256-GZLT8X1eLeSkiV5EN1nOkCQg5nwNATURi/KMj90i40I=",
+            "rev": "9a8b8a9aeb43382e5aaf49b00b7cfb5d42d32118",
+            "sha256": "sha256-YmDhDUqSJPOllXzkyrVUgnshrI5+Kt5Te8tEmnjOAVQ=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/nvimtools/none-ls-extras.nvim"
         },
-        "version": "27681d797a26f1b4d6119296df42f5204c88a2dc"
+        "version": "9a8b8a9aeb43382e5aaf49b00b7cfb5d42d32118"
     },
     "nvimDapReplHighlights": {
         "cargoLock": null,
