@@ -109,11 +109,14 @@
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
     # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
-    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server affine-mcp-server; };
+    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server affine-mcp-server freebuff; };
 
-    # aarch64: only affine-server, so `services.affine` (default package =
-    # self.packages.${system}.affine-server) works on an aarch64-linux host.
-    packages.aarch64-linux.affine-server = playgroundPkgsAarch64.affine-server;
+    # aarch64-linux: affine-server, so `services.affine` (default package =
+    # self.packages.${system}.affine-server) works on an aarch64-linux host, plus
+    # freebuff, whose nvfetcher sources cover aarch64 (see
+    # nix/pkgs/playground/nvfetcher.toml). Both need an aarch64 builder; the rest
+    # of the flake stays x86_64-only.
+    packages.aarch64-linux = {inherit (playgroundPkgsAarch64) affine-server freebuff;};
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim

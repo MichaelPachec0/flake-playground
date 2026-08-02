@@ -96,6 +96,20 @@ rather than the (often stale) nixpkgs revision. Same nvfetcher arrangement as
   runtime required. Pulls a ~1-2 GB image at build time, so it's excluded from
   the `playground`/`default` CI checks; build on demand with
   `nix build .#affine-server`. Backs the `services.affine` NixOS module below.
+- `freebuff` - Codebuff's coding-agent CLI, from the upstream prebuilt release
+  tarballs. Upstream ships an `npx freebuff` launcher that self-downloads the
+  real binary at runtime; that pins nothing, so the launcher is skipped and the
+  binary it would fetch is pinned instead. nvfetcher 0.8.0 has no npm version
+  source, so the version is scraped off `registry.npmjs.org/freebuff/latest`
+  (`src.webpage`) while the binary comes from the
+  `CodebuffAI/codebuff-community` GitHub release (`fetch.url`). Releases are
+  per-target tarballs, so there is **one nvfetcher entry per platform**
+  (`freebuff-linux-x64`, `freebuff-linux-arm64`, `freebuff-darwin-arm64`) and
+  `default.nix` picks the one matching `stdenv.hostPlatform`; an untracked
+  platform fails with a pointed error rather than silently building the wrong
+  arch. Also exposed as `packages.{x86_64-linux,aarch64-linux}.freebuff`.
+  Upstream's `darwin-x64` and non-AVX2 `-baseline` assets are not tracked - see
+  the comment in `nvfetcher.toml` for adding them.
 
 Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 
