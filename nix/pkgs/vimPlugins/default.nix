@@ -98,6 +98,17 @@ in {
 
   nvim-emmet = build "nvim-emmet" sources.nvimEmmet {};
 
+  # Not nvfetcher-tracked: this is nixpkgs' plugin plus a local patch, so it
+  # follows the flake's nixpkgs pin instead of upstream HEAD (the patch is
+  # context-sensitive and a daily source bump would silently break it).
+  # Shadows the nixpkgs attr through the overlay, so configs using the stock
+  # name get the patched build.
+  nvim-treesitter-context = vimPlugins.nvim-treesitter-context.overrideAttrs (old: {
+    # adds a `include_visible` option: show every enclosing scope, not only the
+    # ones scrolled off the top of the window.
+    patches = (old.patches or []) ++ [./patches/treesitter-context-include-visible.patch];
+  });
+
   osv-nvim = build "one-small-step-for-vimkind" sources.oneSmallStep {};
 
   pfp-vim = build "pfp-vim" sources.pfpVim {};

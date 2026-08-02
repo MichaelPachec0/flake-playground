@@ -1,0 +1,52 @@
+--- a/lua/treesitter-context/config.lua
++++ b/lua/treesitter-context/config.lua
+@@ -8,6 +8,7 @@
+ --- @field trim_scope 'outer'|'inner'
+ --- @field zindex integer
+ --- @field mode 'cursor'|'topline'
++--- @field include_visible boolean
+ --- @field separator? string
+ --- @field on_attach? fun(buf: integer): boolean
+ 
+@@ -39,6 +40,15 @@
+ --- Line used to calculate context.
+ --- @field mode? 'cursor'|'topline'
+ ---
++--- Show every enclosing scope, including scopes whose header line is still
++--- visible in the window. Off by default, where only scopes that have scrolled
++--- past the top of the window are shown.
++--- Note: the context window is an overlay drawn over the first lines of the
++--- window, so enabling this hides that many lines of real buffer text, and the
++--- context is still capped at the number of lines between the top of the window
++--- and the cursor.
++--- @field include_visible? boolean
++---
+ --- Separator between context and content. Should be a single character string, like '-'.
+ --- When separator is set, the context will only show up when there are at least 2 lines above cursorline.
+ --- @field separator? string
+@@ -57,6 +67,7 @@
+   trim_scope = 'outer',
+   zindex = 20,
+   mode = 'cursor',
++  include_visible = false,
+ }
+ 
+ local config = vim.deepcopy(default_config)
+--- a/lua/treesitter-context/context.lua
++++ b/lua/treesitter-context/context.lua
+@@ -373,8 +373,13 @@
+ 
+         local contexts_end_row = top_row + separator_offset + num_context_lines
+ 
+-        -- Only process the parent if it is not in view.
+-        if parent_start_row < contexts_end_row then
++        -- Only process the parent if it is not in view, unless the user asked
++        -- for the whole scope chain regardless of what is on screen. Even then,
++        -- a context that starts on the reference row itself is skipped: echoing
++        -- the line the cursor is already on adds nothing.
++        local visible_context = config.include_visible and parent_start_row < row
++
++        if visible_context or parent_start_row < contexts_end_row then
+           local range0 = context_range(parent, bufnr, query)
+           if range0 and range_is_valid(range0) then
+             local range, lines = get_text_for_range(range0, bufnr)

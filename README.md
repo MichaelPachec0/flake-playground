@@ -67,6 +67,14 @@ metadata - dependencies, skipped require-check modules, patches, build phases -
 lives in `nix/pkgs/vimPlugins/default.nix`. Attribute names match `nix-config`'s
 old overlay, so the `vimPlugins` overlay below is a drop-in replacement.
 
+One exception: `nvim-treesitter-context` is *not* nvfetcher-tracked. It is
+nixpkgs' plugin re-exported with a local patch
+(`nix/pkgs/vimPlugins/patches/treesitter-context-include-visible.patch`, adding
+an `include_visible` option), so it follows the flake's nixpkgs pin instead of
+upstream HEAD - a context-sensitive patch would otherwise break on an arbitrary
+daily source bump. The attribute deliberately shadows the nixpkgs one, so
+configs using the stock name get the patched build.
+
 Build one with `nix build .#legacyPackages.x86_64-linux.vimPlugins.<name>`.
 
 ### `legacyPackages.x86_64-linux.playground`
