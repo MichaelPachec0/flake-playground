@@ -41,7 +41,38 @@
         inherit system;
       };
     pkgs = prepNixpkgs nixpkgs system;
-    linux-show-player = pkgs.callPackage ./nix/pkgs/linux-show-player.nix {};
+    # The locally-defined packages, as a function of the pkgs they build against.
+    # The overlay MUST build them from its own `final`, not from the `pkgs` bound
+    # above: that one is pinned to x86_64-linux, so an aarch64 host consuming
+    # `overlays.playground` used to get x86_64 derivations back for every
+    # attribute under `pkgs.playground`. Sharing one definition here keeps the
+    # flake outputs and the overlay from drifting apart.
+    #
+    # windscribe is deliberately absent: it needs its own overlaid nixpkgs (see
+    # below) and is not part of `pkgs.playground`. The nvfetcher-tracked sets are
+    # absent too -- nix/pkgs/{playground,vimPlugins} are already
+    # pkgs-parameterised imports and the overlay calls them directly.
+    mkLocalPkgs = pkgs': {
+      linux-show-player = pkgs'.callPackage ./nix/pkgs/linux-show-player.nix {};
+      cynthion = pkgs'.callPackage ./nix/pkgs/cynthion {};
+      memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
+      ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
+      ursh = pkgs'.callPackage ./nix/pkgs/ursh {};
+      urchin = pkgs'.callPackage ./nix/pkgs/ursh/urchin.nix {inherit pyproject-nix;};
+      llcat = pkgs'.callPackage ./nix/pkgs/ursh/llcat.nix {inherit pyproject-nix;};
+      nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
+    };
+    inherit
+      (mkLocalPkgs pkgs)
+      linux-show-player
+      cynthion
+      memtimings-linux
+      ryzen-monitor-ng
+      ursh
+      urchin
+      llcat
+      nvchadPlugins
+      ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
     # package is self-contained: it fetches the Windscribe Desktop source (v2.23.9) and
@@ -56,13 +87,6 @@
       pkgs = windscribePkgs;
       devMode = false;
     };
-    cynthion = pkgs.callPackage ./nix/pkgs/cynthion {};
-    memtimings-linux = pkgs.callPackage ./nix/pkgs/memtimings-linux {};
-    ryzen-monitor-ng = pkgs.callPackage ./nix/pkgs/ryzen-monitor-ng {};
-    ursh = pkgs.callPackage ./nix/pkgs/ursh {};
-    urchin = pkgs.callPackage ./nix/pkgs/ursh/urchin.nix {inherit pyproject-nix;};
-    llcat = pkgs.callPackage ./nix/pkgs/ursh/llcat.nix {inherit pyproject-nix;};
-    nvchadPlugins = pkgs.callPackage ./nix/pkgs/nvchad {};
     # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
     customVimPlugins = import ./nix/pkgs/vimPlugins {inherit pkgs;};
     nvimLoads = import ./nix/tests/nvim-loads.nix {inherit pkgs;};
@@ -149,15 +173,21 @@
       }
       // moduleChecks;
     overlays = let
-      playground = final: prev: {
+      # Everything here is built from `final`, so `pkgs.playground.<name>` follows
+      # the host that applied the overlay (aarch64-linux, aarch64-darwin, ...)
+      # instead of the x86_64-linux `pkgs` this flake evaluates its own outputs
+      # against. Per-package `meta.platforms` still decides what actually builds.
+      playground = final: prev: let
+        local = mkLocalPkgs final;
+      in {
         playground =
           {
-            inherit linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
+            inherit (local) linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
             # nvchad set: pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}
-            nvchad = nvchadPlugins;
+            nvchad = local.nvchadPlugins;
           }
           # nvfetcher-tracked latest-upstream packages: pkgs.playground.workstyle, ...
-          // playgroundPkgs;
+          // import ./nix/pkgs/playground {pkgs = final;};
       };
       # Inject the migrated custom vim plugins into pkgs.vimPlugins. Drop-in for
       # nix-config's old `local` overlay, so `pkgs.vimPlugins.<name>` keeps
