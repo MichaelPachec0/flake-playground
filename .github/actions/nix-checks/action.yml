@@ -32,9 +32,45 @@ runs:
       uses: cachix/install-nix-action@v31
       with:
         nix_path: nixpkgs=channel:nixos-unstable
+        # nix-command/flakes and access-tokens = $GITHUB_TOKEN are already set by
+        # the action itself, so they are not repeated here. max-jobs IS worth
+        # overriding: the action defaults it to `auto` (= 4 on a runner), and that
+        # is the setting the DAEMON obeys. nix-fast-build's own --max-jobs only
+        # bounds how many `nix build` clients it starts, so without this the two
+        # multiply and peak build concurrency lands well above the intended cap.
         extra_nix_config: |
-          experimental-features = nix-command flakes
-          access-tokens = github.com=${{ github.token }}
+          max-jobs = 2
+          cores = 2
+
+    # Builders run as children of nix-daemon.service, so they live in its cgroup.
+    # systemd's default OOMPolicy=stop tears down the WHOLE service when any
+    # process in that cgroup is OOM-killed -- so one oversized builder takes the
+    # daemon with it and every in-flight client reports
+    #   error: Nix daemon disconnected unexpectedly (maybe it crashed?)
+    # instead of a normal "builder failed" for the one derivation at fault.
+    # OOMPolicy=continue keeps the daemon alive; systemd-oomd is told to leave the
+    # unit alone so it can't reap the cgroup pre-emptively under memory pressure.
+    - name: Harden nix-daemon against builder OOM
+      shell: bash
+      run: |
+        # install-nix-action does a multi-user install on Linux runners, but bail
+        # out politely rather than failing the job if that ever stops being true.
+        if ! systemctl cat nix-daemon.service >/dev/null 2>&1; then
+          echo "::warning::no nix-daemon.service unit -- skipping OOM hardening"
+          exit 0
+        fi
+        sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
+        sudo tee /etc/systemd/system/nix-daemon.service.d/oom.conf >/dev/null <<'EOF'
+        [Service]
+        OOMPolicy=continue
+        ManagedOOMMemoryPressure=off
+        ManagedOOMSwap=off
+        EOF
+        sudo systemctl daemon-reload
+        sudo systemctl restart nix-daemon.service
+        # Evidence that the override actually took (shows up in the job log).
+        systemctl show nix-daemon.service \
+          -p OOMPolicy -p ManagedOOMMemoryPressure -p ManagedOOMSwap -p ActiveState
 
     - name: Cache nix store
       uses: nix-community/cache-nix-action@v7
@@ -57,13 +93,99 @@ runs:
       env:
         NIXPKGS_ALLOW_UNFREE: "1"
       run: |
+        # In-flight resource sampler. A postmortem `free -h` says nothing after an
+        # OOM kill -- the memory is free again by the time the step fails -- so
+        # sample every 2s for the whole build and keep the log as an artifact.
+        SAMPLE_LOG="$RUNNER_TEMP/nix-build-samples.log"
+        (
+          while :; do
+            {
+              printf '%s ' "$(date -u +%H:%M:%S)"
+              free -m | awk '/^Mem:/  {printf "mem_used=%sM mem_avail=%sM ", $3, $7}
+                             /^Swap:/ {printf "swap_used=%sM ", $3}'
+              printf 'load=%s ' "$(cut -d' ' -f1-3 /proc/loadavg)"
+              printf 'top:'
+              ps -eo rss=,comm= --sort=-rss | head -n 5 |
+                awk '{printf " %s=%dM", $2, $1 / 1024}'
+              echo
+            } 2>/dev/null
+            sleep 2
+          done
+        ) >"$SAMPLE_LOG" 2>&1 &
+        SAMPLER_PID=$!
+        trap 'kill "$SAMPLER_PID" 2>/dev/null || true' EXIT
+
         # Bound concurrency so peak memory stays under the runner's 16 GB.
         # Default is --eval-workers = nproc (4) each capped at 4 GiB = a 16 GB
         # eval ceiling, which over-subscribes RAM when builds run alongside.
+        # --max-jobs here caps the `nix build` clients this spawns; the daemon's
+        # own max-jobs is capped alongside it in the Install nix step above.
+        status=0
         nix run nixpkgs#nix-fast-build -- \
           --flake ".#checks.x86_64-linux" \
           --skip-cached \
           --no-nom \
           --eval-workers 2 \
           --max-jobs 2 \
-          --impure
+          --impure || status=$?
+
+        # Log the tightest moment of the run even when it passes, so a run that
+        # only just squeaked by is visible before it starts failing.
+        echo "=== lowest-headroom sample of this build ==="
+        awk '{
+          for (i = 1; i <= NF; i++)
+            if ($i ~ /^mem_avail=/) {
+              v = $i; sub(/mem_avail=/, "", v); sub(/M$/, "", v)
+              if (min == "" || v + 0 < min + 0) { min = v; line = $0 }
+            }
+        } END { print (line == "" ? "no samples captured" : line) }' "$SAMPLE_LOG"
+
+        exit "$status"
+
+    # Everything below only runs when the build step failed. `dmesg` needs sudo
+    # on GitHub runners (kernel.dmesg_restrict=1) -- without it the OOM evidence
+    # is silently unreadable, which is why earlier diagnostics came back empty.
+    - name: Runner diagnostics (on failure)
+      if: failure()
+      shell: bash
+      run: |
+        DIAG="$RUNNER_TEMP/nix-failure-diagnostics.txt"
+        exec > >(tee "$DIAG") 2>&1
+
+        echo "=== last 40 resource samples (2s interval) ==="
+        tail -n 40 "$RUNNER_TEMP/nix-build-samples.log" 2>/dev/null || echo "no sampler log"
+
+        echo
+        echo "=== kernel OOM kills ==="
+        sudo dmesg -T | grep -iE 'out of memory|oom-kill|killed process' \
+          || echo "no OOM lines in dmesg"
+
+        echo
+        echo "=== nix-daemon unit state ==="
+        systemctl show nix-daemon.service \
+          -p OOMPolicy -p ActiveState -p Result -p ExecMainStatus -p NRestarts
+        sudo systemctl status nix-daemon.service --no-pager -l || true
+
+        echo
+        echo "=== journal: nix-daemon ==="
+        sudo journalctl -u nix-daemon.service --no-pager -n 200 || true
+
+        echo
+        echo "=== journal: systemd-oomd ==="
+        sudo journalctl -u systemd-oomd --no-pager -n 100 || true
+
+        echo
+        echo "=== disk / memory now ==="
+        df -h /
+        free -h
+
+    - name: Upload diagnostics (on failure)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: nix-checks-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+        path: |
+          ${{ runner.temp }}/nix-build-samples.log
+          ${{ runner.temp }}/nix-failure-diagnostics.txt
+        if-no-files-found: warn
+        retention-days: 14
