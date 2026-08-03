@@ -13,26 +13,11 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    env:
-      # run nix in single-user mode (avoid the nix daemon)
-      NIX_REMOTE: local
-      # point Nix at a local config dir we'll create to limit parallelism
-      NIX_CONF_DIR: /tmp/nix-conf
     permissions:
       contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Prepare local nix config
-        run: |
-          mkdir -p "$NIX_CONF_DIR"
-          cat > "$NIX_CONF_DIR/nix.conf" <<'EOF'
-          # Limit parallelism to reduce memory/disk pressure on the runner
-          max-jobs = 2
-          cores = 2
-          build-max-jobs = 2
-          EOF
 
       - name: Regenerate sources + run flake checks
         uses: ./.github/actions/nix-checks
@@ -61,66 +46,3 @@ jobs:
           file_pattern: |
             nix/pkgs/playground/_sources/
             nix/pkgs/playground/affine-mcp-server.npm-deps.hash
-
-      # --- Diagnostics steps (run only on failure) ---
-      - name: Dump runner diagnostics (on failure)
-        if: failure()
-        run: |
-          set -euo pipefail
-          mkdir -p diagnostics
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          echo "timestamp: $TIMESTAMP" > diagnostics/metadata.txt
-
-          echo "=== df -h ===" > diagnostics/df-h.txt
-          df -h >> diagnostics/df-h.txt 2>&1 || true
-
-          echo "=== du -sh /nix/store (top-level) ===" > diagnostics/du-nix-store.txt
-          du -sh /nix/store 2>/dev/null || echo "/nix/store not present or permission denied" >> diagnostics/du-nix-store.txt
-          echo "Largest /nix/store entries (top 20):" >> diagnostics/du-nix-store.txt
-          du -sh /nix/store/* 2>/dev/null | sort -hr | head -n 20 >> diagnostics/du-nix-store.txt || true
-
-          echo "=== free -h ===" > diagnostics/free-h.txt
-          free -h >> diagnostics/free-h.txt 2>&1 || true
-
-          echo "=== /proc/meminfo (top) ===" > diagnostics/proc-meminfo.txt
-          head -n 60 /proc/meminfo >> diagnostics/proc-meminfo.txt 2>&1 || true
-
-          echo "=== Top memory processes (ps) ===" > diagnostics/top-ps.txt
-          ps aux --sort=-rss | head -n 40 >> diagnostics/top-ps.txt 2>&1 || true
-
-          echo "=== top -b -n1 ===" > diagnostics/top-one.txt
-          (top -b -n1 || true) >> diagnostics/top-one.txt 2>&1 || true
-
-          echo "=== dmesg (last 200 lines) ===" > diagnostics/dmesg.txt
-          dmesg | tail -n 200 >> diagnostics/dmesg.txt 2>&1 || true
-
-          echo "=== journalctl -u nix-daemon (last 300 lines) ===" > diagnostics/journal-nix-daemon.txt
-          journalctl -u nix-daemon -n 300 --no-pager >> diagnostics/journal-nix-daemon.txt 2>&1 || true
-
-          echo "=== journalctl kernel (last 300 lines) ===" > diagnostics/journal-kernel.txt
-          journalctl -k -n 300 --no-pager >> diagnostics/journal-kernel.txt 2>&1 || true
-
-          echo "=== systemctl status nix-daemon ===" > diagnostics/systemctl-nix.txt
-          systemctl status nix-daemon --no-pager >> diagnostics/systemctl-nix.txt 2>&1 || true
-
-          echo "=== /nix/var listing ===" > diagnostics/nix-var.txt
-          ls -al /nix/var 2>&1 | sed -n '1,200p' >> diagnostics/nix-var.txt || true
-          if [ -d /nix/var/log ]; then ls -al /nix/var/log >> diagnostics/nix-var.txt 2>&1 || true; fi
-
-          echo "=== Nix config and info ===" > diagnostics/nix-info.txt
-          nix show-config >> diagnostics/nix-info.txt 2>&1 || true
-          nix path-info --all --quiet 2>/dev/null | sed -n '1,200p' >> diagnostics/nix-info.txt || true
-
-          echo "=== env ===" > diagnostics/env.txt
-          env | sort >> diagnostics/env.txt 2>&1 || true
-
-          tar -czf diagnostics-${TIMESTAMP}.tar.gz diagnostics || true
-        shell: bash
-
-      - name: Upload diagnostics artifact
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runner-diagnostics
-          path: diagnostics-*.tar.gz
-          retention-days: 30
