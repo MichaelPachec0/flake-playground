@@ -3,10 +3,12 @@
 # WITHOUT building the (multi-GB) system closure.
 #
 # The `.drvPath` trick: interpolating a derivation's `.drvPath` into a string
-# carries only "this .drv must be instantiated" context (not "this output must
-# be built"). So building each tiny `runCommand` forces Nix to evaluate the
-# entire module config (every `config` line, all assertions) but never realises
-# the system. Full eval, near-zero build cost.
+# forces Nix to evaluate the entire module config (every `config` line, all
+# assertions) to learn the path. `unsafeDiscardOutputDependency` is what keeps
+# it cheap -- a bare `.drvPath` carries a DrvDeep context (`allOutputs = true`,
+# check with `builtins.getContext`), so realising the runCommand would build the
+# whole system closure. Discarding the output dependency leaves `path = true`:
+# the .drv must exist, its outputs need not. Full eval, near-zero build cost.
 #
 # A module's real logic lives behind `lib.mkIf cfg.enable`, so each check must
 # ENABLE the module (and supply any options that have no default) to exercise it.
@@ -33,16 +35,49 @@
     home.stateVersion = "25.11";
   };
 
-  # Enable `nixosModules.<name>` with `enableCfg`, force eval of toplevel.
-  evalNixos = name: enableCfg: let
+  # Units a bare stub system already has. Anything a module adds on top is its
+  # own, and is worth realising (see evalNixos). Evaluated once and shared.
+  baseUnits = builtins.attrNames (lib.nixosSystem {
+    inherit system;
+    modules = [nixosStub];
+  })
+  .config.systemd.units;
+
+  # Enable `nixosModules.<name>` with `enableCfg` and force eval of toplevel.
+  #
+  # `evalNixosUnits` additionally BUILDS the units the module itself contributes
+  # (the stub system's units are subtracted out). That covers what pure eval
+  # cannot: writeShellScript syntax-checks its script, and the packages a unit
+  # references must be substitutable or buildable -- a stale npmDepsHash is
+  # caught here rather than at deploy time. It is opt-in, and stays opt-in,
+  # because how much a unit drags in is not obvious from the module:
+  #
+  #   mcp     -> 3 drvs   (unit + its writeShellScript wrapper)
+  #   tuwunel -> 3 drvs
+  #   polkit  -> 15 drvs + 105 paths, because polkit.service references
+  #              config.system.path, which pulls system-path and the nixos-*
+  #              tools with it
+  #   affine / windscribe -> the ~1GB OCI image and the heavy C++ build that
+  #              flake.nix deliberately keeps out of the CI aggregates
+  #
+  # So: check `nix build --dry-run` before opting a module in, and leave it on
+  # the plain `evalNixos` if the answer is anything but small.
+  mkEvalNixos = {buildUnits ? false}: name: enableCfg: let
     sys = lib.nixosSystem {
       inherit system;
       modules = [nixosModules.${name} nixosStub enableCfg];
     };
+    ownUnits =
+      lib.optionals buildUnits
+      (lib.attrValues (lib.mapAttrs (_: u: u.unit) (removeAttrs sys.config.systemd.units baseUnits)));
   in
     pkgs.runCommand "eval-nixos-${name}" {} ''
-      echo "${sys.config.system.build.toplevel.drvPath}" > $out
+      echo "${builtins.unsafeDiscardOutputDependency sys.config.system.build.toplevel.drvPath}" > $out
+      ${lib.concatMapStringsSep "\n" (u: "echo ${u} >> $out") ownUnits}
     '';
+
+  evalNixos = mkEvalNixos {};
+  evalNixosUnits = mkEvalNixos {buildUnits = true;};
 
   # Enable `homeManagerModules.<name>` with `enableCfg`, force eval of the
   # activation package.
@@ -53,7 +88,7 @@
     };
   in
     pkgs.runCommand "eval-hm-${name}" {} ''
-      echo "${cfg.activationPackage.drvPath}" > $out
+      echo "${builtins.unsafeDiscardOutputDependency cfg.activationPackage.drvPath}" > $out
     '';
 in {
   nixos-cynthion = evalNixos "cynthion" {hardware.cynthion.enable = true;};
@@ -64,7 +99,7 @@ in {
     hardware.zsa.legacy.enable = true;
   };
   nixos-hyprpolkitagent = evalNixos "hyprpolkitagent" {services.hyprpolkitagent.enable = true;};
-  nixos-tuwunel = evalNixos "tuwunel" {
+  nixos-tuwunel = evalNixosUnits "tuwunel" {
     services.tuwunel.enable = true;
     services.tuwunel.settings.global.server_name = "ci.example";
   };
@@ -73,7 +108,7 @@ in {
     services.affine.enable = true;
     services.affine.externalUrl = "https://ci.example";
   };
-  nixos-mcp-affine = evalNixos "mcp" {
+  nixos-mcp-affine = evalNixosUnits "mcp" {
     mcp.affine.enable = true;
     mcp.affine.baseUrl = "https://ci.example";
     # path literals; eval never reads them (LoadCredential is a runtime concern)
