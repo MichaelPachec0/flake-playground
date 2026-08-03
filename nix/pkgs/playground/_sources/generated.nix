@@ -49,6 +49,30 @@
       sha256 = "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=";
     };
   };
+  freebuff-darwin-arm64 = {
+    pname = "freebuff-darwin-arm64";
+    version = "0.0.137";
+    src = fetchurl {
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-qsMRV5SmbkWfXkCOxcPw7hLerrvOS8J12EiofvospKs=";
+    };
+  };
+  freebuff-linux-arm64 = {
+    pname = "freebuff-linux-arm64";
+    version = "0.0.137";
+    src = fetchurl {
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-M8QrzCzc8u9Kt5F/gFhPboYPjkSuWJ6MmuLoFzRhll8=";
+    };
+  };
+  freebuff-linux-x64 = {
+    pname = "freebuff-linux-x64";
+    version = "0.0.137";
+    src = fetchurl {
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-GzlDadOvizBOTlILi6+qThAQUol9Xs2PokONTHeOvIw=";
+    };
+  };
   workstyle = {
     pname = "workstyle";
     version = "dae15018c84c4f0feaf498d3676271ca0e3bec44";

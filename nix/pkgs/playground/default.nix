@@ -18,6 +18,23 @@ in {
   affine-mcp-server = pkgs.callPackage ./affine-mcp-server.nix {
     source = sources.affine-mcp-server;
   };
+  # Per-platform prebuilt tarballs: one nvfetcher entry per target, selected by
+  # the build's host platform (see the freebuff-* entries in ./nvfetcher.toml).
+  # All entries track the same npm version. `throw` is lazy, so an untracked
+  # platform only fails when this attribute is actually forced -- importing the
+  # playground set on, say, x86_64-darwin stays fine.
+  freebuff = pkgs.callPackage ./freebuff.nix {
+    source =
+      sources."freebuff-${
+        {
+          x86_64-linux = "linux-x64";
+          aarch64-linux = "linux-arm64";
+          aarch64-darwin = "darwin-arm64";
+        }
+        .${pkgs.stdenv.hostPlatform.system}
+        or (throw "freebuff: no nvfetcher source tracked for ${pkgs.stdenv.hostPlatform.system}; add an entry to nix/pkgs/playground/nvfetcher.toml and a case here")
+      }";
+  };
   # Multi-arch: pick the nvfetcher source whose pinned digest matches the build
   # host platform (amd64 vs arm64). Both track the same AFFiNE release.
   affine-server = pkgs.callPackage ./affine-server.nix {

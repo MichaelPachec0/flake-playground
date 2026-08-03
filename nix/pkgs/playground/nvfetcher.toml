@@ -91,3 +91,56 @@ docker.arch = "arm64"
 src.github = "DAWNCR0W/affine-mcp-server"
 src.use_latest_release = true
 fetch.github = "DAWNCR0W/affine-mcp-server"
+
+# freebuff -- Codebuff's coding-agent CLI. Upstream's install path is
+# `npx freebuff`, but that npm package is NOT the program: it is a ~64K launcher
+# (index.js + launcher.js) that at runtime asks registry.npmjs.org for the latest
+# version, downloads the real Bun-compiled binary from codebuff.com and caches it
+# under ~/.config/freebuff, self-updating whenever npm moves. Wrapping that in a
+# buildFHSEnv would pin nothing and put nothing in the store, so we skip the
+# launcher and fetch the release tarball it would have downloaded
+# (freebuff + tree-sitter.wasm) directly. See ./freebuff.nix.
+#
+# Two quirks force the unusual src/fetch split below:
+#   1. nvfetcher 0.8.0 has NO npm version source (`src.npm` -> "Decode error at
+#      '.src'"), so `src.webpage` scrapes the registry's `/latest` document --
+#      npm stays the release source of truth, same as upstream's own launcher.
+#      Do NOT swap this for `src.github` + `use_latest_release` on the release
+#      repo below: that repo ships TWO products from one tag series, and the
+#      `v1.0.x` codebuff tags dominate the release list -- `use_latest_release`
+#      would track codebuff's version and build the wrong download URL. npm is
+#      the only per-product version feed upstream exposes.
+#   2. The binaries are NOT on npm. The launcher downloads them from
+#      `codebuff.com/api/releases/download/$ver/<asset>`, which is a 301 to www
+#      then a 302 into a PUBLIC GitHub release:
+#      CodebuffAI/codebuff-community, tag `freebuff-v$ver`. We fetch that GitHub
+#      URL directly -- same bytes, two fewer redirects, and no dependency on the
+#      vendor's API route staying put. If a bump 404s, check whether the tag
+#      scheme moved (and compare against the codebuff.com URL, which upstream's
+#      own launcher still uses).
+#
+# ONE ENTRY PER PLATFORM. Each release is a set of per-target tarballs, so a
+# single entry can only ever pin one platform; nix/pkgs/playground/default.nix
+# selects the entry matching stdenv.hostPlatform (same arrangement as the
+# affine-server amd64/arm64 split above). All entries track the same npm version.
+#
+# Tracked: x86_64-linux, aarch64-linux, aarch64-darwin. Upstream also publishes
+# `freebuff-darwin-x64.tar.gz` (Intel Macs) and `freebuff-linux-x64-baseline.tar.gz`
+# / `freebuff-win32-x64-baseline.tar.gz` (x86_64 CPUs without AVX2 -- the plain
+# x64 build dies with SIGILL there). Adding one is a copy of a block below plus a
+# line in default.nix; they are left out because nothing in this flake builds for
+# them, and every extra entry re-downloads ~50-125MB on each version bump.
+[freebuff-linux-x64]
+src.webpage = "https://registry.npmjs.org/freebuff/latest"
+src.regex = '"version":"([^"]+)"'
+fetch.url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v$ver/freebuff-linux-x64.tar.gz"
+
+[freebuff-linux-arm64]
+src.webpage = "https://registry.npmjs.org/freebuff/latest"
+src.regex = '"version":"([^"]+)"'
+fetch.url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v$ver/freebuff-linux-arm64.tar.gz"
+
+[freebuff-darwin-arm64]
+src.webpage = "https://registry.npmjs.org/freebuff/latest"
+src.regex = '"version":"([^"]+)"'
+fetch.url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v$ver/freebuff-darwin-arm64.tar.gz"
