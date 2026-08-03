@@ -32,6 +32,17 @@ runs:
       uses: cachix/install-nix-action@v31
       with:
         nix_path: nixpkgs=channel:nixos-unstable
+        # Pinned to 2.34.8 to dodge NixOS/nix#16005: a 2.35 scheduler regression
+        # loses a goal's wakeup when two concurrent nix processes race for the
+        # same derivation ("someone beat us to it"), and the daemon worker then
+        # aborts on `Assertion '!awake.empty()' failed in nix::Worker::run`. That
+        # is precisely nix-fast-build's shape here -- checks.default is a linkFarm
+        # over every other check, so five clients contend for one closure.
+        # The fix (NixOS/nix#16220) is on master and in no release yet: 2.35.1 is
+        # the newest tag and does not contain it, so the only way out is backwards.
+        # REVERT THIS COMMIT once a release ships the fix; the action's own
+        # default is latest, which is where we want to be.
+        install_url: https://releases.nixos.org/nix/nix-2.34.8/install
         # nix-command/flakes and access-tokens = $GITHUB_TOKEN are already set by
         # the action itself, so they are not repeated here. max-jobs IS worth
         # overriding: the action defaults it to `auto` (= 4 on a runner), and that
