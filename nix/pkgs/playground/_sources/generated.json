@@ -13,12 +13,12 @@
             "name": null,
             "owner": "DAWNCR0W",
             "repo": "affine-mcp-server",
-            "rev": "v3.0.1",
-            "sha256": "sha256-VjCs/DmO790hzQO67/SngyKB6M7Ud9heIOnbQoRHhUc=",
+            "rev": "v3.1.0",
+            "sha256": "sha256-8gQXVDNsOHhGN078XADIeO420G0N+5Z8lRxFwNDRURk=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v3.0.1"
+        "version": "v3.1.0"
     },
     "affine-server": {
         "cargoLock": null,

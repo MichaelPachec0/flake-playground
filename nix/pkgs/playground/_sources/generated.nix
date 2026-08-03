@@ -8,13 +8,13 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.0.1";
+    version = "v3.1.0";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.0.1";
+      rev = "v3.1.0";
       fetchSubmodules = false;
-      sha256 = "sha256-VjCs/DmO790hzQO67/SngyKB6M7Ud9heIOnbQoRHhUc=";
+      sha256 = "sha256-8gQXVDNsOHhGN078XADIeO420G0N+5Z8lRxFwNDRURk=";
     };
   };
   affine-server = {
