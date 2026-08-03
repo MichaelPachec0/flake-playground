@@ -4,10 +4,10 @@ name: "Bump playground packages"
 # check set, and only commit the regenerated _sources when everything passes.
 on:
   schedule:
-    - cron: '37 4 * * *'
+    - cron: "37 4 * * *"
   push:
     paths:
-      - 'nix/pkgs/playground/nvfetcher.toml'
+      - "nix/pkgs/playground/nvfetcher.toml"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Regenerate sources + run flake checks
         uses: ./.github/actions/nix-checks

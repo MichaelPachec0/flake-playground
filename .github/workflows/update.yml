@@ -5,10 +5,10 @@ name: "Bump vim plugins"
 # only commit the regenerated _sources when everything passes.
 on:
   schedule:
-    - cron: '23 4 * * *'
+    - cron: "23 4 * * *"
   push:
     paths:
-      - 'nix/pkgs/vimPlugins/nvfetcher.toml'
+      - "nix/pkgs/vimPlugins/nvfetcher.toml"
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Regenerate sources + run flake checks
         uses: ./.github/actions/nix-checks
@@ -30,7 +30,7 @@ jobs:
 
       - name: Commit bumped sources
         if: ${{ success() }}
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: bump vim plugin sources"
           file_pattern: "nix/pkgs/vimPlugins/_sources/"
