@@ -48,8 +48,10 @@ runs:
     # daemon with it and every in-flight client reports
     #   error: Nix daemon disconnected unexpectedly (maybe it crashed?)
     # instead of a normal "builder failed" for the one derivation at fault.
-    # OOMPolicy=continue keeps the daemon alive; systemd-oomd is told to leave the
-    # unit alone so it can't reap the cgroup pre-emptively under memory pressure.
+    # OOMPolicy=continue keeps the daemon alive so an OOM surfaces as an ordinary
+    # per-derivation failure. Insurance only -- the crashes this action was built
+    # to chase turned out to be NixOS/nix#16005, not memory pressure (peak use was
+    # 9.5 of 15 GB, swap untouched, no OOM lines in dmesg, systemd-oomd silent).
     - name: Harden nix-daemon against builder OOM
       shell: bash
       run: |
@@ -63,14 +65,11 @@ runs:
         sudo tee /etc/systemd/system/nix-daemon.service.d/oom.conf >/dev/null <<'EOF'
         [Service]
         OOMPolicy=continue
-        ManagedOOMMemoryPressure=off
-        ManagedOOMSwap=off
         EOF
         sudo systemctl daemon-reload
         sudo systemctl restart nix-daemon.service
         # Evidence that the override actually took (shows up in the job log).
-        systemctl show nix-daemon.service \
-          -p OOMPolicy -p ManagedOOMMemoryPressure -p ManagedOOMSwap -p ActiveState
+        systemctl show nix-daemon.service -p OOMPolicy -p ActiveState
 
     - name: Cache nix store
       uses: nix-community/cache-nix-action@v7
@@ -120,10 +119,14 @@ runs:
         # eval ceiling, which over-subscribes RAM when builds run alongside.
         # --max-jobs here caps the `nix build` clients this spawns; the daemon's
         # own max-jobs is capped alongside it in the Install nix step above.
+        # --retries 1: the NixOS/nix#16005 daemon crash is nondeterministic, so a
+        # second attempt usually sails through. Without it a single lost wakeup
+        # fails the whole job at attempt 1/1.
         status=0
         nix run nixpkgs#nix-fast-build -- \
           --flake ".#checks.x86_64-linux" \
           --skip-cached \
+          --retries 1 \
           --no-nom \
           --eval-workers 2 \
           --max-jobs 2 \
