@@ -35,8 +35,7 @@ jobs:
             CONTAINERS_REGISTRIES_CONF=/tmp/registries-v2.conf
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/playground/nvfetcher.toml
-            -o nix/pkgs/playground/_sources &&
-            bash nix/pkgs/playground/refresh-npm-deps-hash.sh affine-mcp-server
+            -o nix/pkgs/playground/_sources
 
       - name: Commit bumped sources
         if: ${{ success() }}

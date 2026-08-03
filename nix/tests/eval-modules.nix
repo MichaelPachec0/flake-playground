@@ -3,10 +3,12 @@
 # WITHOUT building the (multi-GB) system closure.
 #
 # The `.drvPath` trick: interpolating a derivation's `.drvPath` into a string
-# carries only "this .drv must be instantiated" context (not "this output must
-# be built"). So building each tiny `runCommand` forces Nix to evaluate the
-# entire module config (every `config` line, all assertions) but never realises
-# the system. Full eval, near-zero build cost.
+# forces Nix to evaluate the entire module config (every `config` line, all
+# assertions) to learn the path. `unsafeDiscardOutputDependency` is what keeps
+# it cheap -- a bare `.drvPath` carries a DrvDeep context (`allOutputs = true`,
+# check with `builtins.getContext`), so realising the runCommand would build the
+# whole system closure. Discarding the output dependency leaves `path = true`:
+# the .drv must exist, its outputs need not. Full eval, near-zero build cost.
 #
 # A module's real logic lives behind `lib.mkIf cfg.enable`, so each check must
 # ENABLE the module (and supply any options that have no default) to exercise it.
@@ -41,7 +43,7 @@
     };
   in
     pkgs.runCommand "eval-nixos-${name}" {} ''
-      echo "${sys.config.system.build.toplevel.drvPath}" > $out
+      echo "${builtins.unsafeDiscardOutputDependency sys.config.system.build.toplevel.drvPath}" > $out
     '';
 
   # Enable `homeManagerModules.<name>` with `enableCfg`, force eval of the
@@ -53,7 +55,7 @@
     };
   in
     pkgs.runCommand "eval-hm-${name}" {} ''
-      echo "${cfg.activationPackage.drvPath}" > $out
+      echo "${builtins.unsafeDiscardOutputDependency cfg.activationPackage.drvPath}" > $out
     '';
 in {
   nixos-cynthion = evalNixos "cynthion" {hardware.cynthion.enable = true;};
