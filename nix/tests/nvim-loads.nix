@@ -18,7 +18,27 @@
   startPlugins =
     nvchad.all
     ++ (with pkgs.vimPlugins; [
-      nvim-treesitter.withAllGrammars
+      # NOT withAllGrammars: that pulls 328 grammar + 329 queries derivations
+      # into the closure, and the per-language `nvim-treesitter-queries-*` ones
+      # are absent from cache.nixos.org (Hydra builds `vimPlugins.nvim-treesitter`,
+      # not this derivation tree), so every CI run rebuilt all 329 from source --
+      # each running neovimRequireCheckHook, i.e. 329 headless nvim launches.
+      # That spike is what killed the runner's nix-daemon. This test asks "does
+      # the whole set still boot", not "do 300+ grammars exist", so a
+      # representative slice is enough.
+      (nvim-treesitter.withPlugins (p:
+        with p; [
+          bash
+          c
+          lua
+          markdown
+          markdown_inline
+          nix
+          python
+          query
+          vim
+          vimdoc
+        ]))
       telescope-nvim
       nvim-cmp
       nvim-lspconfig
