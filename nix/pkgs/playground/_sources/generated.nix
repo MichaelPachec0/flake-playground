@@ -8,13 +8,13 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.1.0";
+    version = "v3.2.0";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.1.0";
+      rev = "v3.2.0";
       fetchSubmodules = false;
-      sha256 = "sha256-8gQXVDNsOHhGN078XADIeO420G0N+5Z8lRxFwNDRURk=";
+      sha256 = "sha256-SYsMr7/fhvp8iHfJcilTxhou0rirZ8wxanu8kHIMlqo=";
     };
   };
   affine-server = {
@@ -51,26 +51,26 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.0.137";
+    version = "0.0.138";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-qsMRV5SmbkWfXkCOxcPw7hLerrvOS8J12EiofvospKs=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.138/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-NOGeH3H1cJQuCE1aiAT/Zjj5q4EZJPJxGYNQHaUuIsw=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.0.137";
+    version = "0.0.138";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-M8QrzCzc8u9Kt5F/gFhPboYPjkSuWJ6MmuLoFzRhll8=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.138/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-IcuBymQVyxGfD9xlPlEczHXCQkFADiHvc0YtM+4rO8w=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.0.137";
+    version = "0.0.138";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.137/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-GzlDadOvizBOTlILi6+qThAQUol9Xs2PokONTHeOvIw=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.138/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-YQ5eyHZpFImC++VoncMilw15hGtXoRqYQpwX0+Q+7BE=";
     };
   };
   workstyle = {
