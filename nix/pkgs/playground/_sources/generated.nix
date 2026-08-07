@@ -51,26 +51,26 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.0.140";
+    version = "0.0.142";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.140/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-uo32fk+rhYe1F9z4mEYq6de3kJXm/NJ6HvMk+QBe5Sg=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-lRNA6Day4wJE+L4BlSs9hjBu2NFMl9Nn2kDSr3gyPLo=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.0.140";
+    version = "0.0.142";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.140/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-elDMvQIESEL1m5TsuJa2lExsJe15SUI+zm94/0wnrD4=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-jpLvfPdYfYLIY5muJApRMlYEVKc9bWZPhc8psl+0cLE=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.0.140";
+    version = "0.0.142";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.140/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-GkZjt2OUXmR5GnvZygR0hoj+JxiC0pjZ0mRIyMCHXfc=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-SuV5djfrvRZZ59p+dUyiux+OmEMOxscuIU5/YDGWHYI=";
     };
   };
   workstyle = {
