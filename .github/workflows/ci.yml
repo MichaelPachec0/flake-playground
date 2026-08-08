@@ -14,6 +14,15 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    # A passing run takes ~6 minutes. Without this the GitHub default of 360
+    # applies, and a hang burns six runner-hours before anyone notices: run
+    # 31251212510 sat silent for 2h12m after two nix-eval-jobs eval workers
+    # raced to unpack different flake inputs into the same git cache, and only
+    # stopped because it was cancelled by hand. 30 also makes the failure
+    # USEFUL: a timeout is a failure, so the `if: failure()` diagnostics and
+    # artifact upload below actually run, whereas a manual cancel skips them
+    # and throws away the evidence.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7

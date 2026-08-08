@@ -35,14 +35,14 @@ final: prev:
     installCheckPhase = ''
       echo "[curlEch] verifying ECH capability..."
       if ! $bin/bin/curl -V | grep -qw ECH; then
-        echo "ERROR: curlEch built WITHOUT ECH support — anti-censorship feature regressed" >&2
+        echo "ERROR: curlEch built WITHOUT ECH support: anti-censorship feature regressed" >&2
         exit 1
       fi
       echo "[curlEch] ECH present: OK"
     '';
   }));
 
-  # spdlog 1.17.0 — force static archive with explicit SPDLOG_FMT_EXTERNAL=ON.
+  # spdlog 1.17.0: force static archive with explicit SPDLOG_FMT_EXTERNAL=ON.
   # The vcpkg registry pins 1.14.1; we use 1.17.0 from nixpkgs (version delta is a
   # Task-10 compile-verify item).
   spdlogWs = (prev.spdlog.override { staticBuild = true; }).overrideAttrs (old: {

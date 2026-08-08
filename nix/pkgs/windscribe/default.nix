@@ -19,7 +19,7 @@ let
   ctrld = import ./deps/ctrld.nix { inherit pkgs; };
   openvpn-ws = import ./deps/openvpn-ws.nix { inherit pkgs; };
 
-  # nixpkgs curl does not ship a CURLConfig.cmake — write a shim so wsnet's
+  # nixpkgs curl does not ship a CURLConfig.cmake; write a shim so wsnet's
   # find_package(CURL CONFIG REQUIRED) resolves to CURL::libcurl.
   curlCmakeShim = pkgs.writeTextDir "lib/cmake/CURL/CURLConfig.cmake" ''
     if(NOT TARGET CURL::libcurl)
@@ -97,7 +97,7 @@ pkgs.stdenv.mkDerivation {
   then [ "-DDEV_MODE=ON" ]
   else [
     "-DDEV_MODE=OFF"
-    # Point the install-dir macro at $out/bin — the GUI binary's own directory. This makes the
+    # Point the install-dir macro at $out/bin, the GUI binary's own directory. This makes the
     # helper's WS_LINUX_INSTALL_DIR coincide with the client engine's applicationDirPath()
     # (openvpnversioncontroller.cpp resolves windscribeopenvpn relative to the GUI binary), exactly
     # as the upstream .deb's single /opt/windscribe dir does. realpath() of this store path
@@ -133,7 +133,7 @@ pkgs.stdenv.mkDerivation {
     install -Dm755 "$wsnetlib" "$out/lib/libwsnet.so"
   '' + (pkgs.lib.optionalString devMode ''
     # DEV layout: bundled binaries under $out/lib/windscribe. NOT runtime-reachable
-    # (helper's WS_LINUX_INSTALL_DIR stays the /opt default in dev) — for GUI/CLI poking only.
+    # (helper's WS_LINUX_INSTALL_DIR stays the /opt default in dev), for GUI/CLI poking only.
     mkdir -p $out/lib/windscribe
     install -Dm755 ${wstunnel}/bin/wstunnel    $out/lib/windscribe/wstunnel
     install -Dm755 ${ctrld}/bin/ctrld          $out/lib/windscribe/ctrld
@@ -166,11 +166,11 @@ pkgs.stdenv.mkDerivation {
   # Prod runtime tree, all under $out/bin (= WS_LINUX_INSTALL_DIR = the GUI's applicationDirPath).
   # MUST run in postFixup, not installPhase: wrapQtAppsHook is a fixupOutputHook that wraps every
   # executable under $out/bin; placed earlier, the bundled-binary symlinks and the plugin .so files
-  # (cp -rs leaves them +x) would each be replaced by a makeBinaryWrapper stub — Qt then rejects the
+  # (cp -rs leaves them +x) would each be replaced by a makeBinaryWrapper stub; Qt then rejects the
   # plugin stubs, and the helper/engine would exec wrapper shims. postFixup runs after that hook.
   postFixup = pkgs.lib.optionalString (!devMode) ''
     # Bundled VPN helpers, under the 'windscribe'-prefixed names resolveExePath() (helper) and
-    # OpenVpnVersionController (engine) expect. Symlinks suffice — neither side realpaths the file.
+    # OpenVpnVersionController (engine) expect. Symlinks suffice; neither side realpaths the file.
     ln -s ${openvpn-ws}/bin/openvpn  $out/bin/windscribeopenvpn
     ln -s ${wstunnel}/bin/wstunnel   $out/bin/windscribewstunnel
     ln -s ${ctrld}/bin/ctrld         $out/bin/windscribectrld
@@ -193,7 +193,7 @@ pkgs.stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Windscribe Desktop VPN — native build (Nix-provided deps)";
+    description = "Windscribe Desktop VPN, native build (Nix-provided deps)";
     platforms = [ "x86_64-linux" "aarch64-linux" ];
     # The GUI binary is `Windscribe` (capital W, upstream CMake target name),
     # not the lowercase pname. Without this, `nix run .#windscribe` looks for

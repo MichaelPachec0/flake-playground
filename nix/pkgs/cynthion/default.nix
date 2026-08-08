@@ -181,7 +181,7 @@ in
         substituteInPlace src/commands/cynthion_setup.py \
         --replace-fail \
               "        _install_udev(args)" \
-              "        logging.info(\"✅ NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
+              "        logging.info(\"[ok] NixOS has already took care of setup process.\n   Please verify with cythion setup --check\")"
       ''
       else ''
       substituteInPlace pyproject.toml \

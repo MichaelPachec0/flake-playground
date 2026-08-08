@@ -77,7 +77,7 @@ inputs: {
     '';
 
   storageEnv = lib.optionalAttrs (cfg.storage.provider == "s3") {
-    # Best-effort S3 (spec §9/§14 #6): confirm the exact var/config mechanism the
+    # Best-effort S3 (spec section 9 / section 14 #6): confirm the exact var/config mechanism the
     # pinned AFFiNE version uses before relying on this in production.
     AFFINE_STORAGE_PROVIDER = "s3";
     AFFINE_STORAGE_S3_ENDPOINT = cfg.storage.s3.endpoint;
@@ -85,7 +85,7 @@ inputs: {
     AFFINE_STORAGE_S3_BUCKET = cfg.storage.s3.bucket;
   };
 
-  # Verified-for-Node systemd hardening (spec §7.1). Differs from the tuwunel
+  # Verified-for-Node systemd hardening (spec section 7.1). Differs from the tuwunel
   # (Rust) profile: MemoryDenyWriteExecute must be false (V8 JIT) and the syscall
   # filter must KEEP @ipc (V8 memfd_create). PrivateUsers off for PG peer auth.
   hardening = {
@@ -223,7 +223,7 @@ in {
       provider = lib.mkOption {
         type = lib.types.enum ["fs" "s3"];
         default = "fs";
-        description = "Blob storage backend. 'fs' uses the StateDirectory; 's3' is best-effort (spec §9).";
+        description = "Blob storage backend. 'fs' uses the StateDirectory; 's3' is best-effort (spec section 9).";
       };
       s3 = {
         endpoint = lib.mkOption {type = lib.types.str; default = ""; description = "S3 endpoint URL.";};
@@ -355,7 +355,7 @@ in {
     # pgvector is not a "trusted" extension, so the non-superuser affine role
     # can't CREATE EXTENSION itself. Pre-create it as the postgres superuser
     # before migrations run (defensive; migrations may reference vector types
-    # even with the indexer off — spec §14 #3).
+    # even with the indexer off; spec section 14 #3).
     systemd.services.affine-db-init = lib.mkIf cfg.database.manage {
       description = "AFFiNE: ensure pgvector extension exists";
       # nixpkgs runs ensureDatabases/ensureUsers in a SEPARATE

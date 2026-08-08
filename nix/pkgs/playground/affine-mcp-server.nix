@@ -1,4 +1,4 @@
-# DAWNCR0W/affine-mcp-server — write-capable MCP server for AFFiNE, built from
+# DAWNCR0W/affine-mcp-server: write-capable MCP server for AFFiNE, built from
 # the nvfetcher-pinned latest GitHub release (`source` = an entry from
 # ./_sources/generated.nix). Consumed by the `mcp.affine` NixOS module, which
 # execs $out/lib/node_modules/affine-mcp-server/dist/index.js under node.

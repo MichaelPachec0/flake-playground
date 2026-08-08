@@ -77,6 +77,20 @@
       sha256 = "sha256-SuV5djfrvRZZ59p+dUyiux+OmEMOxscuIU5/YDGWHYI=";
     };
   };
+  powertop = {
+    pname = "powertop";
+    version = "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d";
+    src = fetchgit {
+      url = "https://github.com/fenrus75/powertop";
+      rev = "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d";
+      fetchSubmodules = false;
+      deepClone = false;
+      leaveDotGit = false;
+      sparseCheckout = [ ];
+      sha256 = "sha256-MXixDtW181rz/0WBqx09n/G3RpQsTl4vjzmNgmR7LoA=";
+    };
+    date = "2026-06-13";
+  };
   workstyle = {
     pname = "workstyle";
     version = "dae15018c84c4f0feaf498d3676271ca0e3bec44";

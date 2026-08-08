@@ -112,6 +112,41 @@ runs:
       shell: bash
       run: git add -AN .
 
+    # Warm every fetch cache in ONE process before nix-fast-build forks any eval
+    # worker. This is load-bearing, not an optimisation.
+    #
+    # nix-eval-jobs resolves the flake inside each worker, not once in the
+    # parent, so with --eval-workers 2 a cold cache means two processes calling
+    # lockFlake at the same instant and racing to unpack different inputs into
+    # the shared tarball cache (~/.cache/nix/tarball-cache-v2). That cache is
+    # opened with no inter-process lock, and the losers of the race print
+    #   waiting for another Nix process to finish fetching input '...'
+    # and can wait forever. Run 31251212510 logged home-manager and
+    # pyproject.nix starting to unpack 28 ms apart, then went totally silent for
+    # 2h12m until it was cancelled by hand, leaving two orphaned nix-eval-jobs
+    # processes behind. Runs 31256202020 and 31256173045 hit the same state.
+    #
+    # The cache is normally warm, which is why this is rare: the inputs survive
+    # in the restored nix store cache. It bites when cache-nix-action's GC has
+    # evicted them (gc-max-store-size-linux is 5G against a ~6.4G store, and the
+    # roots it drops include the auto-gcroots pinning flake input sources), so
+    # the next run has to re-fetch and the workers race.
+    #
+    # Verified locally against nix-eval-jobs 2.35.0 with a cold XDG_CACHE_HOME:
+    # 4 workers on a fresh cache race and log the waiting message; after this
+    # prefetch the same run does zero "into the Git cache" unpacking, because a
+    # single process did all of it up front.
+    #
+    # The channel tarball is fetched via NIX_PATH rather than as a flake input,
+    # so prefetch-inputs does not cover it; --find-file resolves it in this
+    # process for the same reason. It is best-effort: not every caller evaluates
+    # <nixpkgs>, and a failure here should not fail the build.
+    - name: Warm fetch caches before parallel eval
+      shell: bash
+      run: |
+        nix flake prefetch-inputs
+        nix-instantiate --find-file nixpkgs >/dev/null || true
+
     - name: Build all flake checks (nix-fast-build)
       shell: bash
       env:

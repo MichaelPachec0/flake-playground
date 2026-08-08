@@ -6,7 +6,7 @@
 #   $out/app/scripts/self-host-predeploy.js (migration entry)
 #   passthru.nodejs                     (the exact Node the addons were built for)
 # A future from-source build (Path A) can replace this file's internals while
-# keeping the same output contract. See spec §3/§5.
+# keeping the same output contract. See spec section 3 / section 5.
 {
   lib,
   stdenv,
@@ -20,7 +20,7 @@
   source,
 }: let
   # Fixed pname: the aarch64 build is fed the `affine-server-arm64` nvfetcher
-  # source (different digest/arch), but the package is the same thing — don't let
+  # source (different digest/arch), but the package is the same thing; don't let
   # the source's name leak into the derivation name.
   pname = "affine-server";
   inherit (source) version src;
@@ -28,7 +28,7 @@
   # Flatten the docker-archive into a single rootfs. Observed layout of this
   # image (docker save / dockerTools.pullImage): manifest.json's `.[0].Layers`
   # lists top-level `<sha>.tar` entries sitting at the archive root (the archive
-  # also carries legacy `<sha>/layer.tar` dirs, which we ignore — we follow the
+  # also carries legacy `<sha>/layer.tar` dirs, which we ignore; we follow the
   # manifest). Untar the image, then untar each referenced layer in manifest
   # order (later layers win) into $out. `|| true` tolerates overlay whiteout
   # quirks that make tar exit non-zero on otherwise-fine layers.
@@ -111,10 +111,10 @@ in
       # non-free terms. This Path-B build ships the whole prebuilt image, which
       # INCLUDES the non-MIT code, so the package is UNFREE. (nixpkgs' `affine`
       # desktop is labelled MIT, but the self-host server bundle is a different
-      # licensing story — don't infer one from the other.)
+      # licensing story, so don't infer one from the other.)
       #
       # TODO(license, post-v1): split into two packages behind the same output
-      # contract —
+      # contract:
       #   * affine-server     : build from source with the non-MIT code stripped
       #                         out, so it is genuinely free (MIT), free = true.
       #   * affine-server-bin : the full prebuilt image (this build), everything

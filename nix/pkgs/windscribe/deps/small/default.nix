@@ -1,11 +1,11 @@
 { pkgs }:
 {
-  # ── nixpkgs passthroughs ─────────────────────────────────────────────────────
+  # --- nixpkgs passthroughs --------------------------------------------------
 
-  # cmakerc 2.0.1 — in nixpkgs
+  # cmakerc 2.0.1: in nixpkgs
   cmakerc = pkgs.cmakerc;
 
-  # miniaudio 0.11.25 — single-header library. The nixpkgs `miniaudio` package only
+  # miniaudio 0.11.25: single-header library. The nixpkgs `miniaudio` package only
   # ships the compiled node .so files and does NOT install miniaudio.h. The client
   # uses miniaudio as a header-only library (soundmanager.cpp defines
   # MINIAUDIO_IMPLEMENTATION then #include <miniaudio.h>), so provide the header from
@@ -26,9 +26,9 @@
     '';
   };
 
-  # ── vendored derivations ─────────────────────────────────────────────────────
+  # --- vendored derivations --------------------------------------------------
 
-  # skyr-url v1.13.0 (cpp-netlib/url) — NOT in nixpkgs
+  # skyr-url v1.13.0 (cpp-netlib/url): NOT in nixpkgs
   # Transitive deps: tl-expected, range-v3, nlohmann_json (all in nixpkgs).
   skyr-url = pkgs.stdenv.mkDerivation {
     pname = "skyr-url";
@@ -50,7 +50,7 @@
     ];
   };
 
-  # cpp-base64 V2.rc.08 (ReneNyffenegger/cpp-base64) — NOT in nixpkgs
+  # cpp-base64 V2.rc.08 (ReneNyffenegger/cpp-base64): NOT in nixpkgs
   # Installs base64.h + base64.cpp to $out/include/cpp-base64/.
   cpp-base64 = pkgs.stdenv.mkDerivation {
     pname = "cpp-base64";
@@ -69,7 +69,7 @@
     '';
   };
 
-  # advobfuscator 2020-06-26 (andrivet/ADVobfuscator) — NOT in nixpkgs
+  # advobfuscator 2020-06-26 (andrivet/ADVobfuscator): NOT in nixpkgs
   # Header-only; installs Lib/ to $out/include/.
   advobfuscator = pkgs.stdenv.mkDerivation {
     pname = "advobfuscator";

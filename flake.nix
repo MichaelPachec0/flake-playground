@@ -232,7 +232,7 @@
       ryzen-monitor-ng = pkgs.mkShell {
         inputsFrom = [ryzen-monitor-ng];
         shellHook = ''
-          echo "📦 Ready to debug phases"
+          echo "Ready to debug phases"
           echo "Run: configurePhase, buildPhase, installPhase, etc."
         '';
       };
