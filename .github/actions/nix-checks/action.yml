@@ -140,13 +140,36 @@ runs:
         trap 'kill "$SAMPLER_PID" 2>/dev/null || true' EXIT
 
         # Bound concurrency so peak memory stays under the runner's 16 GB.
-        # Default is --eval-workers = nproc (4) each capped at 4 GiB = a 16 GB
-        # eval ceiling, which over-subscribes RAM when builds run alongside.
+        # --eval-workers defaults to nproc (4), which over-subscribes RAM when
+        # builds run alongside; 2 workers at the ~4.9 GiB our eval actually
+        # peaks at is the real ceiling here. --eval-max-memory-size is NOT that
+        # ceiling -- see below, it is a restart trigger, not an allocator limit.
         # --max-jobs here caps the `nix build` clients this spawns; the daemon's
         # own max-jobs is capped alongside it in the Install nix step above.
         # --retries 1: the NixOS/nix#16005 daemon crash is nondeterministic, so a
         # second attempt usually sails through. Without it a single lost wakeup
         # fails the whole job at attempt 1/1.
+        #
+        # --eval-max-memory-size 8192 (default 4096) dodges a nix-eval-jobs 2.35
+        # shutdown race, NOT because eval needs 8 GiB. An eval worker compares
+        # its ru_maxrss against this cap after every attr; over the cap it writes
+        # "restart" to the collector and EXITS. Since 2.35's "unify worker
+        # readiness handling" the collector claims the next job BEFORE reading
+        # that "restart", so when the over-limit worker was handling the last
+        # attr the collector writes "exit" into an already-dead pipe and aborts
+        # the whole run with
+        #   error: BUG: while sending exit, worker pipe got closed but
+        #   evaluation worker still running?
+        # after every attr has in fact evaluated fine. Our eval peaks around
+        # 4.9 GiB per worker (ru_maxrss is a high-water mark, so once it crosses
+        # the cap EVERY later attr re-arms the race), and whether the run dies
+        # depends only on whether the queue happened to be empty at that moment
+        # -- a coin flip. 8192 keeps each worker under the cap for the whole
+        # eval, so it never self-restarts and the race never arms.
+        # Note the nix pin above does NOT cover this: nix-eval-jobs comes from
+        # whatever nixpkgs `nix run` resolves, independent of the client pin.
+        # Drop back to the default once nix-eval-jobs reads worker status before
+        # claiming a job again.
         status=0
         nix run nixpkgs#nix-fast-build -- \
           --flake ".#checks.x86_64-linux" \
@@ -154,6 +177,7 @@ runs:
           --retries 1 \
           --no-nom \
           --eval-workers 2 \
+          --eval-max-memory-size 8192 \
           --max-jobs 2 \
           --impure || status=$?
 
