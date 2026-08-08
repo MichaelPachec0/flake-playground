@@ -2,7 +2,10 @@
     "affine-mcp-server": {
         "cargoLock": null,
         "date": null,
-        "extract": null,
+        "extract": {
+            "package-lock.json": "sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package-lock.json",
+            "package.json": "sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package.json"
+        },
         "name": "affine-mcp-server",
         "passthru": null,
         "pinned": false,

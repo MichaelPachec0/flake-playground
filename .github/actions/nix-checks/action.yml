@@ -98,29 +98,19 @@ runs:
       shell: bash
       run: ${{ inputs.pre-build-command }}
 
-    # nvfetcher pins each npm package's source but cannot compute its
-    # npmDepsHash, so the hash lives in a companion file that can fall behind the
-    # source it was computed for. Recompute every one of them here and carry on:
-    # a stale hash is corrected in the working tree and warned about, never
-    # failed on. The bump workflow commits the correction (its file_pattern
-    # covers *.npm-deps.hash); elsewhere the warning says to commit it by hand.
-    - name: Refresh npm deps hashes
+    # Flakes only see files git knows about, so anything the previous step
+    # CREATED (as opposed to modified in place) is invisible to the build that
+    # follows and eval dies with "Path '...' in the repository is not tracked by
+    # Git". nvfetcher does exactly that: the manifests it `extract`s land in
+    # _sources/<source-hash>/, a directory whose name changes on every version
+    # bump, so a bump day always produces brand-new untracked files.
+    # `git add -AN` records intent-to-add only -- the paths become visible to
+    # Nix without their contents being staged, leaving the commit step below in
+    # charge of what actually gets committed.
+    - name: Make regenerated inputs visible to Nix
+      if: ${{ inputs.pre-build-command != '' }}
       shell: bash
-      run: |
-        shopt -s nullglob
-        for f in nix/pkgs/playground/*.npm-deps.hash; do
-          name="$(basename "$f" .npm-deps.hash)"
-          before="$(cat "$f")"
-          if ! bash nix/pkgs/playground/refresh-npm-deps-hash.sh "$name"; then
-            printf '%s\n' "$before" > "$f"
-            echo "::warning::could not recompute the npm deps hash for $name; keeping $before"
-            continue
-          fi
-          after="$(cat "$f")"
-          if [ "$before" != "$after" ]; then
-            echo "::warning::$name npm deps hash was stale ($before -> $after); commit $f"
-          fi
-        done
+      run: git add -AN .
 
     - name: Build all flake checks (nix-fast-build)
       shell: bash
