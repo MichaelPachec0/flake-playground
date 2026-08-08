@@ -123,6 +123,26 @@
         },
         "version": "0.0.142"
     },
+    "powertop": {
+        "cargoLock": null,
+        "date": "2026-06-13",
+        "extract": null,
+        "name": "powertop",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "rev": "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d",
+            "sha256": "sha256-MXixDtW181rz/0WBqx09n/G3RpQsTl4vjzmNgmR7LoA=",
+            "sparseCheckout": [],
+            "type": "git",
+            "url": "https://github.com/fenrus75/powertop"
+        },
+        "version": "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d"
+    },
     "workstyle": {
         "cargoLock": null,
         "date": "2025-10-19",

@@ -228,7 +228,7 @@ The custom vim plugin sources are decoupled from their build definitions:
   ```
 
 All bump workflows gate their commit on `checks.x86_64-linux.default` (the
-comprehensive CI gate — see [CI](#ci) below):
+comprehensive CI gate, see [CI](#ci) below):
 
 - `.github/workflows/update.yml` - daily (and on `nvfetcher.toml` changes),
   re-runs nvfetcher, builds the checks, and commits the regenerated `_sources`
@@ -249,13 +249,13 @@ All CI runs a single gate over `checks.x86_64-linux`:
 
 - **What it covers:** every first-class package (`packages` check), every custom
   vim plugin + the headless-nvim load test, the playground packages, and an
-  *evaluation* of every NixOS and home-manager module (`nixos-*` / `hm-*` checks
-  — each enables the module and evaluates the resulting system without building
+  *evaluation* of every NixOS and home-manager module (`nixos-*` / `hm-*` checks;
+  each enables the module and evaluates the resulting system without building
   its full closure).
 - **Run it locally:** `nix build .#checks.x86_64-linux.default`  
   or `nix run nixpkgs#nix-fast-build -- --flake .#checks.x86_64-linux --impure`.
 - **When it runs:** on PRs and pushes to `main`/`master` (`ci.yml`), manually
-  (workflow_dispatch), and inside the nightly/weekly bump workflows — which only
+  (workflow_dispatch), and inside the nightly/weekly bump workflows, which only
   commit a bump if the full check passes.
 
 Not yet enforced (planned): warnings-as-errors and VM boot tests.

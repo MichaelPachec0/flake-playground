@@ -52,7 +52,7 @@ in
       before = [ "network-pre.target" ];
       wants = [ "network-pre.target" ];
       wantedBy = [ "multi-user.target" ];
-      # NixOS `path` replaces (not extends) the unit PATH — the service does NOT
+      # NixOS `path` replaces (not extends) the unit PATH; the service does NOT
       # inherit /run/current-system/sw/bin. Every tool the helper and its DNS-script /
       # `env` shell-outs invoke must be listed explicitly or executeCommand() exits 127.
       # coreutils/gnugrep/gnused/gawk/e2fsprogs/openresolv are the DNS-script / `env`

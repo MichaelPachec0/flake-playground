@@ -1,5 +1,5 @@
 # NixOS module: run DAWNCR0W/affine-mcp-server (write-capable AFFiNE MCP server)
-# as a hardened systemd service. Standalone — targets any AFFiNE via `baseUrl`
+# as a hardened systemd service. Standalone: targets any AFFiNE via `baseUrl`
 # (local or remote), authenticating with email+password, a session cookie, or an
 # API token. Secrets flow through systemd LoadCredential + a runtime wrapper, so
 # nothing lands in the Nix store. See
@@ -233,7 +233,7 @@ in {
       }
       {
         assertion = hasAnyAuth;
-        message = "mcp.affine: provide an AFFiNE credential — emailFile + passwordFile, or cookieFile, or apiTokenFile.";
+        message = "mcp.affine: provide an AFFiNE credential: emailFile + passwordFile, or cookieFile, or apiTokenFile.";
       }
       {
         assertion = (cfg.emailFile == null) == (cfg.passwordFile == null);
@@ -258,7 +258,7 @@ in {
       "mcp.affine: transport = \"stdio\" has no long-running listener; the systemd service assumes http. Use a client-spawned stdio config instead.";
 
     systemd.services.mcp-affine = {
-      description = "AFFiNE MCP server (DAWNCR0W) — write-capable";
+      description = "AFFiNE MCP server (DAWNCR0W), write-capable";
       documentation = ["https://github.com/DAWNCR0W/affine-mcp-server"];
       wantedBy = ["multi-user.target"];
       after = ["network-online.target"] ++ lib.optional affineEnabled "affine.service";

@@ -40,6 +40,27 @@
 src.git = "https://github.com/pierrechevalier83/workstyle"
 fetch.git = "https://github.com/pierrechevalier83/workstyle"
 
+# powertop at its latest master commit. nixpkgs ships the v2.15 release; master
+# is ~600 commits past that tag and still active, and only master carries the
+# libtracefs/libtraceevent-backed tracing support that ./powertop.nix adds two
+# buildInputs for.
+#
+# Default-branch tracking (not `use_latest_release`) is deliberate twice over:
+# upstream's latest release IS v2.15, i.e. exactly what nixpkgs already has, so
+# a release-tracking entry would follow nothing until 2.16 lands; and `src.git`
+# is the only source type that emits a `date` field into _sources/generated.nix,
+# which ./powertop.nix needs for its `2.16-rc3-unstable-$date-$rev` version
+# string.
+#
+# `fetch.git` means `src` is a fetchgit, NOT a fetchFromGitHub -- and fetchgit
+# never sets `meta.homepage` (it does carry a `meta`, as every mkDerivation
+# does; only fetchFromGitHub fills in homepage). The nixpkgs derivation reads
+# `finalAttrs.src.meta.homepage`, so ./powertop.nix MUST override meta.homepage
+# or evaluation fails outright.
+[powertop]
+src.git = "https://github.com/fenrus75/powertop"
+fetch.git = "https://github.com/fenrus75/powertop"
+
 # ElectronMail: unofficial ProtonMail desktop client. Unlike workstyle (default
 # branch), this tracks the latest GitHub *release* and fetches the prebuilt
 # linux x86_64 AppImage asset. Note the version shape mismatch handled in the
@@ -77,7 +98,7 @@ fetch.docker = "ghcr.io/toeverything/affine"
 docker.os = "linux"
 docker.arch = "arm64"
 
-# DAWNCR0W/affine-mcp-server — write-capable MCP server for AFFiNE workspaces.
+# DAWNCR0W/affine-mcp-server: write-capable MCP server for AFFiNE workspaces.
 # Tracks the latest GitHub *release* (excludes prereleases) and fetches the repo
 # at that tag as a source TREE (fetchFromGitHub) for buildNpmPackage.
 #

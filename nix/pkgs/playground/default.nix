@@ -12,6 +12,9 @@ in {
   workstyle = pkgs.callPackage ./workstyle.nix {
     source = sources.workstyle;
   };
+  powertop = pkgs.callPackage ./powertop.nix {
+    source = sources.powertop;
+  };
   electron-mail = pkgs.callPackage ./electron-mail.nix {
     source = sources.electron-mail;
   };
