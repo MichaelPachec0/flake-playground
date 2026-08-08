@@ -11,6 +11,14 @@ on:
 jobs:
   lockfile:
     runs-on: ubuntu-latest
+    # ~6 minutes when healthy. Caps the 360-minute GitHub default so a hung
+    # eval (two nix-eval-jobs workers can deadlock unpacking flake inputs into
+    # the same git cache) fails fast instead of burning six runner-hours. A
+    # timeout counts as failure, so the nix-checks action's `if: failure()`
+    # diagnostics still capture the stuck state; a manual cancel would not.
+    # This job runs `nix flake update` first, so every input is refetched and
+    # it is the most exposed of the four.
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
