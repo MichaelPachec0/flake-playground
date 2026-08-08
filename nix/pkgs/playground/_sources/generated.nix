@@ -16,6 +16,10 @@
       fetchSubmodules = false;
       sha256 = "sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=";
     };
+    extract = {
+      "package-lock.json" = ./. + "/sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package-lock.json";
+      "package.json" = ./. + "/sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package.json";
+    };
   };
   affine-server = {
     pname = "affine-server";

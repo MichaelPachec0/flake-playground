@@ -7,6 +7,13 @@
 # Regenerate locally with:
 #
 #   nix develop -c nvfetcher -c nix/pkgs/playground/nvfetcher.toml -o nix/pkgs/playground/_sources
+#   git add -AN nix/pkgs/playground/_sources
+#
+# That second line is not optional when an entry uses `extract` (see
+# affine-mcp-server below): the extracted manifests land in a NEW directory named
+# after the source hash, and a flake cannot see untracked files -- eval fails with
+# "Path '...' in the repository is not tracked by Git" until they are at least
+# intent-to-added. .github/actions/nix-checks does the same thing in CI.
 #
 # The affine-server* entries use `fetch.docker`, which shells out to
 # `nix-prefetch-docker`/skopeo. skopeo (from nixpkgs) requires the containers
@@ -84,13 +91,23 @@ docker.arch = "arm64"
 # tarball FILE, which breaks the deps-hash refresh (`$src/package-lock.json`
 # needs `src` to be an unpacked directory).
 #
-# buildNpmPackage also needs npmDepsHash, which nvfetcher does NOT compute; it
-# lives in ../affine-mcp-server.npm-deps.hash and is refreshed by the daily
-# update-playground.yml workflow (see that file + affine-mcp-server.nix).
+# nvfetcher does NOT compute buildNpmPackage's npmDepsHash (it only emits hashes
+# its own fetchers produce), and a hand-maintained companion hash file silently
+# falls behind every source bump. `extract` sidesteps the hash entirely: it copies
+# the named files out of the fetched tree into _sources/<sha>/ as ORDINARY REPO
+# FILES, exposed as `source.extract."<file>"`. affine-mcp-server.nix feeds those
+# to importNpmLock, which derives every dependency's hash from the integrity
+# fields already inside package-lock.json -- so the deps update atomically with
+# the source pin and there is no second hash to keep in sync.
+#
+# Extraction (rather than reading $src/package-lock.json) is what keeps eval pure:
+# reading a file off the fetchFromGitHub store path would force a build during
+# evaluation (import-from-derivation) and break the eval-only flake checks.
 [affine-mcp-server]
 src.github = "DAWNCR0W/affine-mcp-server"
 src.use_latest_release = true
 fetch.github = "DAWNCR0W/affine-mcp-server"
+extract = [ "package.json", "package-lock.json" ]
 
 # freebuff -- Codebuff's coding-agent CLI. Upstream's install path is
 # `npx freebuff`, but that npm package is NOT the program: it is a ~64K launcher

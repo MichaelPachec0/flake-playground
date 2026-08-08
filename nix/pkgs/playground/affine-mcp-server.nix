@@ -3,14 +3,21 @@
 # ./_sources/generated.nix). Consumed by the `mcp.affine` NixOS module, which
 # execs $out/lib/node_modules/affine-mcp-server/dist/index.js under node.
 #
-# npmDepsHash (the vendored node_modules hash) is NOT computed by nvfetcher, so
-# it lives in ./affine-mcp-server.npm-deps.hash and is refreshed together with
-# the source pin by .github/workflows/update-playground.yml. To bump it by hand:
-#   src=$(nix-build --no-out-link -E '((import <nixpkgs> {}).callPackage ./nix/pkgs/playground/_sources/generated.nix {})."affine-mcp-server".src')
-#   nix run nixpkgs#prefetch-npm-deps -- "$src/package-lock.json" > nix/pkgs/playground/affine-mcp-server.npm-deps.hash
+# NO npmDepsHash. buildNpmPackage's default vendoring wants a single hash over
+# the whole dependency closure, which nvfetcher cannot compute -- so it had to
+# live in a companion file, and every source bump silently invalidated it.
+# Instead the nvfetcher entry `extract`s package.json + package-lock.json into
+# _sources/ (plain files in the repo, see ./nvfetcher.toml), and importNpmLock
+# turns the lockfile into one fixed-output fetch per dependency, each hashed by
+# the `integrity` field npm already recorded. Deps therefore update atomically
+# with the source pin: nothing to refresh, nothing to drift.
+#
+# Trade-off: hundreds of small FODs instead of one large one -- a cold build
+# makes many more network round-trips than the old single vendored tarball.
 {
   lib,
   buildNpmPackage,
+  importNpmLock,
   nodejs_22,
   source,
 }:
@@ -24,8 +31,26 @@ buildNpmPackage {
   # Upstream requires Node >= 20; pin the toolchain the module also runs under.
   nodejs = nodejs_22;
 
-  # nvfetcher can't produce this; kept in a generated companion file (CI-refreshed).
-  npmDepsHash = lib.fileContents ./affine-mcp-server.npm-deps.hash;
+  # Read the manifests from the EXTRACTED copies, never from `src`. Reading them
+  # off the fetchFromGitHub store path would be import-from-derivation: eval
+  # would have to build the source first, which breaks the eval-only checks.
+  #
+  # `importNpmLock` is called as a FUNCTION here (the attrset carries a
+  # `__functor`), not via its `buildNodeModules` attribute. The two are not
+  # interchangeable: buildNodeModules realises an actual node_modules tree for
+  # `linkNodeModulesHook`/dev shells, whereas npmConfigHook wants the rewritten
+  # package.json + package-lock.json -- the ones whose `resolved` fields point at
+  # store paths instead of registry.npmjs.org. Pass the former and the build dies
+  # mid-install with `npm error code ENOTCACHED ... cache mode is 'only-if-cached'`
+  # on the first dependency, because npm is still reading the unpatched lockfile.
+  npmDeps = importNpmLock {
+    package = lib.importJSON source.extract."package.json";
+    packageLock = lib.importJSON source.extract."package-lock.json";
+  };
+  # importNpmLock links its per-package store paths into node_modules; the stock
+  # npmConfigHook only understands the vendored-tarball layout, so it must be
+  # swapped out alongside npmDeps.
+  npmConfigHook = importNpmLock.npmConfigHook;
 
   # package.json "build" = `npm run clean && tsc -p tsconfig.json` -> dist/.
   npmBuildScript = "build";
