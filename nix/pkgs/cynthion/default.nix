@@ -50,7 +50,11 @@
     pythonImportsCheck = ["amaranth"];
   };
   usb-protocol = python3.pkgs.buildPythonPackage rec {
-    pname = "usb_protcol";
+    # Must match the name in the built .dist-info, i.e. the sdist's
+    # usb_protocol, NOT a typo of it. pythonMetadataCheckPhase looks the
+    # distribution up with importlib.metadata.version("$pname") and dies with
+    # "No package metadata was found for ..." when the two disagree.
+    pname = "usb_protocol";
     version = "0.9.1";
     src = fetchurl {
       url = "https://files.pythonhosted.org/packages/a5/0b/f789bcf7f2b5a471d11ae4053ebc09fae8334e8ad6a84489a86a3783e750/usb_protocol-0.9.1.tar.gz";
