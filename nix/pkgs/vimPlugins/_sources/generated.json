@@ -201,7 +201,7 @@
     },
     "kittyScrollback": {
         "cargoLock": null,
-        "date": "2026-07-18",
+        "date": "2026-08-13",
         "extract": null,
         "name": "kittyScrollback",
         "passthru": null,
@@ -211,13 +211,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "1c2ac18420078525b7a4279aade891c1602b35c2",
-            "sha256": "sha256-8IkvoJ8nTlP5WCqMpJqUhBsz7OYB/Mlp1lH5TJRpvOE=",
+            "rev": "5a163bfeb789c1a2bfa143b0e78b02caa233bc43",
+            "sha256": "sha256-qvagm8uzdt08WTDMKq3G+0XB49rLXlzl6raAa05gi0I=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/mikesmithgh/kitty-scrollback.nvim"
         },
-        "version": "1c2ac18420078525b7a4279aade891c1602b35c2"
+        "version": "5a163bfeb789c1a2bfa143b0e78b02caa233bc43"
     },
     "miniMove": {
         "cargoLock": null,
