@@ -182,3 +182,28 @@ fetch.url = "https://github.com/CodebuffAI/codebuff-community/releases/download/
 src.webpage = "https://registry.npmjs.org/freebuff/latest"
 src.regex = '"version":"([^"]+)"'
 fetch.url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v$ver/freebuff-darwin-arm64.tar.gz"
+
+# mmertama/FigmaQML: Qt6/QML desktop app that converts Figma documents into QML.
+# Not in nixpkgs. Tracks the latest GitHub *release* and fetches the repo at that
+# tag as a source TREE (fetchFromGitHub) for a plain CMake build.
+#
+# Release tracking, not default-branch tracking, and deliberately so: the latest
+# release (v3.2.1) is from Feb 2025 and upstream has been quiet since, so
+# following the default branch would churn _sources/ for commits nobody ships.
+# use_latest_release reads /releases/latest, which also skips prereleases;
+# upstream publishes none today, but that keeps a future beta out of CI.
+#
+# IMPORTANT: no `src.prefix = "v"` here, for the same reason spelled out under
+# affine-mcp-server above. nvfetcher 0.8.0 has no rev-template for fetch.github,
+# so it reuses the (post-prefix) version string verbatim as the git rev. Upstream
+# tags carry the leading v (v3.2.1), so stripping the prefix would make it fetch
+# rev `3.2.1` -> archive/3.2.1.tar.gz -> HTTP 404. Keep the v in `version` and
+# strip it at the package level instead (figmaqml.nix: lib.removePrefix "v").
+#
+# No submodules are fetched, and none are wanted: .gitmodules lists modules/zlib
+# and modules/quazip, both referenced only inside `if(EMSCRIPTEN)` in the root
+# CMakeLists.txt. The WebAssembly target is out of scope.
+[figmaqml]
+src.github = "mmertama/FigmaQML"
+src.use_latest_release = true
+fetch.github = "mmertama/FigmaQML"

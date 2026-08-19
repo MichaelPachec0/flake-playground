@@ -78,6 +78,27 @@
         },
         "version": "5.3.8"
     },
+    "figmaqml": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "figmaqml",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "mmertama",
+            "repo": "FigmaQML",
+            "rev": "v3.2.1",
+            "sha256": "sha256-Qvi3iw/2dNM/tGjzPL0A46kyWCvMREpMxA1YhqB0oRI=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v3.2.1"
+    },
     "freebuff-darwin-arm64": {
         "cargoLock": null,
         "date": null,

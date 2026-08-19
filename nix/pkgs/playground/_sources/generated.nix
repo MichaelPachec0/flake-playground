@@ -53,6 +53,17 @@
       sha256 = "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=";
     };
   };
+  figmaqml = {
+    pname = "figmaqml";
+    version = "v3.2.1";
+    src = fetchFromGitHub {
+      owner = "mmertama";
+      repo = "FigmaQML";
+      rev = "v3.2.1";
+      fetchSubmodules = false;
+      sha256 = "sha256-Qvi3iw/2dNM/tGjzPL0A46kyWCvMREpMxA1YhqB0oRI=";
+    };
+  };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
     version = "0.0.142";
