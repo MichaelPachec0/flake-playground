@@ -57,9 +57,6 @@
       cynthion = pkgs'.callPackage ./nix/pkgs/cynthion {};
       memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
-      ursh = pkgs'.callPackage ./nix/pkgs/ursh {};
-      urchin = pkgs'.callPackage ./nix/pkgs/ursh/urchin.nix {inherit pyproject-nix;};
-      llcat = pkgs'.callPackage ./nix/pkgs/ursh/llcat.nix {inherit pyproject-nix;};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
     };
     inherit
@@ -68,9 +65,6 @@
       cynthion
       memtimings-linux
       ryzen-monitor-ng
-      ursh
-      urchin
-      llcat
       nvchadPlugins
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
@@ -81,7 +75,7 @@
     windscribePkgs = import nixpkgs {
       inherit system;
       config.allowUnfree = true;
-      overlays = [ (import ./nix/pkgs/windscribe/overlay.nix) ];
+      overlays = [(import ./nix/pkgs/windscribe/overlay.nix)];
     };
     windscribe = import ./nix/pkgs/windscribe {
       pkgs = windscribePkgs;
@@ -97,7 +91,7 @@
     # of the always-built CI aggregates (playground/default checks) but stays
     # buildable on demand and available to the NixOS module. Bumps are still
     # tracked by nvfetcher; the module is eval-checked cheaply (nixos-affine).
-    playgroundCiPkgs = builtins.removeAttrs playgroundPkgs ["affine-server"];
+    playgroundCiPkgs = removeAttrs playgroundPkgs ["affine-server"];
     # aarch64 support for affine-server (e.g. an ARM server). Build the playground
     # set against an aarch64 pkgs so the NixOS module's default package
     # (self.packages.${system}.affine-server) resolves on aarch64-linux hosts.
@@ -114,26 +108,28 @@
         cynthion
         memtimings-linux
         ryzen-monitor-ng
-        ursh
-        urchin
-        llcat
         ;
       inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
     };
     # Per-module eval checks (enable + evaluate each module). See
     # nix/tests/eval-modules.nix. Attr names: nixos-* and hm-*.
     moduleChecks = import ./nix/tests/eval-modules.nix {
-      lib = nixpkgs.lib;
+      inherit (nixpkgs) lib;
       inherit pkgs system;
-      home-manager = inputs.home-manager;
-      nixosModules = self.nixosModules;
-      homeManagerModules = self.homeManagerModules;
+      inherit (inputs) home-manager;
+      inherit (self) nixosModules;
+      inherit (self) homeManagerModules;
     };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
     # The NixOS module is still eval-checked (nixos-windscribe) via the cheap .drvPath trick.
-    packages.x86_64-linux = mainPackages // { inherit windscribe; inherit (playgroundPkgs) affine-server affine-mcp-server freebuff; };
+    packages.x86_64-linux =
+      mainPackages
+      // {
+        inherit windscribe;
+        inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
+      };
 
     # aarch64-linux: affine-server, so `services.affine` (default package =
     # self.packages.${system}.affine-server) works on an aarch64-linux host, plus
@@ -182,7 +178,14 @@
       in {
         playground =
           {
-            inherit (local) linux-show-player cynthion ryzen-monitor-ng ursh urchin llcat;
+            inherit
+              (local)
+              linux-show-player
+              cynthion
+              ryzen-monitor-ng
+              # ursh urchin
+              llcat
+              ;
             # nvchad set: pkgs.playground.nvchad.{nvchad,nvchad-ui,base46,minty,volt,menu,all}
             nvchad = local.nvchadPlugins;
           }
@@ -227,7 +230,7 @@
       cynthion =
         pkgs.mkShell {packages = [cynthion];};
       linux-show-player =
-        pkgs.mkShell {packages = with pkgs; [linux-show-player];};
+        pkgs.mkShell {packages = [linux-show-player];};
       memtimings-linux = pkgs.mkShell {packages = [memtimings-linux];};
       ryzen-monitor-ng = pkgs.mkShell {
         inputsFrom = [ryzen-monitor-ng];
