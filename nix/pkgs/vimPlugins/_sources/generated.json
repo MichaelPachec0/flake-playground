@@ -399,6 +399,46 @@
         },
         "version": "a7a598e91408f9edb01089ecf44bae72bb7d197b"
     },
+    "pioNvim": {
+        "cargoLock": null,
+        "date": "2026-08-09",
+        "extract": null,
+        "name": "pioNvim",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "rev": "522303723dd69adde1ae8536ba7e4efb5f92c6d7",
+            "sha256": "sha256-Q1OuOZg3kjZipwIOsVjFtbGcPBh3fKQOoELvo6lH5Xg=",
+            "sparseCheckout": [],
+            "type": "git",
+            "url": "https://github.com/batoaqaa/nvim-pio"
+        },
+        "version": "522303723dd69adde1ae8536ba7e4efb5f92c6d7"
+    },
+    "platformio": {
+        "cargoLock": null,
+        "date": "2026-05-12",
+        "extract": null,
+        "name": "platformio",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "rev": "e65fd65565da5c1d98c568bd0cdcad16627cdb14",
+            "sha256": "sha256-vIO+Un5BAzVU6JmHueSSRGujaTZcjfVBvh+sq/7CLgk=",
+            "sparseCheckout": [],
+            "type": "git",
+            "url": "https://github.com/anurag3301/nvim-platformio.lua"
+        },
+        "version": "e65fd65565da5c1d98c568bd0cdcad16627cdb14"
+    },
     "sgNvim": {
         "cargoLock": null,
         "date": "2025-01-21",

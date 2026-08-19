@@ -142,4 +142,37 @@ in {
     # patch is unnecessary -- and it stopped applying once we track latest.)
     dependencies = with vimPlugins; [nui-nvim plenary-nvim];
   };
+  platformio-nvim = build "nvim-platformio.lua" sources.platformio {
+    dependencies = with vimPlugins; [
+      telescope-nvim
+      telescope-ui-select-nvim
+      plenary-nvim
+      which-key-nvim
+      toggleterm-nvim
+      nvim-treesitter
+    ];
+    # plugin/ runs pio_install_check() at source time -> io.popen("which pio").
+    # An empty probe raises an ERROR notify that fails `nvim -es`, sinking the
+    # require-check for every module. stdenv has no `which`, so both are needed.
+    nativeBuildInputs = [pkgs.platformio-core pkgs.which];
+    # repo-root file, not a module; discovery picks up root-level *.lua anyway.
+    nvimSkipModules = ["minimal_config"];
+  };
+  pio-nvim = build "nvim-pio" sources.pioNvim {
+    # clangd/config.lua has an unguarded top-level require('fidget.notification').
+    dependencies = with vimPlugins; [telescope-nvim plenary-nvim which-key-nvim telescope-ui-select-nvim fidget-nvim];
+    # osInfo.lua sets the `_G.OS` global as a require side effect, and only
+    # init.lua requires it. These index bare `OS` at file scope, so requiring
+    # them alone (as the check does) hits "index global 'OS' (a nil value)".
+    # Upstream load-order bug; fine at runtime, where init.lua loads first.
+    nvimSkipModules = [
+      "nvimpio.boilerplate"
+      "nvimpio.clangd.commands"
+      "nvimpio.clangd.config"
+      "nvimpio.clangd.control"
+      "nvimpio.defConfig"
+      "nvimpio.device.parser"
+      "nvimpio.pio.control"
+    ];
+  };
 }

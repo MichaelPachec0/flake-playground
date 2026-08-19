@@ -286,6 +286,34 @@
     };
     date = "2019-09-21";
   };
+  pioNvim = {
+    pname = "pioNvim";
+    version = "522303723dd69adde1ae8536ba7e4efb5f92c6d7";
+    src = fetchgit {
+      url = "https://github.com/batoaqaa/nvim-pio";
+      rev = "522303723dd69adde1ae8536ba7e4efb5f92c6d7";
+      fetchSubmodules = false;
+      deepClone = false;
+      leaveDotGit = false;
+      sparseCheckout = [ ];
+      sha256 = "sha256-Q1OuOZg3kjZipwIOsVjFtbGcPBh3fKQOoELvo6lH5Xg=";
+    };
+    date = "2026-08-09";
+  };
+  platformio = {
+    pname = "platformio";
+    version = "e65fd65565da5c1d98c568bd0cdcad16627cdb14";
+    src = fetchgit {
+      url = "https://github.com/anurag3301/nvim-platformio.lua";
+      rev = "e65fd65565da5c1d98c568bd0cdcad16627cdb14";
+      fetchSubmodules = false;
+      deepClone = false;
+      leaveDotGit = false;
+      sparseCheckout = [ ];
+      sha256 = "sha256-vIO+Un5BAzVU6JmHueSSRGujaTZcjfVBvh+sq/7CLgk=";
+    };
+    date = "2026-05-12";
+  };
   sgNvim = {
     pname = "sgNvim";
     version = "775f22b75a9826eabf69b0094dd1d51d619fe552";

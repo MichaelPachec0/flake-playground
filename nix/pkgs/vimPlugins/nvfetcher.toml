@@ -119,3 +119,11 @@ fetch.git = "https://github.com/lukas-reineke/virt-column.nvim"
 [wtfNvim]
 src.git = "https://github.com/piersolenski/wtf.nvim"
 fetch.git = "https://github.com/piersolenski/wtf.nvim"
+
+[platformio]
+src.git = "https://github.com/anurag3301/nvim-platformio.lua"
+fetch.git = "https://github.com/anurag3301/nvim-platformio.lua"
+
+[pioNvim]
+src.git = "https://github.com/batoaqaa/nvim-pio"
+fetch.git = "https://github.com/batoaqaa/nvim-pio"
