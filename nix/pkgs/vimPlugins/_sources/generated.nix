@@ -288,17 +288,17 @@
   };
   pioNvim = {
     pname = "pioNvim";
-    version = "522303723dd69adde1ae8536ba7e4efb5f92c6d7";
+    version = "c3753815dd94d080ed2d20580ede1c11dac3442c";
     src = fetchgit {
       url = "https://github.com/batoaqaa/nvim-pio";
-      rev = "522303723dd69adde1ae8536ba7e4efb5f92c6d7";
+      rev = "c3753815dd94d080ed2d20580ede1c11dac3442c";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-Q1OuOZg3kjZipwIOsVjFtbGcPBh3fKQOoELvo6lH5Xg=";
+      sha256 = "sha256-/dvV22Z+FdcEZV1lBxM2KIYKSEkCzy86nORL/GvuP9Y=";
     };
-    date = "2026-08-09";
+    date = "2026-08-11";
   };
   platformio = {
     pname = "platformio";
