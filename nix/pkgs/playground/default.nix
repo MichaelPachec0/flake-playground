@@ -18,6 +18,9 @@ in {
   electron-mail = pkgs.callPackage ./electron-mail.nix {
     source = sources.electron-mail;
   };
+  figmaqml = pkgs.callPackage ./figmaqml.nix {
+    source = sources.figmaqml;
+  };
   affine-mcp-server = pkgs.callPackage ./affine-mcp-server.nix {
     source = sources.affine-mcp-server;
   };

@@ -78,6 +78,27 @@
         },
         "version": "5.3.8"
     },
+    "figmaqml": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "figmaqml",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "mmertama",
+            "repo": "FigmaQML",
+            "rev": "v3.2.1",
+            "sha256": "sha256-Qvi3iw/2dNM/tGjzPL0A46kyWCvMREpMxA1YhqB0oRI=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v3.2.1"
+    },
     "freebuff-darwin-arm64": {
         "cargoLock": null,
         "date": null,
@@ -125,7 +146,7 @@
     },
     "powertop": {
         "cargoLock": null,
-        "date": "2026-06-13",
+        "date": "2026-08-18",
         "extract": null,
         "name": "powertop",
         "passthru": null,
@@ -135,13 +156,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d",
-            "sha256": "sha256-MXixDtW181rz/0WBqx09n/G3RpQsTl4vjzmNgmR7LoA=",
+            "rev": "0048a3573077c795bf5bfe1de6c44947803f7b81",
+            "sha256": "sha256-N3rrMl5gJVfc6YVlBPQNwyXtZgYQO+FKKXEoM8VNLAA=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/fenrus75/powertop"
         },
-        "version": "6aa7c4bd07c0ddd31200db590cd0dbe1cad1c37d"
+        "version": "0048a3573077c795bf5bfe1de6c44947803f7b81"
     },
     "workstyle": {
         "cargoLock": null,

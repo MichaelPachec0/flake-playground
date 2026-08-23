@@ -6,25 +6,16 @@
 # neither.
 #
 # BUILT WITH MESON, NOT THE INHERITED AUTOTOOLS. nixpkgs builds v2.15 with
-# autoreconfHook, and master still ships configure.ac/autogen.sh -- but that path
-# is ABANDONED upstream and does not produce a working binary:
-#
-#   * configure.ac still requests C++11 (AX_CXX_COMPILE_STDCXX([11])) while the
-#     code has moved to std::format, so every translation unit that uses it fails
-#     to compile. meson.build sets cpp_std=c++20.
-#   * Bumping that to [20] then fails at LINK time: src/Makefile.am's source list
-#     is stale, missing seven .cpp files that exist on disk and are registered
-#     only in meson.build (cpu/frequency.cpp, cpu/xe_gpu.cpp,
-#     devices/device_manager.cpp, devices/xe-gpu.cpp, gpu-tab.cpp,
-#     measurement/measurement_manager.cpp, report/report-formatter-md.cpp) --
-#     hence undefined references to frequency::frequency(), xe_core::xe_core(),
-#     global_power(), report_formatter_md::report_formatter_md(), and friends.
-#
-# Chasing that with per-file Makefile.am patches would break on every source file
-# upstream adds. meson is the maintained path, so we swap nativeBuildInputs to it
-# and keep inheriting the rest (buildInputs, the out/man output split, meta).
-# meson installs the binary, install_man('doc/powertop.8') and bash completion,
-# so the inherited two-output layout still holds.
+# autoreconfHook; upstream has since DELETED the autotools build outright ("remove
+# legacy autoconf support") -- no configure.ac, no autogen.sh, only a stale and
+# unreferenced src/Makefile.am -- so autoreconfHook has nothing left to bootstrap.
+# It was already unusable before that deletion: configure.ac pinned C++11 while
+# the code had moved to std::format, and bumping it to C++20 then failed at LINK
+# time because Makefile.am's source list had drifted seven .cpp files behind
+# meson.build. meson is the only build system upstream ships now, so we swap
+# nativeBuildInputs to it and keep inheriting the rest (buildInputs, the out/man
+# output split, meta). meson installs the binary, install_man('doc/powertop.8')
+# and bash completion, so the inherited two-output layout still holds.
 #
 # `source` is an nvfetcher entry from ./_sources, giving the fetched git tree
 # (src), the tracked commit and its date.
@@ -50,11 +41,13 @@ in
   powertop.overrideAttrs (old: {
     # Tracking master, so there's no upstream tag to follow; use the commit date
     # plus short rev. The base is upstream's own in-tree version (meson.build:
-    # 2.16-rc3), not the last release, so this still sorts after the 2.15 that
-    # nixpkgs ships. The date leads the rev so version comparison stays
-    # chronological -- compareVersions splits on the dashes and reaches the date
-    # components first, leaving the rev to disambiguate same-day bumps only.
-    version = "2.16-rc3-unstable-${source.date}-${shortRev}";
+    # 2.16.1-rc1), not the last release, so this still sorts after the 2.15 that
+    # nixpkgs ships -- and after the 2.16-rc3 base this entry carried before,
+    # because compareVersions ranks the numeric component "1" above the string
+    # "rc3". The date leads the rev so version comparison stays chronological --
+    # compareVersions splits on the dashes and reaches the date components first,
+    # leaving the rev to disambiguate same-day bumps only.
+    version = "2.16.1-rc1-unstable-${source.date}-${shortRev}";
 
     inherit (source) src;
 
@@ -76,13 +69,17 @@ in
     #   * hcitool: GONE. Bluetooth tuning no longer shells out at all, so the
     #     nixpkgs `--replace-fail "/usr/bin/hcitool"` on src/tuning/bluetooth.cpp
     #     matches nothing and hard-fails the build.
-    #   * xset: upstream moved the call into a try_xset_dpms() helper that
-    #     invokes a BARE `xset` off $PATH (src/calibrate/calibrate.cpp) and
-    #     ignores failures. The old `/usr/bin/xset` pattern now only occurs in
-    #     that helper's comment, so patching it would be a silent no-op while the
-    #     real system() call went unpatched. Anchor to the call site instead --
-    #     matching the bare token `xset` would also hit the identifier
-    #     `try_xset_dpms`.
+    #   * xset: upstream reworked display blanking twice, retiring a patch anchor
+    #     each time. DPMS now goes through sysfs first (write "On"/"Off" to
+    #     /sys/class/drm/card*/*/dpms) and only falls back to a BARE `xset` off
+    #     $PATH, assembled with std::format inside set_dpms()
+    #     (src/calibrate/calibrate.cpp). Both nixpkgs' `/usr/bin/xset` and the
+    #     `DISPLAY=:0 xset dpms` this entry anchored on before are gone --
+    #     `DISPLAY=:0` now survives only in a comment, so --replace-fail matched
+    #     zero times and hard-failed the build. Anchor on `xset dpms force`, the
+    #     shortest string unique to the system() call site: the bare token `xset`
+    #     would also hit the two comments just above it, while pinning the whole
+    #     source line would break again on any reindent or redirect change.
     #   * modprobe: still present, and now twice; substituteInPlace rewrites
     #     every occurrence, so --replace-fail (which only fails on zero matches)
     #     holds.
@@ -90,7 +87,7 @@ in
       substituteInPlace src/main.cpp \
         --replace-fail "/sbin/modprobe" "modprobe"
       substituteInPlace src/calibrate/calibrate.cpp \
-        --replace-fail "DISPLAY=:0 xset dpms" "DISPLAY=:0 ${lib.getExe xset} dpms"
+        --replace-fail "xset dpms force" "${lib.getExe xset} dpms force"
     '';
 
     # Both nixpkgs passthru entries are wrong once overridden: tests.version
