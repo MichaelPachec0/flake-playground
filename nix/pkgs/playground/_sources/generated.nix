@@ -8,39 +8,39 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.2.1";
+    version = "v3.2.2";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.2.1";
+      rev = "v3.2.2";
       fetchSubmodules = false;
-      sha256 = "sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=";
+      sha256 = "sha256-6iZ6IsKHftCJjVhAumtKyt5cYwOZuOz6npULB29xX+I=";
     };
     extract = {
-      "package-lock.json" = ./. + "/sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package-lock.json";
-      "package.json" = ./. + "/sha256-5QbxQH4DXzYANtLhWxw4ypIDadrQwL4DmyBDAC3HACA=/package.json";
+      "package-lock.json" = ./. + "/sha256-6iZ6IsKHftCJjVhAumtKyt5cYwOZuOz6npULB29xX+I=/package-lock.json";
+      "package.json" = ./. + "/sha256-6iZ6IsKHftCJjVhAumtKyt5cYwOZuOz6npULB29xX+I=/package.json";
     };
   };
   affine-server = {
     pname = "affine-server";
-    version = "0.27.3";
+    version = "0.27.4";
     src = dockerTools.pullImage {
       imageName = "ghcr.io/toeverything/affine";
-      imageDigest = "sha256:d9d145f9f47b862d1fa96e2a887052b5762846237f75fbb077be990ef646e05c";
-      sha256 = "sha256-4RPZClicwO1oWSwJRt5gWGLPvWniWBkHN9yjgHA+ciY=";
-      finalImageTag = "0.27.3";
+      imageDigest = "sha256:b649f5ce2384ffdf13c23bccf81d759e15973d59d0b0058af65d895a84373099";
+      sha256 = "sha256-PtBPprgsFmNAiEnYeCNMzYxYYf/WTqY2Vd4oojhRt64=";
+      finalImageTag = "0.27.4";
       os = "linux";
       arch = "amd64";
     };
   };
   affine-server-arm64 = {
     pname = "affine-server-arm64";
-    version = "0.27.3";
+    version = "0.27.4";
     src = dockerTools.pullImage {
       imageName = "ghcr.io/toeverything/affine";
-      imageDigest = "sha256:d9d145f9f47b862d1fa96e2a887052b5762846237f75fbb077be990ef646e05c";
-      sha256 = "sha256-rWWnXDqQytDER9cQzOkDZ74q8+dcCx58XxhXbjyajDI=";
-      finalImageTag = "0.27.3";
+      imageDigest = "sha256:b649f5ce2384ffdf13c23bccf81d759e15973d59d0b0058af65d895a84373099";
+      sha256 = "sha256-ueQh66W79jggD0+FNJ83gH9gqej7FCkaUHAzdYV0nTI=";
+      finalImageTag = "0.27.4";
       os = "linux";
       arch = "arm64";
     };
@@ -66,26 +66,26 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.0.142";
+    version = "0.0.154";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-lRNA6Day4wJE+L4BlSs9hjBu2NFMl9Nn2kDSr3gyPLo=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.154/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-5UBXlcqymazb20SboiFCTyyLniz9WivGfJUUEuAwKCU=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.0.142";
+    version = "0.0.154";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-jpLvfPdYfYLIY5muJApRMlYEVKc9bWZPhc8psl+0cLE=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.154/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-1w32fxSPgqOjgyeqiUkVaXq+MpMNTBhVQ0A1/mwuzL4=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.0.142";
+    version = "0.0.154";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.142/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-SuV5djfrvRZZ59p+dUyiux+OmEMOxscuIU5/YDGWHYI=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.154/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-82+GA43pI5OBedfD3Y+EVOXfMPZKWvefjw3l0hMc9hQ=";
     };
   };
   powertop = {
