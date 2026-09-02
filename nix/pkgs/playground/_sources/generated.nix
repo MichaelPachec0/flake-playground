@@ -66,41 +66,41 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.0.163";
+    version = "0.0.166";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.163/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-mxwkxN8k8DOIraNRxjOMxDsg9lNFlqzw+g7vcIqAXVQ=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.166/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-2GJUKZZsLg+uIPMJrg7tZdV3jKs4Dwig+ZpZ/98Hjbc=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.0.163";
+    version = "0.0.166";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.163/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-uTboKoCxY+3k8vR3Y+z6XGU4KqJbX0l3RFU4SgBu4Vw=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.166/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-co8OtqiCG/5uhS/VlVckCQ4bpYgn4GjP0EVmzxLqJEQ=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.0.163";
+    version = "0.0.166";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.163/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-pGPohTmTAZRCzdZ5qFCMs+4dcGbKLHVAtF9ZYP2L/a4=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.166/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-uoiMey/Da0TqTbxNi2LwJKgjL2AVnQCOP5RyCwkPAlw=";
     };
   };
   powertop = {
     pname = "powertop";
-    version = "0048a3573077c795bf5bfe1de6c44947803f7b81";
+    version = "37a57c92d8f138283128f9bcc40a7e6c07adeaf0";
     src = fetchgit {
       url = "https://github.com/fenrus75/powertop";
-      rev = "0048a3573077c795bf5bfe1de6c44947803f7b81";
+      rev = "37a57c92d8f138283128f9bcc40a7e6c07adeaf0";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-N3rrMl5gJVfc6YVlBPQNwyXtZgYQO+FKKXEoM8VNLAA=";
+      sha256 = "sha256-O7jbqTSmRHkn97/lhEKGom8xzo2o0Ng+MT1HWkfvXvc=";
     };
-    date = "2026-08-18";
+    date = "2026-09-01";
   };
   workstyle = {
     pname = "workstyle";
