@@ -421,7 +421,7 @@
     },
     "platformio": {
         "cargoLock": null,
-        "date": "2026-05-12",
+        "date": "2026-09-03",
         "extract": null,
         "name": "platformio",
         "passthru": null,
@@ -431,13 +431,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "e65fd65565da5c1d98c568bd0cdcad16627cdb14",
-            "sha256": "sha256-vIO+Un5BAzVU6JmHueSSRGujaTZcjfVBvh+sq/7CLgk=",
+            "rev": "2f686685f2bef84491ffc4e7edf1b1582ed05c30",
+            "sha256": "sha256-wnt8Yn/95tlTBOCChv3AgrlsxeeYs7lqTOCxVW0zNGw=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/anurag3301/nvim-platformio.lua"
         },
-        "version": "e65fd65565da5c1d98c568bd0cdcad16627cdb14"
+        "version": "2f686685f2bef84491ffc4e7edf1b1582ed05c30"
     },
     "sgNvim": {
         "cargoLock": null,
