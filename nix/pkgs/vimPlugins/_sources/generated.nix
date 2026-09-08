@@ -302,17 +302,17 @@
   };
   platformio = {
     pname = "platformio";
-    version = "2f686685f2bef84491ffc4e7edf1b1582ed05c30";
+    version = "31b77fa8dd5e481dc948cfd69feba0cbe9324e69";
     src = fetchgit {
       url = "https://github.com/anurag3301/nvim-platformio.lua";
-      rev = "2f686685f2bef84491ffc4e7edf1b1582ed05c30";
+      rev = "31b77fa8dd5e481dc948cfd69feba0cbe9324e69";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-wnt8Yn/95tlTBOCChv3AgrlsxeeYs7lqTOCxVW0zNGw=";
+      sha256 = "sha256-uBnPW1JMrwEgX07vwZx1gQbcVKLkKEHCmJR1hFRUZyM=";
     };
-    date = "2026-09-03";
+    date = "2026-09-08";
   };
   sgNvim = {
     pname = "sgNvim";
