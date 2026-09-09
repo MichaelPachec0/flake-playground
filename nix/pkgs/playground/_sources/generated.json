@@ -3,8 +3,8 @@
         "cargoLock": null,
         "date": null,
         "extract": {
-            "package-lock.json": "sha256-HIcRYzZ4RjQL9dpzFF9s6zSTporcNie28w9eINh27y8=/package-lock.json",
-            "package.json": "sha256-HIcRYzZ4RjQL9dpzFF9s6zSTporcNie28w9eINh27y8=/package.json"
+            "package-lock.json": "sha256-YuL0M_AL72LSjX_sfpBaNKiiz5jzkl7cfXjSb2gbTqc=/package-lock.json",
+            "package.json": "sha256-YuL0M_AL72LSjX_sfpBaNKiiz5jzkl7cfXjSb2gbTqc=/package.json"
         },
         "name": "affine-mcp-server",
         "passthru": null,
@@ -16,12 +16,12 @@
             "name": null,
             "owner": "DAWNCR0W",
             "repo": "affine-mcp-server",
-            "rev": "v3.5.1",
-            "sha256": "sha256-HIcRYzZ4RjQL9dpzFF9s6zSTporcNie28w9eINh27y8=",
+            "rev": "v3.6.0",
+            "sha256": "sha256-YuL0M/AL72LSjX/sfpBaNKiiz5jzkl7cfXjSb2gbTqc=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v3.5.1"
+        "version": "v3.6.0"
     },
     "affine-server": {
         "cargoLock": null,
@@ -108,11 +108,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-TcCYyi+tgUtpOXnYr5GCEy8L9Z8Tdb4KYn2Dzxx/LFw=",
+            "sha256": "sha256-TNxl9btwqKhmnXXq3ONDXQ/pytiWz+79NtUHPlFT0qk=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.171/freebuff-darwin-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.172/freebuff-darwin-arm64.tar.gz"
         },
-        "version": "0.0.171"
+        "version": "0.0.172"
     },
     "freebuff-linux-arm64": {
         "cargoLock": null,
@@ -123,11 +123,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-eNTO/DbhWS8dBdYG3faJftRDtptWpnWILLyA0aAR7vQ=",
+            "sha256": "sha256-wQqNTuIkH7gBFiBFDKgh2xq2MSxeYLBdfXI3JmBtTH4=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.171/freebuff-linux-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.172/freebuff-linux-arm64.tar.gz"
         },
-        "version": "0.0.171"
+        "version": "0.0.172"
     },
     "freebuff-linux-x64": {
         "cargoLock": null,
@@ -138,11 +138,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-1awl+z2EgtEEOiWDxXNsUBjEWqCqNELSuuhNn+hN3Zc=",
+            "sha256": "sha256-ZUcr8xxI0h6G+pc3xpQROcIg9GdO1xJ+gOQcbfx15No=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.171/freebuff-linux-x64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.172/freebuff-linux-x64.tar.gz"
         },
-        "version": "0.0.171"
+        "version": "0.0.172"
     },
     "powertop": {
         "cargoLock": null,
