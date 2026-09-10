@@ -8,17 +8,17 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.6.0";
+    version = "v3.7.0";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.6.0";
+      rev = "v3.7.0";
       fetchSubmodules = false;
-      sha256 = "sha256-YuL0M/AL72LSjX/sfpBaNKiiz5jzkl7cfXjSb2gbTqc=";
+      sha256 = "sha256-Lu8w6sJBaFIgdl+lIX39pZ0MSFK8lO83Sbi+WseQXCg=";
     };
     extract = {
-      "package-lock.json" = ./. + "/sha256-YuL0M_AL72LSjX_sfpBaNKiiz5jzkl7cfXjSb2gbTqc=/package-lock.json";
-      "package.json" = ./. + "/sha256-YuL0M_AL72LSjX_sfpBaNKiiz5jzkl7cfXjSb2gbTqc=/package.json";
+      "package-lock.json" = ./. + "/sha256-Lu8w6sJBaFIgdl+lIX39pZ0MSFK8lO83Sbi+WseQXCg=/package-lock.json";
+      "package.json" = ./. + "/sha256-Lu8w6sJBaFIgdl+lIX39pZ0MSFK8lO83Sbi+WseQXCg=/package.json";
     };
   };
   affine-server = {
@@ -90,17 +90,17 @@
   };
   powertop = {
     pname = "powertop";
-    version = "37a57c92d8f138283128f9bcc40a7e6c07adeaf0";
+    version = "87b8ea9f5a34450cd3954a40e0d5343c11d33893";
     src = fetchgit {
       url = "https://github.com/fenrus75/powertop";
-      rev = "37a57c92d8f138283128f9bcc40a7e6c07adeaf0";
+      rev = "87b8ea9f5a34450cd3954a40e0d5343c11d33893";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-O7jbqTSmRHkn97/lhEKGom8xzo2o0Ng+MT1HWkfvXvc=";
+      sha256 = "sha256-VtIZFMslICSY4lJvlsqt+8IXavKBiV0VglWl8V+ZA3I=";
     };
-    date = "2026-09-01";
+    date = "2026-09-09";
   };
   workstyle = {
     pname = "workstyle";
