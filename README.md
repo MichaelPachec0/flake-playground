@@ -157,6 +157,7 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 | `hyprpolkitagent` | `services.hyprpolkitagent.enable` | systemd user service running the hypr polkit agent. |
 | `tuwunel` | `services.tuwunel.enable` | systemd service for the tuwunel Matrix server (`pkgs.matrix-tuwunel`). `registration_token_file` is loaded as a systemd credential and the generated config points at it. |
 | `affine` | `services.affine.enable` | Runs a self-hosted AFFiNE server (`pkgs.playground.affine-server`) natively under hardened systemd units - no container runtime. Provisions PostgreSQL (+pgvector) and Redis, loads sops-nix secrets via `LoadCredential`, serves local-FS (or best-effort S3) blob storage, and can front itself with an optional nginx+ACME reverse proxy. |
+| `projectsend` | `services.projectsend.enable` | Runs ProjectSend v2 (Laravel client file-sharing) natively: php-fpm + nginx (X-Accel-Redirect download offload) + two queue workers + per-minute scheduler timer, with optional local MariaDB/Redis. Package `packages.<system>.projectsend` is the prebuilt upstream release zip, tracked by nvfetcher. Secrets loaded via systemd LoadCredential. |
 
 `default` imports every module above (from `nix/modules/nixos/default.nix`);
 enable only the ones you want, since each module's config is gated behind its own
