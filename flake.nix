@@ -218,8 +218,9 @@
       windscribe = import ./nix/modules/nixos/windscribe inputs;
       affine = import ./nix/modules/nixos/affine inputs;
       mcp = import ./nix/modules/nixos/mcp inputs;
+      projectsend = import ./nix/modules/nixos/projectsend inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend;
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };
