@@ -74,27 +74,41 @@ inputs: {
     ++ lib.optional (cfg.appKeyFile != null) "app-key:${cfg.appKeyFile}"
     ++ lib.optional (cfg.admin.passwordFile != null) "admin-password:${cfg.admin.passwordFile}";
 
-  # Shell prelude that exports the secret env vars then runs `cmd`.
+  # Shell prelude that exports the secret env vars. Shared by mkWrapped (runs
+  # a single command) and mkWrappedScript (runs a multi-line body at the same
+  # shell level as the prelude, so command substitutions and
+  # lib.escapeShellArg quoting land in the right shell instead of a nested
+  # `bash -c`).
+  secretPrelude = ''
+    set -euo pipefail
+    export creds="''${CREDENTIALS_DIRECTORY:-}"
+    ${lib.optionalString (!cfg.database.createLocally && cfg.database.passwordFile != null) ''
+      export DB_PASSWORD="$(cat "$creds/db-password")"
+    ''}
+    ${lib.optionalString (cfg.redis.passwordFile != null) ''
+      export REDIS_PASSWORD="$(cat "$creds/redis-password")"
+    ''}
+    ${lib.optionalString (cfg.mail.passwordFile != null) ''
+      export MAIL_PASSWORD="$(cat "$creds/mail-password")"
+    ''}
+    ${
+      if cfg.appKeyFile != null
+      then ''export APP_KEY="$(cat "$creds/app-key")"''
+      else ''export APP_KEY="$(cat "${stateDir}/app.key")"''
+    }
+    cd ${cfg.package}
+  '';
+
   mkWrapped = name: cmd:
     pkgs.writeShellScript "projectsend-${name}" ''
-      set -euo pipefail
-      export creds="''${CREDENTIALS_DIRECTORY:-}"
-      ${lib.optionalString (!cfg.database.createLocally && cfg.database.passwordFile != null) ''
-        export DB_PASSWORD="$(cat "$creds/db-password")"
-      ''}
-      ${lib.optionalString (cfg.redis.passwordFile != null) ''
-        export REDIS_PASSWORD="$(cat "$creds/redis-password")"
-      ''}
-      ${lib.optionalString (cfg.mail.passwordFile != null) ''
-        export MAIL_PASSWORD="$(cat "$creds/mail-password")"
-      ''}
-      ${
-        if cfg.appKeyFile != null
-        then ''export APP_KEY="$(cat "$creds/app-key")"''
-        else ''export APP_KEY="$(cat "${stateDir}/app.key")"''
-      }
-      cd ${cfg.package}
+      ${secretPrelude}
       exec ${cmd}
+    '';
+
+  mkWrappedScript = name: body:
+    pkgs.writeShellScript "projectsend-${name}" ''
+      ${secretPrelude}
+      ${body}
     '';
 
   # ExecStartPre for the fpm pool: render the same secrets into a 0600 file
@@ -150,7 +164,7 @@ in {
       type = lib.types.path;
       default = stateDir;
       readOnly = true;
-      description = "State directory (writable). Tied to systemd StateDirectory and baked into the package's symlinks, so it cannot be changed here.";
+      description = "State directory (writable). Created and owned via systemd.tmpfiles and baked into the package's symlinks, so it cannot be changed here.";
     };
 
     appUrl = lib.mkOption {
@@ -582,27 +596,24 @@ in {
         Group = cfg.group;
         UMask = "0027";
         LoadCredential = credentials;
-        ExecStart = mkWrapped "migrate" ''
-          ${pkgs.bash}/bin/bash -c '
-            i=0
-            until ${php}/bin/php ${cfg.package}/artisan db:show --quiet 2>/dev/null; do
-              i=$((i+1))
-              if [ "$i" -ge 60 ]; then
-                echo "projectsend: gave up waiting for the database after 60s" >&2
-                exit 1
-              fi
-              sleep 1
-            done
-            ${php}/bin/php ${cfg.package}/artisan projectsend:update
-            ${php}/bin/php ${cfg.package}/artisan projectsend:seed-settings
-            ${lib.optionalString (cfg.admin.email != null) ''
-            ADMIN_PASSWORD="$(cat "$creds/admin-password")" \
+        ExecStart = mkWrappedScript "migrate" ''
+          i=0
+          until ${php}/bin/php ${cfg.package}/artisan db:show --quiet 2>/dev/null; do
+            i=$((i + 1))
+            if [ "$i" -ge 60 ]; then
+              echo "projectsend: gave up waiting for the database after 60s" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          ${php}/bin/php ${cfg.package}/artisan projectsend:update
+          ${php}/bin/php ${cfg.package}/artisan projectsend:seed-settings
+          ${lib.optionalString (cfg.admin.email != null) ''
             ${php}/bin/php ${cfg.package}/artisan projectsend:admin --if-none \
               --name=${lib.escapeShellArg cfg.admin.name} \
               --email=${lib.escapeShellArg cfg.admin.email} \
-              --password="$ADMIN_PASSWORD"
+              --password="$(cat "$creds/admin-password")"
           ''}
-          '
         '';
       };
     };

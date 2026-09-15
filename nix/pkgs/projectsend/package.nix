@@ -16,8 +16,9 @@
   # The runtime state directory the module uses (systemd StateDirectory).
   # Baked into the symlinks; keep in step with the module's readOnly dataDir.
   stateDir ? "/var/lib/projectsend",
-  # Whether the bundled PHP includes the redis (phpredis) extension. The module
-  # overrides this to match services.projectsend.redis.enable.
+  # Whether the bundled PHP includes the redis (phpredis) extension. The
+  # module always uses the default (true): phpredis is bundled regardless of
+  # services.projectsend.redis.enable.
   withRedis ? true,
 }: let
   php = php84.withExtensions ({
