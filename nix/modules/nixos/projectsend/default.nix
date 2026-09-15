@@ -78,7 +78,7 @@ inputs: {
   mkWrapped = name: cmd:
     pkgs.writeShellScript "projectsend-${name}" ''
       set -euo pipefail
-      creds="''${CREDENTIALS_DIRECTORY:-}"
+      export creds="''${CREDENTIALS_DIRECTORY:-}"
       ${lib.optionalString (!cfg.database.createLocally && cfg.database.passwordFile != null) ''
         export DB_PASSWORD="$(cat "$creds/db-password")"
       ''}
