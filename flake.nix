@@ -58,6 +58,7 @@
       memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
+      projectsend = import ./nix/pkgs/projectsend {pkgs = pkgs';};
     };
     inherit
       (mkLocalPkgs pkgs)
@@ -66,6 +67,7 @@
       memtimings-linux
       ryzen-monitor-ng
       nvchadPlugins
+      projectsend
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
@@ -100,6 +102,7 @@
     # the rest of the flake stays x86_64-only. Building it needs an aarch64 builder.
     pkgsAarch64 = prepNixpkgs nixpkgs "aarch64-linux";
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
+    projectsendAarch64 = import ./nix/pkgs/projectsend {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -128,6 +131,7 @@
       mainPackages
       // {
         inherit windscribe;
+        inherit projectsend;
         inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
       };
 
@@ -136,7 +140,10 @@
     # freebuff, whose nvfetcher sources cover aarch64 (see
     # nix/pkgs/playground/nvfetcher.toml). Both need an aarch64 builder; the rest
     # of the flake stays x86_64-only.
-    packages.aarch64-linux = {inherit (playgroundPkgsAarch64) affine-server freebuff;};
+    packages.aarch64-linux = {
+      inherit (playgroundPkgsAarch64) affine-server freebuff;
+      projectsend = projectsendAarch64;
+    };
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
