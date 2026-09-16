@@ -155,6 +155,7 @@
     legacyPackages.x86_64-linux = {
       vimPlugins = customVimPlugins;
       playground = playgroundPkgs;
+      picr = picrPkgs;
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
@@ -209,8 +210,17 @@
       vimPlugins = final: prev: {
         vimPlugins = prev.vimPlugins // (import ./nix/pkgs/vimPlugins {pkgs = prev;});
       };
+      # Built from `final` so aarch64-linux (and any other host that applies
+      # this overlay) resolves its own picr/picr-ping instead of the
+      # x86_64-linux `pkgs` this flake evaluates its own outputs against.
+      picr = final: prev: let
+        s = import ./nix/pkgs/picr {pkgs = final;};
+      in {
+        # DEFERRED (spec section 8): top-level pkgs.picr vs pkgs.playground.picr.
+        inherit (s) picr picr-ping;
+      };
     in {
-      inherit playground vimPlugins;
+      inherit playground vimPlugins picr;
       default = playground;
     };
     nixosModules = let
