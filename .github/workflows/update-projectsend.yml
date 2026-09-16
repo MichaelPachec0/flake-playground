@@ -1,0 +1,57 @@
+name: "Bump projectsend package source"
+
+# Daily: re-run nvfetcher for the standalone projectsend source, rebuild the
+# FULL check set, and only commit the regenerated _sources when everything
+# passes.
+#
+# Deliberately a SEPARATE workflow from update-playground.yml (which tracks
+# nix/pkgs/playground) rather than an extra entry there: projectsend has its own
+# standalone nvfetcher config (nix/pkgs/projectsend/nvfetcher.toml), and keeping
+# its bump in its own workflow means a failure here (a yanked release, a moved
+# asset URL) fails only this run and never blocks the playground or vimPlugins
+# source bumps. No skopeo/registries workaround is needed: projectsend is a
+# plain release-zip fetch (fetch.url), not an OCI image.
+on:
+  schedule:
+    - cron: "52 4 * * *"
+  push:
+    paths:
+      - "nix/pkgs/projectsend/nvfetcher.toml"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Match update-playground.yml: cap the 360-minute GitHub default so a hung
+    # eval fails fast instead of burning runner-hours. A timeout counts as
+    # failure, so the nix-checks action's `if: failure()` diagnostics still fire.
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Regenerate source + run flake checks
+        uses: ./.github/actions/nix-checks
+        with:
+          pre-build-command: >-
+            nix run nixpkgs#nvfetcher --
+            -c nix/pkgs/projectsend/nvfetcher.toml
+            -o nix/pkgs/projectsend/_sources
+
+      - name: Commit bumped source
+        if: ${{ success() }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: bump projectsend package source"
+          # Keep this on ONE LINE if it ever grows a second entry -- NOT a YAML
+          # block scalar. The action's entrypoint does
+          # `read -r -a ARR <<< "$INPUT_FILE_PATTERN"`, and `read` stops at the
+          # first newline, so a multi-line pattern silently degrades to its first
+          # entry and everything below it is quietly left out of the commit.
+          #
+          # The directory pathspec covers the whole nvfetcher output
+          # (generated.{nix,json}); `git add <dir>` stages creations AND
+          # deletions, so a version bump commits cleanly.
+          file_pattern: "nix/pkgs/projectsend/_sources/"

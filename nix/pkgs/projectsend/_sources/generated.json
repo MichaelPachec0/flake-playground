@@ -1,0 +1,17 @@
+{
+    "projectsend": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "projectsend",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "name": null,
+            "sha256": "sha256-xYP7TKB0Z8tyLKp6IljcQmiQYPQimtCWY/XA8uJlSsU=",
+            "type": "url",
+            "url": "https://github.com/projectsend/projectsend/releases/download/v2.4.1/projectsend-2.4.1.zip"
+        },
+        "version": "2.4.1"
+    }
+}

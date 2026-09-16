@@ -84,6 +84,13 @@ in {
     mcp.affine.http.allowUnauthenticated = true;
   };
 
+  nixos-projectsend = evalNixos "projectsend" {
+    services.projectsend.enable = true;
+    services.projectsend.appUrl = "https://ci.example";
+    services.projectsend.nginx.hostName = "ci.example";
+    services.projectsend.database.createLocally = true;
+  };
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }
