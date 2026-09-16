@@ -146,7 +146,7 @@ in {
     host = lib.mkOption {
       type = lib.types.str;
       default = "127.0.0.1";
-      description = "Address the server binds.";
+      description = "Address the nginx reverse-proxy upstream points at (proxyPass target). NOTE: PICR itself always listens on all interfaces; this does not restrict the bind address. Use the firewall to limit exposure of the port.";
     };
     port = lib.mkOption {
       type = lib.types.port;
@@ -462,12 +462,11 @@ in {
 
     (lib.mkIf cfg.ping.enable (let
       p = cfg.ping;
-      pnode = p.package.nodejs;
       pingStart = pkgs.writeShellScript "picr-ping-start" ''
         set -euo pipefail
         creds="''${CREDENTIALS_DIRECTORY:-}"
         export PICR_PING_TOKEN="$(cat "$creds/ping-token")"
-        exec ${pnode}/bin/node ${p.package}/dist/ping/src/app.js
+        exec ${p.package}/bin/picr-ping
       '';
     in {
       assertions = [
