@@ -80,7 +80,12 @@ inputs: {
       dbpw_enc="$(DBPW="$dbpw" ${node}/bin/node -e 'process.stdout.write(encodeURIComponent(process.env.DBPW))')"
       export DATABASE_URL="postgresql://${cfg.database.user}:''${dbpw_enc}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}"
     ''}
-    exec ${node}/bin/node ${appDir}/server/backend/app.js
+    # Run via the package's bin/picr wrapper, NOT `node app.js` directly: the
+    # wrapper prepends ffmpeg/exiftool/imagemagick to PATH, and PICR's fatal boot
+    # check aborts (spawnSync ffmpeg ENOENT, exit 1) if ffmpeg + ffprobe are not
+    # found. cwd is still stateDir (WorkingDirectory) and the wrapper only adds
+    # flags + PATH, so the cwd-relative public/backend/media/cache shim is intact.
+    exec ${cfg.package}/bin/picr
   '';
 
   # Node hardening (reuse the affine module's verified profile).

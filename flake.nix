@@ -123,6 +123,15 @@
       inherit (self) nixosModules;
       inherit (self) homeManagerModules;
     };
+    # Heavy on-demand VM integration test for picr: boots a real VM running
+    # services.picr with managed Postgres and asserts the server comes up,
+    # migrations ran, and the frontend is served. Needs KVM; NOT in the merge
+    # gate (kept out of the `default` aggregate below). Run on demand with
+    #   nix build .#checks.x86_64-linux.picr-vm -L
+    picrVmTest = import ./nix/tests/picr-vm.nix {
+      inherit pkgs;
+      inherit (self) nixosModules;
+    };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -169,6 +178,9 @@
         # Build every first-class package. This is the coverage that was missing:
         # nothing under packages.x86_64-linux was built in CI before.
         packages = pkgs.linkFarmFromDrvs "packages" (builtins.attrValues mainPackages);
+        # Heavy VM integration test; on-demand only, deliberately absent from the
+        # `default` aggregate and the CI gate.
+        picr-vm = picrVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
