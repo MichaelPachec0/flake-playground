@@ -84,6 +84,11 @@ in {
     mcp.affine.http.allowUnauthenticated = true;
   };
 
+  nixos-picr = evalNixos "picr" {
+    services.picr.enable = true;
+    services.picr.baseUrl = "https://ci.example/";
+  };
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }
