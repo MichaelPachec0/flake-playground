@@ -117,6 +117,19 @@ in
       runHook postBuild
     '';
 
+    # Correctness gate: dropping autoPatchelfHook also dropped its "fail on
+    # unresolved lib" check, so nothing else proves Sharp's prebuilt actually
+    # loads. Load it here under the pinned nodejs (dist/ exists in the build cwd
+    # at check time, before install) so a future nixpkgs bump that breaks the
+    # prebuilt's glibc/libstdc++ ABI FAILS the build instead of shipping a
+    # segfaulting closure.
+    doCheck = true;
+    checkPhase = ''
+      runHook preCheck
+      ${nodejs}/bin/node -e "require('$PWD/dist/node_modules/sharp'); console.log('sharp loads')"
+      runHook postCheck
+    '';
+
     installPhase = ''
       runHook preInstall
       mkdir -p $out
