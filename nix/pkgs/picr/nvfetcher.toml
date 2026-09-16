@@ -7,10 +7,12 @@
 # server (bare semver tags, e.g. 1.6.2, tracking the root package.json), the
 # mobile app (app-*/ios-*/android-* tags), and the ping sidecar (ping-v*
 # tags). There is also a moving `latest` tag and per-platform lightroom-v*
-# tags. `src.github` with no `use_latest_release`/`use_max_tag` override
-# defaults to nvchecker's use_latest_release, which reads GitHub's
-# /releases/latest API (not a tag-name sort) and correctly resolved to the
-# server's 1.6.2 release, not one of the app/ping/lightroom lineages.
+# tags. Given that fragility, `src.use_latest_release` is set explicitly
+# below (matching the affine-mcp-server / figmaqml convention in
+# nix/pkgs/playground/nvfetcher.toml) rather than relying on it being
+# nvfetcher's implicit default for `src.github`. use_latest_release reads
+# GitHub's /releases/latest API (not a tag-name sort) and correctly resolves
+# to the server's 1.6.2 release, not one of the app/ping/lightroom lineages.
 # Verified locally: `git ls-remote --tags` plus a live nvfetcher run both
 # confirm 1.6.2 is the newest server release and the one nvfetcher picks.
 #
@@ -20,4 +22,5 @@
 # nvfetcher-github-release-appimage).
 [picr]
 src.github = "isaacinsoll/picr"
+src.use_latest_release = true
 fetch.github = "isaacinsoll/picr"
