@@ -105,6 +105,13 @@ in {
     security.acme.defaults.email = "ci@example.com";
   };
 
+  nixos-picr-ping = evalNixos "picr" {
+    services.picr.ping.enable = true;
+    services.picr.ping.picrUrl = "https://ci.example/";
+    services.picr.ping.tokenFile = "/run/secrets/picr-ping-token";
+    services.picr.ping.watchRoot = "/srv/media";
+  };
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }

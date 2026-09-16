@@ -289,82 +289,226 @@ in {
         description = "Obtain a Let's Encrypt cert via ACME.";
       };
     };
-  };
 
-  config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = lib.hasSuffix "/" cfg.baseUrl;
-        message = "services.picr.baseUrl must end with '/'.";
-      }
-      {
-        assertion = !cfg.nginx.enable || cfg.nginx.hostName != null;
-        message = "services.picr.nginx.hostName is required when nginx.enable is set.";
-      }
-    ];
-
-    users.users.${cfg.user} = lib.mkIf (cfg.user == defaultUser) {
-      isSystemUser = true;
-      group = cfg.group;
-      home = cfg.stateDir;
-    };
-    users.groups.${cfg.group} = lib.mkIf (cfg.group == defaultUser) {};
-
-    services.postgresql = lib.mkIf cfg.database.manage {
-      enable = true;
-      ensureDatabases = [cfg.database.name];
-      ensureUsers = [
-        {
-          name = cfg.database.user;
-          ensureDBOwnership = true;
-        }
-      ];
-    };
-
-    systemd.tmpfiles.rules = [
-      "d ${cfg.stateDir} 0750 ${cfg.user} ${cfg.group} - -"
-      "d ${cfg.stateDir}/cache 0750 ${cfg.user} ${cfg.group} - -"
-      "d ${cfg.mediaDir} 0750 ${cfg.user} ${cfg.group} - -"
-    ];
-
-    systemd.services.picr = {
-      description = "PICR self-hosted photo-sharing server";
-      wantedBy = ["multi-user.target"];
-      after = ["network.target"] ++ lib.optional cfg.database.manage "postgresql.service";
-      requires = lib.optional cfg.database.manage "postgresql.service";
-      environment = staticEnv // {DATABASE_URL = databaseUrl;};
-      serviceConfig =
-        {
-          User = cfg.user;
-          Group = cfg.group;
-          StateDirectory = "picr";
-          WorkingDirectory = cfg.stateDir;
-          ExecStartPre = preStart;
-          ExecStart = startScript;
-          Restart = "on-failure";
-          RestartSec = 5;
-          LoadCredential = credentials;
-          ReadWritePaths =
-            [cfg.stateDir]
-            ++ lib.optional cfg.canWrite cfg.mediaDir;
-          ReadOnlyPaths = lib.optional (!cfg.canWrite) cfg.mediaDir;
-          SupplementaryGroups = lib.optional cfg.videoAcceleration.enable "render";
-          DeviceAllow = lib.optional cfg.videoAcceleration.enable "/dev/dri rw";
-        }
-        // hardening;
-    };
-
-    services.nginx = lib.mkIf cfg.nginx.enable {
-      enable = true;
-      virtualHosts.${cfg.nginx.hostName} = {
-        forceSSL = cfg.nginx.forceSSL;
-        enableACME = cfg.nginx.enableACME;
-        locations."/" = {
-          proxyPass = "http://${cfg.host}:${toString cfg.port}";
-          proxyWebsockets = true;
-          extraConfig = "client_max_body_size 0;";
-        };
+    ping = {
+      enable = lib.mkEnableOption "PICR Ping media-change sidecar";
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.picr-ping;
+        defaultText = lib.literalExpression "self.packages.\${system}.picr-ping";
+        description = "The picr-ping package.";
+      };
+      user = lib.mkOption {
+        type = lib.types.str;
+        default = "picr-ping";
+        description = "User the ping service runs as.";
+      };
+      group = lib.mkOption {
+        type = lib.types.str;
+        default = "picr-ping";
+        description = "Group the ping service runs as.";
+      };
+      picrUrl = lib.mkOption {
+        type = lib.types.str;
+        example = "https://photos.example.com/";
+        description = "URL of the PICR server (PICR_URL).";
+      };
+      name = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "PICR_PING_NAME (defaults to the hostname when null).";
+      };
+      tokenFile = lib.mkOption {
+        type = lib.types.path;
+        description = "PICR_PING_TOKEN file (>=64 chars; shared with the server).";
+      };
+      # DEFERRED (spec section 7): watchRoot has no silent default here so an
+      # operator cannot accidentally watch nothing. Revisit defaulting to /media.
+      watchRoot = lib.mkOption {
+        type = lib.types.path;
+        example = "/srv/media";
+        description = "Directory to watch (WATCH_ROOT), mounted read-only.";
+      };
+      watchMode = lib.mkOption {
+        type = lib.types.enum ["native" "polling"];
+        default = "native";
+        description = "Watcher mode (WATCH_MODE).";
+      };
+      pollIntervalSeconds = lib.mkOption {
+        type = lib.types.int;
+        default = 20;
+        description = "POLL_INTERVAL_SECONDS (polling mode).";
+      };
+      batchSeconds = lib.mkOption {
+        type = lib.types.int;
+        default = 1;
+        description = "BATCH_SECONDS.";
+      };
+      stabilitySeconds = lib.mkOption {
+        type = lib.types.int;
+        default = 2;
+        description = "STABILITY_SECONDS.";
+      };
+      pathPrefix = lib.mkOption {
+        type = lib.types.str;
+        default = "";
+        description = "PATH_PREFIX mapping.";
+      };
+      reconcileOnStart = lib.mkOption {
+        type = lib.types.enum ["auto" "true" "false"];
+        default = "auto";
+        description = "RECONCILE_ON_START.";
+      };
+      dryRun = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "DRY_RUN (no outbound requests).";
+      };
+      verbose = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "VERBOSE logging.";
+      };
+      healthPort = lib.mkOption {
+        type = lib.types.port;
+        default = 6901;
+        description = "PING_HEALTH_PORT (/readyz).";
       };
     };
   };
+
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      assertions = [
+        {
+          assertion = lib.hasSuffix "/" cfg.baseUrl;
+          message = "services.picr.baseUrl must end with '/'.";
+        }
+        {
+          assertion = !cfg.nginx.enable || cfg.nginx.hostName != null;
+          message = "services.picr.nginx.hostName is required when nginx.enable is set.";
+        }
+      ];
+
+      users.users.${cfg.user} = lib.mkIf (cfg.user == defaultUser) {
+        isSystemUser = true;
+        group = cfg.group;
+        home = cfg.stateDir;
+      };
+      users.groups.${cfg.group} = lib.mkIf (cfg.group == defaultUser) {};
+
+      services.postgresql = lib.mkIf cfg.database.manage {
+        enable = true;
+        ensureDatabases = [cfg.database.name];
+        ensureUsers = [
+          {
+            name = cfg.database.user;
+            ensureDBOwnership = true;
+          }
+        ];
+      };
+
+      systemd.tmpfiles.rules = [
+        "d ${cfg.stateDir} 0750 ${cfg.user} ${cfg.group} - -"
+        "d ${cfg.stateDir}/cache 0750 ${cfg.user} ${cfg.group} - -"
+        "d ${cfg.mediaDir} 0750 ${cfg.user} ${cfg.group} - -"
+      ];
+
+      systemd.services.picr = {
+        description = "PICR self-hosted photo-sharing server";
+        wantedBy = ["multi-user.target"];
+        after = ["network.target"] ++ lib.optional cfg.database.manage "postgresql.service";
+        requires = lib.optional cfg.database.manage "postgresql.service";
+        environment = staticEnv // {DATABASE_URL = databaseUrl;};
+        serviceConfig =
+          {
+            User = cfg.user;
+            Group = cfg.group;
+            StateDirectory = "picr";
+            WorkingDirectory = cfg.stateDir;
+            ExecStartPre = preStart;
+            ExecStart = startScript;
+            Restart = "on-failure";
+            RestartSec = 5;
+            LoadCredential = credentials;
+            ReadWritePaths =
+              [cfg.stateDir]
+              ++ lib.optional cfg.canWrite cfg.mediaDir;
+            ReadOnlyPaths = lib.optional (!cfg.canWrite) cfg.mediaDir;
+            SupplementaryGroups = lib.optional cfg.videoAcceleration.enable "render";
+            DeviceAllow = lib.optional cfg.videoAcceleration.enable "/dev/dri rw";
+          }
+          // hardening;
+      };
+
+      services.nginx = lib.mkIf cfg.nginx.enable {
+        enable = true;
+        virtualHosts.${cfg.nginx.hostName} = {
+          forceSSL = cfg.nginx.forceSSL;
+          enableACME = cfg.nginx.enableACME;
+          locations."/" = {
+            proxyPass = "http://${cfg.host}:${toString cfg.port}";
+            proxyWebsockets = true;
+            extraConfig = "client_max_body_size 0;";
+          };
+        };
+      };
+    })
+
+    (lib.mkIf cfg.ping.enable (let
+      p = cfg.ping;
+      pnode = p.package.nodejs;
+      pingStart = pkgs.writeShellScript "picr-ping-start" ''
+        set -euo pipefail
+        creds="''${CREDENTIALS_DIRECTORY:-}"
+        export PICR_PING_TOKEN="$(cat "$creds/ping-token")"
+        exec ${pnode}/bin/node ${p.package}/dist/ping/src/app.js
+      '';
+    in {
+      assertions = [
+        {
+          assertion = p.dryRun || (p.picrUrl != "" && p.tokenFile != null);
+          message = "services.picr.ping: picrUrl and tokenFile are required unless dryRun.";
+        }
+      ];
+      users.users.${p.user} = lib.mkIf (p.user == "picr-ping") {
+        isSystemUser = true;
+        group = p.group;
+      };
+      users.groups.${p.group} = lib.mkIf (p.group == "picr-ping") {};
+      systemd.services.picr-ping = {
+        description = "PICR Ping media-change sidecar";
+        wantedBy = ["multi-user.target"];
+        after = ["network.target"];
+        environment =
+          {
+            NODE_ENV = "production";
+            PICR_URL = p.picrUrl;
+            WATCH_ROOT = p.watchRoot;
+            WATCH_MODE = p.watchMode;
+            POLL_INTERVAL_SECONDS = toString p.pollIntervalSeconds;
+            BATCH_SECONDS = toString p.batchSeconds;
+            STABILITY_SECONDS = toString p.stabilitySeconds;
+            PATH_PREFIX = p.pathPrefix;
+            RECONCILE_ON_START = p.reconcileOnStart;
+            DRY_RUN = lib.boolToString p.dryRun;
+            VERBOSE = lib.boolToString p.verbose;
+            PING_HEALTH_PORT = toString p.healthPort;
+          }
+          // lib.optionalAttrs (p.name != null) {PICR_PING_NAME = p.name;};
+        serviceConfig =
+          {
+            User = p.user;
+            Group = p.group;
+            ExecStart = pingStart;
+            Restart = "on-failure";
+            RestartSec = 5;
+            LoadCredential = ["ping-token:${p.tokenFile}"];
+            ReadOnlyPaths = [p.watchRoot];
+          }
+          // hardening
+          // {PrivateUsers = true;};
+      };
+    }))
+  ];
 }
