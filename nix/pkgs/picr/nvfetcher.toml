@@ -1,0 +1,23 @@
+# PICR: self-hosted photo-sharing server, tracked at its latest GitHub release.
+# One source feeds both the server (picr) and the ping sidecar (picr-ping);
+# both build from this same tree. Regenerate with:
+#   nix run nixpkgs#nvfetcher -- -c nix/pkgs/picr/nvfetcher.toml -o nix/pkgs/picr/_sources
+#
+# Upstream ships THREE separate release lineages from the same repo: the
+# server (bare semver tags, e.g. 1.6.2, tracking the root package.json), the
+# mobile app (app-*/ios-*/android-* tags), and the ping sidecar (ping-v*
+# tags). There is also a moving `latest` tag and per-platform lightroom-v*
+# tags. `src.github` with no `use_latest_release`/`use_max_tag` override
+# defaults to nvchecker's use_latest_release, which reads GitHub's
+# /releases/latest API (not a tag-name sort) and correctly resolved to the
+# server's 1.6.2 release, not one of the app/ping/lightroom lineages.
+# Verified locally: `git ls-remote --tags` plus a live nvfetcher run both
+# confirm 1.6.2 is the newest server release and the one nvfetcher picks.
+#
+# Server tags here are bare (1.6.2), not v-prefixed, so src.prefix is not
+# needed. If a future release moves to a vX.Y.Z scheme, set src.prefix = "v"
+# (avoids the `vv...` archive-URL 404 -- see memory
+# nvfetcher-github-release-appimage).
+[picr]
+src.github = "isaacinsoll/picr"
+fetch.github = "isaacinsoll/picr"
