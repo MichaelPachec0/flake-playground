@@ -65,7 +65,7 @@ inputs: {
     ln -sfn ${appDir}/public   ${cfg.stateDir}/public
     ln -sfn ${appDir}/backend  ${cfg.stateDir}/backend
     ln -sfn ${appDir}/version.txt ${cfg.stateDir}/version.txt
-    ln -sfn ${cfg.mediaDir}    ${cfg.stateDir}/media
+    ${lib.optionalString (cfg.mediaDir != "${cfg.stateDir}/media") "ln -sfn ${cfg.mediaDir} ${cfg.stateDir}/media"}
     mkdir -p ${cfg.stateDir}/cache
   '';
 
@@ -101,10 +101,7 @@ inputs: {
     PrivateIPC = true;
     PrivateUsers = false;
     RemoveIPC = true;
-    DevicePolicy =
-      if cfg.videoAcceleration.enable
-      then "closed"
-      else "closed";
+    DevicePolicy = "closed";
     RestrictNamespaces = true;
     RestrictRealtime = true;
     RestrictSUIDSGID = true;
@@ -299,10 +296,6 @@ in {
       {
         assertion = lib.hasSuffix "/" cfg.baseUrl;
         message = "services.picr.baseUrl must end with '/'.";
-      }
-      {
-        assertion = cfg.database.manage || cfg.database.passwordFile != null || true;
-        message = "services.picr.database: set passwordFile for an external DB unless it uses trust/peer auth.";
       }
       {
         assertion = !cfg.nginx.enable || cfg.nginx.hostName != null;
