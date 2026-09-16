@@ -87,6 +87,8 @@
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
+    # picr server + picr-ping sidecar, built from source (nix/pkgs/picr).
+    picrPkgs = import ./nix/pkgs/picr {inherit pkgs;};
     # affine-server pulls+patches a ~1GB OCI image; like windscribe it's kept OUT
     # of the always-built CI aggregates (playground/default checks) but stays
     # buildable on demand and available to the NixOS module. Bumps are still
@@ -100,6 +102,7 @@
     # the rest of the flake stays x86_64-only. Building it needs an aarch64 builder.
     pkgsAarch64 = prepNixpkgs nixpkgs "aarch64-linux";
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
+    picrPkgsAarch64 = import ./nix/pkgs/picr {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -129,6 +132,7 @@
       // {
         inherit windscribe;
         inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
+        inherit (picrPkgs) picr picr-ping;
       };
 
     # aarch64-linux: affine-server, so `services.affine` (default package =
@@ -136,7 +140,14 @@
     # freebuff, whose nvfetcher sources cover aarch64 (see
     # nix/pkgs/playground/nvfetcher.toml). Both need an aarch64 builder; the rest
     # of the flake stays x86_64-only.
-    packages.aarch64-linux = {inherit (playgroundPkgsAarch64) affine-server freebuff;};
+    # picr and picr-ping are also exposed for aarch64-linux so the NixOS module's
+    # default package (self.packages.${system}.picr) resolves on aarch64-linux
+    # hosts; like affine-server above, this needs an aarch64 builder to actually
+    # build.
+    packages.aarch64-linux = {
+      inherit (playgroundPkgsAarch64) affine-server freebuff;
+      inherit (picrPkgsAarch64) picr picr-ping;
+    };
 
     # Nested trees; build one with e.g.
     #   nix build .#legacyPackages.x86_64-linux.vimPlugins.wtf-nvim
