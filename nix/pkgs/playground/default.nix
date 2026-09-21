@@ -8,6 +8,9 @@
 # where <name> is the section name in nvfetcher.toml.
 {pkgs}: let
   sources = pkgs.callPackage ./_sources/generated.nix {};
+  # Standalone nvfetcher config so pingvin bumps don't block the playground
+  # bump; see nix/pkgs/pingvin-share/nvfetcher.toml.
+  pingvinSources = pkgs.callPackage ../pingvin-share/_sources/generated.nix {};
 in {
   workstyle = pkgs.callPackage ./workstyle.nix {
     source = sources.workstyle;
@@ -37,7 +40,9 @@ in {
           aarch64-linux = "linux-arm64";
           aarch64-darwin = "darwin-arm64";
         }
-        .${pkgs.stdenv.hostPlatform.system}
+        .${
+          pkgs.stdenv.hostPlatform.system
+        }
         or (throw "freebuff: no nvfetcher source tracked for ${pkgs.stdenv.hostPlatform.system}; add an entry to nix/pkgs/playground/nvfetcher.toml and a case here")
       }";
   };
@@ -48,5 +53,13 @@ in {
       if pkgs.stdenv.hostPlatform.isAarch64
       then sources.affine-server-arm64
       else sources.affine-server;
+  };
+  pingvin-share-x = pkgs.callPackage ./pingvin-share.nix {
+    source = pingvinSources.pingvin-share-x;
+  };
+  pingvin-share-x-beta = pkgs.callPackage ./pingvin-share.nix {
+    source = pingvinSources.pingvin-share-x-beta;
+    backendNpmDepsHash = "sha256-Yntt2PUUOmw4mOT8q0J7CUg58qzlPgJu8b65A8Yk9yQ=";
+    frontendNpmDepsHash = "sha256-NjKtscW6RbVqt6LPfyR28aAiemBi1cmcE+Ihlh5eeA0=";
   };
 }

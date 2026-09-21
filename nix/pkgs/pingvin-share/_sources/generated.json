@@ -1,0 +1,44 @@
+{
+    "pingvin-share-x": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "pingvin-share-x",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "smp46",
+            "repo": "pingvin-share-x",
+            "rev": "v1.22.3",
+            "sha256": "sha256-xtsI9Ow7K/9pXEZdvBICF5aWAa+Hh7VfNUTwejz4Xno=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v1.22.3"
+    },
+    "pingvin-share-x-beta": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "pingvin-share-x-beta",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "smp46",
+            "repo": "pingvin-share-x",
+            "rev": "v2.0.0-beta.2",
+            "sha256": "sha256-WfHk/WFSd5toObGmzgL2s0ir5Eg/3PTROa8NBxsF05M=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v2.0.0-beta.2"
+    }
+}

@@ -57,6 +57,17 @@ like `windscribe` - it's deliberately kept out of the `packages`/`default` CI
 check aggregates while staying buildable on demand; `nixosModules.affine`
 uses it as `services.affine.package`'s default.
 
+`pingvin-share-x` and `pingvin-share-x-beta` also come from the `playground`
+set, exposed at `packages.x86_64-linux.pingvin-share-x{,-beta}`. Both build
+a fork of pingvin-share (self-hosted file sharing) from source with
+`buildNpmPackage` (NestJS backend + Next.js frontend), a version-matched
+Prisma 6.6 engine, and a sharp build rebuilt from source against nixpkgs'
+`vips`. `pingvin-share-x` tracks stable (the module's default);
+`pingvin-share-x-beta` tracks the v2 beta channel. Like `affine-server`,
+kept out of the `packages`/`default` CI aggregates but buildable on demand.
+`nixosModules.pingvin-share` defaults `services.pingvin-share-x.package` to
+`pingvin-share-x`; set it to `pingvin-share-x-beta` for the beta channel.
+
 ### `legacyPackages.x86_64-linux.vimPlugins`
 
 A nested set of roughly thirty neovim plugins migrated from `nix-config` that are
@@ -96,6 +107,16 @@ rather than the (often stale) nixpkgs revision. Same nvfetcher arrangement as
   runtime required. Pulls a ~1-2 GB image at build time, so it's excluded from
   the `playground`/`default` CI checks; build on demand with
   `nix build .#affine-server`. Backs the `services.affine` NixOS module below.
+- `pingvin-share-x` / `pingvin-share-x-beta` - a from-source build of a fork
+  of pingvin-share (self-hosted file sharing). NestJS backend + Next.js
+  frontend, compiled with `buildNpmPackage`, against a version-matched
+  Prisma 6.6 engine (a fixed-output derivation) and a sharp build rebuilt
+  from source against nixpkgs' `vips` (upstream's prebuilt sharp segfaults
+  on load). `pingvin-share-x` tracks stable; `pingvin-share-x-beta` tracks
+  the v2 beta channel. Excluded from the `playground`/`default` CI checks;
+  build on demand with `nix build .#pingvin-share-x` (or
+  `.#pingvin-share-x-beta`). Backs the `services.pingvin-share-x` NixOS
+  module below, stable as the module's default.
 - `freebuff` - Codebuff's coding-agent CLI, from the upstream prebuilt release
   tarballs. Upstream ships an `npx freebuff` launcher that self-downloads the
   real binary at runtime; that pins nothing, so the launcher is skipped and the
@@ -158,6 +179,7 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 | `tuwunel` | `services.tuwunel.enable` | systemd service for the tuwunel Matrix server (`pkgs.matrix-tuwunel`). `registration_token_file` is loaded as a systemd credential and the generated config points at it. |
 | `affine` | `services.affine.enable` | Runs a self-hosted AFFiNE server (`pkgs.playground.affine-server`) natively under hardened systemd units - no container runtime. Provisions PostgreSQL (+pgvector) and Redis, loads sops-nix secrets via `LoadCredential`, serves local-FS (or best-effort S3) blob storage, and can front itself with an optional nginx+ACME reverse proxy. |
 | `projectsend` | `services.projectsend.enable` | Runs ProjectSend v2 (Laravel client file-sharing) natively: php-fpm + nginx (X-Accel-Redirect download offload) + two queue workers + per-minute scheduler timer, with optional local MariaDB/Redis. Package `packages.<system>.projectsend` is the prebuilt upstream release zip, tracked by nvfetcher. Secrets loaded via systemd LoadCredential. |
+| `pingvin-share` | `services.pingvin-share-x.enable` | Runs pingvin-share-x (self-hosted file sharing, built from source; see `packages.x86_64-linux` above) natively as NestJS backend + Next.js frontend systemd services, SQLite only. Optional nginx vhost splits `/api`. Config declarative (`settings` -> `config.yaml`), secrets spliced in at runtime from LoadCredential. Option namespace is `services.pingvin-share-x`, not `services.pingvin-share` (removed nixpkgs name). `package` defaults to stable; set `pingvin-share-x-beta` for the v2 beta. |
 
 `default` imports every module above (from `nix/modules/nixos/default.nix`);
 enable only the ones you want, since each module's config is gated behind its own

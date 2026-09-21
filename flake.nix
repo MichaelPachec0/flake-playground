@@ -95,7 +95,12 @@
     # of the always-built CI aggregates (playground/default checks) but stays
     # buildable on demand and available to the NixOS module. Bumps are still
     # tracked by nvfetcher; the module is eval-checked cheaply (nixos-affine).
-    playgroundCiPkgs = removeAttrs playgroundPkgs ["affine-server"];
+    # pingvin-share-x/-beta excluded too: heavy from-source npm builds
+    # (NestJS backend, Next.js frontend, Prisma engine FOD, from-source
+    # sharp rebuild). Buildable on demand
+    # (nix build .#pingvin-share-x{,-beta}); covered by the cheap
+    # nixos-pingvin-share eval check + on-demand pingvin-share-vm test.
+    playgroundCiPkgs = removeAttrs playgroundPkgs ["affine-server" "pingvin-share-x" "pingvin-share-x-beta"];
     # aarch64 support for affine-server (e.g. an ARM server). Build the playground
     # set against an aarch64 pkgs so the NixOS module's default package
     # (self.packages.${system}.affine-server) resolves on aarch64-linux hosts.
@@ -135,6 +140,12 @@
       inherit pkgs;
       inherit (self) nixosModules;
     };
+    # Heavy on-demand VM test for pingvin-share-x: boots
+    # services.pingvin-share-x, checks migrate/backend/frontend units,
+    # backend health, frontend serves, config.yaml composed. Needs KVM;
+    # NOT in the merge gate.
+    #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
+    pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -144,7 +155,14 @@
       // {
         inherit windscribe;
         inherit projectsend;
-        inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
+        inherit
+          (playgroundPkgs)
+          affine-server
+          affine-mcp-server
+          freebuff
+          pingvin-share-x
+          pingvin-share-x-beta
+          ;
         inherit (picrPkgs) picr picr-ping;
       };
 
@@ -158,7 +176,13 @@
     # hosts; like affine-server above, this needs an aarch64 builder to actually
     # build.
     packages.aarch64-linux = {
-      inherit (playgroundPkgsAarch64) affine-server freebuff;
+      inherit
+        (playgroundPkgsAarch64)
+        affine-server
+        freebuff
+        pingvin-share-x
+        pingvin-share-x-beta
+        ;
       inherit (picrPkgsAarch64) picr picr-ping;
       projectsend = projectsendAarch64;
     };
@@ -186,6 +210,7 @@
         # Heavy VM integration test; on-demand only, deliberately absent from the
         # `default` aggregate and the CI gate.
         picr-vm = picrVmTest;
+        pingvin-share-vm = pingvinShareVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
@@ -251,8 +276,9 @@
       mcp = import ./nix/modules/nixos/mcp inputs;
       picr = import ./nix/modules/nixos/picr inputs;
       projectsend = import ./nix/modules/nixos/projectsend inputs;
+      pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;

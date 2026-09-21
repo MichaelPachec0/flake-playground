@@ -1,0 +1,39 @@
+# Source pins for pingvin-share packages, tracked by nvfetcher.
+# Standalone (not nix/pkgs/playground/_sources): pingvin bumps don't churn
+# the playground set. update-pingvin.yml bumps this file; a failed pingvin
+# bump (e.g. a moved release asset) fails only that workflow, not the
+# shared playground source bump.
+#
+# Regenerate:
+#   nix develop -c nvfetcher -c nix/pkgs/pingvin-share/nvfetcher.toml -o nix/pkgs/pingvin-share/_sources
+#   git add -AN nix/pkgs/pingvin-share/_sources
+
+# smp46/pingvin-share-x: NestJS + Next.js file-sharing app, built from
+# source with buildNpmPackage. Two channels:
+#   * pingvin-share-x      -> latest stable (use_latest_release skips
+#                             -beta). Current: v1.22.x.
+#   * pingvin-share-x-beta -> newest -beta tag. use_latest_release can't get
+#     it (filters out all prereleases; a plain "include prereleases"
+#     setting would pick the newer stable by date instead). Scrape the
+#     releases API and regex the first (newest) -beta tag_name instead.
+#
+# Do not set `src.prefix = "v"` on either entry (same reason as
+# affine-mcp-server / figmaqml in nix/pkgs/playground/nvfetcher.toml).
+# nvfetcher 0.8.0 has no rev-template for fetch.github; it reuses `version`
+# as the git rev. Upstream tags start with "v" - stripping it would fetch
+# rev "1.22.2" and 404. Keep the "v" in `version`; the package strips it
+# with lib.removePrefix "v".
+#
+# fetch.github gives a source tree; buildNpmPackage reads package-lock.json
+# from it at build time (a build-time FOD, not an eval-time IFD - safe).
+# Not importNpmLock on purpose: native addons (argon2 node-gyp, sharp)
+# build more reliably under buildNpmPackage.
+[pingvin-share-x]
+src.github = "smp46/pingvin-share-x"
+src.use_latest_release = true
+fetch.github = "smp46/pingvin-share-x"
+
+[pingvin-share-x-beta]
+src.webpage = "https://api.github.com/repos/smp46/pingvin-share-x/releases"
+src.regex = '"tag_name":\s*"(v[0-9][^"]*-beta[^"]*)"'
+fetch.github = "smp46/pingvin-share-x"

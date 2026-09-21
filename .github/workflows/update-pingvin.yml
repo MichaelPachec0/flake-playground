@@ -1,0 +1,58 @@
+name: "Bump pingvin-share"
+
+# Daily: re-run nvfetcher for the standalone pingvin-share source, build
+# both pingvin-share-x and pingvin-share-x-beta, run the module eval check +
+# VM test, commit regenerated _sources only if everything passes.
+#
+# Separate from update-playground.yml on purpose: pingvin-share has its own
+# nvfetcher config (nix/pkgs/pingvin-share/nvfetcher.toml), so a failure
+# here (yanked release, changed asset layout) fails only this workflow, not
+# the playground/vimPlugins bumps.
+on:
+  schedule:
+    - cron: "53 4 * * *"
+  push:
+    paths:
+      - "nix/pkgs/pingvin-share/nvfetcher.toml"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Higher than picr's 45: also runs the pingvin-share-vm VM test on top
+    # of two from-source npm builds.
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # nix-checks has no build-command input (only pre-build-command); its
+      # default build targets .#checks.x86_64-linux, which skips the
+      # pingvin-share-x/-beta packages (excluded from the CI aggregate so
+      # this heavy build doesn't serialize behind the daily playground
+      # bump). Chain the explicit build onto nvfetcher so it runs before
+      # the composite action's own check pass.
+      - name: Regenerate sources + build pingvin
+        uses: ./.github/actions/nix-checks
+        with:
+          pre-build-command: >-
+            nix run nixpkgs#nvfetcher --
+            -c nix/pkgs/pingvin-share/nvfetcher.toml
+            -o nix/pkgs/pingvin-share/_sources
+            &&
+            nix build -L
+            .#packages.x86_64-linux.pingvin-share-x
+            .#packages.x86_64-linux.pingvin-share-x-beta
+            .#checks.x86_64-linux.nixos-pingvin-share
+            .#checks.x86_64-linux.pingvin-share-vm
+
+      - name: Commit bumped sources
+        if: ${{ success() }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: bump pingvin-share source"
+          # ONE LINE only - see update-projectsend.yml: multi-line
+          # file_pattern silently degrades to its first entry.
+          file_pattern: "nix/pkgs/pingvin-share/_sources/"
