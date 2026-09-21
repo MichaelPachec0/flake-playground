@@ -1,0 +1,50 @@
+name: "Bump picr"
+
+# Daily: re-run nvfetcher for the picr source, build picr + picr-ping and run
+# the module evals, and only commit the regenerated _sources when everything
+# passes. Separate from the playground bump so the heavy from-source build runs
+# in PARALLEL and commits a disjoint path (no _sources race).
+on:
+  schedule:
+    - cron: "51 4 * * *"
+  push:
+    paths:
+      - "nix/pkgs/picr/nvfetcher.toml"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # nix-checks has no build-command input (only pre-build-command), and its
+      # own default build step targets .#checks.x86_64-linux, which does NOT
+      # cover picr / picr-ping (they are kept out of mainPackages so the heavy
+      # from-source build doesn't serialize behind the daily playground bump).
+      # Chain the explicit build onto the nvfetcher run so it happens before the
+      # composite action's own check pass.
+      - name: Regenerate sources + build picr
+        uses: ./.github/actions/nix-checks
+        with:
+          pre-build-command: >-
+            nix run nixpkgs#nvfetcher --
+            -c nix/pkgs/picr/nvfetcher.toml
+            -o nix/pkgs/picr/_sources
+            &&
+            nix build -L
+            .#picr .#picr-ping
+            .#checks.x86_64-linux.nixos-picr
+            .#checks.x86_64-linux.nixos-picr-secrets
+            .#checks.x86_64-linux.nixos-picr-ping
+
+      - name: Commit bumped sources
+        if: ${{ success() }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: bump picr source"
+          file_pattern: "nix/pkgs/picr/_sources/"

@@ -89,6 +89,8 @@
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
+    # picr server + picr-ping sidecar, built from source (nix/pkgs/picr).
+    picrPkgs = import ./nix/pkgs/picr {inherit pkgs;};
     # affine-server pulls+patches a ~1GB OCI image; like windscribe it's kept OUT
     # of the always-built CI aggregates (playground/default checks) but stays
     # buildable on demand and available to the NixOS module. Bumps are still
@@ -102,6 +104,7 @@
     # the rest of the flake stays x86_64-only. Building it needs an aarch64 builder.
     pkgsAarch64 = prepNixpkgs nixpkgs "aarch64-linux";
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
+    picrPkgsAarch64 = import ./nix/pkgs/picr {pkgs = pkgsAarch64;};
     projectsendAarch64 = import ./nix/pkgs/projectsend {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
@@ -123,6 +126,15 @@
       inherit (self) nixosModules;
       inherit (self) homeManagerModules;
     };
+    # Heavy on-demand VM integration test for picr: boots a real VM running
+    # services.picr with managed Postgres and asserts the server comes up,
+    # migrations ran, and the frontend is served. Needs KVM; NOT in the merge
+    # gate (kept out of the `default` aggregate below). Run on demand with
+    #   nix build .#checks.x86_64-linux.picr-vm -L
+    picrVmTest = import ./nix/tests/picr-vm.nix {
+      inherit pkgs;
+      inherit (self) nixosModules;
+    };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -133,6 +145,7 @@
         inherit windscribe;
         inherit projectsend;
         inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
+        inherit (picrPkgs) picr picr-ping;
       };
 
     # aarch64-linux: affine-server, so `services.affine` (default package =
@@ -140,8 +153,13 @@
     # freebuff, whose nvfetcher sources cover aarch64 (see
     # nix/pkgs/playground/nvfetcher.toml). Both need an aarch64 builder; the rest
     # of the flake stays x86_64-only.
+    # picr and picr-ping are also exposed for aarch64-linux so the NixOS module's
+    # default package (self.packages.${system}.picr) resolves on aarch64-linux
+    # hosts; like affine-server above, this needs an aarch64 builder to actually
+    # build.
     packages.aarch64-linux = {
       inherit (playgroundPkgsAarch64) affine-server freebuff;
+      inherit (picrPkgsAarch64) picr picr-ping;
       projectsend = projectsendAarch64;
     };
 
@@ -151,6 +169,7 @@
     legacyPackages.x86_64-linux = {
       vimPlugins = customVimPlugins;
       playground = playgroundPkgs;
+      picr = picrPkgs;
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
@@ -164,6 +183,9 @@
         # Build every first-class package. This is the coverage that was missing:
         # nothing under packages.x86_64-linux was built in CI before.
         packages = pkgs.linkFarmFromDrvs "packages" (builtins.attrValues mainPackages);
+        # Heavy VM integration test; on-demand only, deliberately absent from the
+        # `default` aggregate and the CI gate.
+        picr-vm = picrVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
@@ -205,8 +227,17 @@
       vimPlugins = final: prev: {
         vimPlugins = prev.vimPlugins // (import ./nix/pkgs/vimPlugins {pkgs = prev;});
       };
+      # Built from `final` so aarch64-linux (and any other host that applies
+      # this overlay) resolves its own picr/picr-ping instead of the
+      # x86_64-linux `pkgs` this flake evaluates its own outputs against.
+      picr = final: prev: let
+        s = import ./nix/pkgs/picr {pkgs = final;};
+      in {
+        # DEFERRED (spec section 8): top-level pkgs.picr vs pkgs.playground.picr.
+        inherit (s) picr picr-ping;
+      };
     in {
-      inherit playground vimPlugins;
+      inherit playground vimPlugins picr;
       default = playground;
     };
     nixosModules = let
@@ -218,9 +249,11 @@
       windscribe = import ./nix/modules/nixos/windscribe inputs;
       affine = import ./nix/modules/nixos/affine inputs;
       mcp = import ./nix/modules/nixos/mcp inputs;
+      picr = import ./nix/modules/nixos/picr inputs;
       projectsend = import ./nix/modules/nixos/projectsend inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr;
+
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };

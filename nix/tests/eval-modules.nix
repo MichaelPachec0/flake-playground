@@ -84,6 +84,33 @@ in {
     mcp.affine.http.allowUnauthenticated = true;
   };
 
+  nixos-picr = evalNixos "picr" {
+    services.picr.enable = true;
+    services.picr.baseUrl = "https://ci.example/";
+  };
+
+  nixos-picr-secrets = evalNixos "picr" {
+    services.picr.enable = true;
+    services.picr.baseUrl = "https://ci.example/";
+    services.picr.database.manage = false;
+    services.picr.database.host = "db.example";
+    # path literals; eval never reads them (LoadCredential is a runtime concern)
+    services.picr.database.passwordFile = "/run/secrets/picr-db";
+    services.picr.tokenSecretFile = "/run/secrets/picr-token";
+    services.picr.admin.passwordFile = "/run/secrets/picr-admin";
+    services.picr.pingTokenFile = "/run/secrets/picr-ping";
+    services.picr.nginx.enable = true;
+    services.picr.nginx.hostName = "photos.example.com";
+    security.acme.acceptTerms = true;
+    security.acme.defaults.email = "ci@example.com";
+  };
+
+  nixos-picr-ping = evalNixos "picr" {
+    services.picr.ping.enable = true;
+    services.picr.ping.picrUrl = "https://ci.example/";
+    services.picr.ping.tokenFile = "/run/secrets/picr-ping-token";
+    services.picr.ping.watchRoot = "/srv/media";
+  };
   nixos-projectsend = evalNixos "projectsend" {
     services.projectsend.enable = true;
     services.projectsend.appUrl = "https://ci.example";

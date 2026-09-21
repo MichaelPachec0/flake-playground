@@ -15,6 +15,7 @@ inputs: {
     (import ./windscribe inputs)
     (import ./affine inputs)
     (import ./mcp inputs)
+    (import ./picr inputs)
     (import ./projectsend inputs)
   ];
 }
