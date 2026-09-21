@@ -1,0 +1,18 @@
+# Source pin for the ProjectSend package, tracked by nvfetcher. Standalone
+# (separate from nix/pkgs/playground/_sources) so this package's bumps do not
+# churn the playground set.
+#
+# Regenerate with:
+#   nix develop -c nvfetcher -c nix/pkgs/projectsend/nvfetcher.toml -o nix/pkgs/projectsend/_sources
+#   git add -AN nix/pkgs/projectsend/_sources
+#
+# Tracks the latest GitHub *release* tag for the version and fetches the
+# prebuilt release .zip asset (which bundles vendor/ and public/build; no
+# composer/npm build is needed). Same shape as the electron-mail entry in
+# nix/pkgs/playground/nvfetcher.toml: the tag is `v$ver` (src.prefix = "v")
+# but the asset filename uses the bare `$ver`.
+[projectsend]
+src.github = "projectsend/projectsend"
+src.use_latest_release = true
+src.prefix = "v"
+fetch.url = "https://github.com/projectsend/projectsend/releases/download/v$ver/projectsend-$ver.zip"

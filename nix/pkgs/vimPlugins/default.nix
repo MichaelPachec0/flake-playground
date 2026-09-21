@@ -150,6 +150,8 @@ in {
       which-key-nvim
       toggleterm-nvim
       nvim-treesitter
+      mini-pick
+      snacks-nvim
     ];
     # plugin/ runs pio_install_check() at source time -> io.popen("which pio").
     # An empty probe raises an ERROR notify that fails `nvim -es`, sinking the

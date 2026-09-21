@@ -111,6 +111,12 @@ in {
     services.picr.ping.tokenFile = "/run/secrets/picr-ping-token";
     services.picr.ping.watchRoot = "/srv/media";
   };
+  nixos-projectsend = evalNixos "projectsend" {
+    services.projectsend.enable = true;
+    services.projectsend.appUrl = "https://ci.example";
+    services.projectsend.nginx.hostName = "ci.example";
+    services.projectsend.database.createLocally = true;
+  };
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};

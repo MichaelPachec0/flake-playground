@@ -108,11 +108,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-uq3dMDBIVb6c5spD3bzoiK3WH7+zpwBiOIFKxuKEK/Y=",
+            "sha256": "sha256-SqZIAkVnYquU4dCXzNgg8FxdK4daX29THGnF180hyy8=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.174/freebuff-darwin-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-darwin-arm64.tar.gz"
         },
-        "version": "0.0.174"
+        "version": "0.0.180"
     },
     "freebuff-linux-arm64": {
         "cargoLock": null,
@@ -123,11 +123,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-GJ3SZ1DDVfdlulODSXchtj0A/Qste7f8Bk8HX9NEyHQ=",
+            "sha256": "sha256-y91nO9uysAdc6UNqAqdCkNVby0QKIYsykBUVn7s6Js0=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.174/freebuff-linux-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-arm64.tar.gz"
         },
-        "version": "0.0.174"
+        "version": "0.0.180"
     },
     "freebuff-linux-x64": {
         "cargoLock": null,
@@ -138,15 +138,15 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-W/+lPhdHxq0a5TWY/JodAuP2hLpCGlLU7E8SoNe+OYA=",
+            "sha256": "sha256-+NZGzePIm0eZCtR96zPMkfB5fJiwgcJ/ssik1W5M5Rg=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.174/freebuff-linux-x64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-x64.tar.gz"
         },
-        "version": "0.0.174"
+        "version": "0.0.180"
     },
     "powertop": {
         "cargoLock": null,
-        "date": "2026-09-09",
+        "date": "2026-09-15",
         "extract": null,
         "name": "powertop",
         "passthru": null,
@@ -156,13 +156,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "87b8ea9f5a34450cd3954a40e0d5343c11d33893",
-            "sha256": "sha256-VtIZFMslICSY4lJvlsqt+8IXavKBiV0VglWl8V+ZA3I=",
+            "rev": "063862e5ca88687d8f393a35ed562f7cc10ffc46",
+            "sha256": "sha256-3hVJe/JJLafbPYXtpG5ApQhL7PkzbYHX12IEgUzrrNI=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/fenrus75/powertop"
         },
-        "version": "87b8ea9f5a34450cd3954a40e0d5343c11d33893"
+        "version": "063862e5ca88687d8f393a35ed562f7cc10ffc46"
     },
     "workstyle": {
         "cargoLock": null,

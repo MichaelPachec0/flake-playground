@@ -302,17 +302,17 @@
   };
   platformio = {
     pname = "platformio";
-    version = "31b77fa8dd5e481dc948cfd69feba0cbe9324e69";
+    version = "d5143c88698f78ce35fb5083b3668c94ea047a01";
     src = fetchgit {
       url = "https://github.com/anurag3301/nvim-platformio.lua";
-      rev = "31b77fa8dd5e481dc948cfd69feba0cbe9324e69";
+      rev = "d5143c88698f78ce35fb5083b3668c94ea047a01";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-uBnPW1JMrwEgX07vwZx1gQbcVKLkKEHCmJR1hFRUZyM=";
+      sha256 = "sha256-AL9QU42MiHvJYipBtXM8x1Bj0LrF/0yQO+i63jeXzbE=";
     };
-    date = "2026-09-08";
+    date = "2026-09-10";
   };
   sgNvim = {
     pname = "sgNvim";
@@ -358,17 +358,17 @@
   };
   tsSoftwareLicenses = {
     pname = "tsSoftwareLicenses";
-    version = "20f3f1e374be87b7a569995b6168e943e14ea7a6";
+    version = "f52dd003129833b0d77613a13d815a50b953b190";
     src = fetchgit {
       url = "https://github.com/chip/telescope-software-licenses.nvim";
-      rev = "20f3f1e374be87b7a569995b6168e943e14ea7a6";
+      rev = "f52dd003129833b0d77613a13d815a50b953b190";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-U8OZ11VJ5EXXnefE7J4/TW2nqBfLdtZauEKi2IINIuM=";
+      sha256 = "sha256-qYIO+CuRa6kT3G77OL6UafX7prdgypDm6jitZaglZpY=";
     };
-    date = "2026-02-22";
+    date = "2026-09-16";
   };
   vimBeGood = {
     pname = "vimBeGood";

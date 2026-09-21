@@ -22,10 +22,10 @@ runs:
     - name: Add swap space
       shell: bash
       run: |
-        sudo fallocate -l 10G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
+        sudo fallocate -l 10G /swapfile1
+        sudo chmod 600 /swapfile1
+        sudo mkswap /swapfile1
+        sudo swapon /swapfile1
         free -h
 
     - name: Install nix

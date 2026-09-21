@@ -53,11 +53,12 @@
     # absent too -- nix/pkgs/{playground,vimPlugins} are already
     # pkgs-parameterised imports and the overlay calls them directly.
     mkLocalPkgs = pkgs': {
+      inherit (pkgs') cynthion;
       linux-show-player = pkgs'.callPackage ./nix/pkgs/linux-show-player.nix {};
-      cynthion = pkgs'.callPackage ./nix/pkgs/cynthion {};
       memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
+      projectsend = import ./nix/pkgs/projectsend {pkgs = pkgs';};
     };
     inherit
       (mkLocalPkgs pkgs)
@@ -66,6 +67,7 @@
       memtimings-linux
       ryzen-monitor-ng
       nvchadPlugins
+      projectsend
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
@@ -103,6 +105,7 @@
     pkgsAarch64 = prepNixpkgs nixpkgs "aarch64-linux";
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
     picrPkgsAarch64 = import ./nix/pkgs/picr {pkgs = pkgsAarch64;};
+    projectsendAarch64 = import ./nix/pkgs/projectsend {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -140,6 +143,7 @@
       mainPackages
       // {
         inherit windscribe;
+        inherit projectsend;
         inherit (playgroundPkgs) affine-server affine-mcp-server freebuff;
         inherit (picrPkgs) picr picr-ping;
       };
@@ -156,6 +160,7 @@
     packages.aarch64-linux = {
       inherit (playgroundPkgsAarch64) affine-server freebuff;
       inherit (picrPkgsAarch64) picr picr-ping;
+      projectsend = projectsendAarch64;
     };
 
     # Nested trees; build one with e.g.
@@ -245,8 +250,10 @@
       affine = import ./nix/modules/nixos/affine inputs;
       mcp = import ./nix/modules/nixos/mcp inputs;
       picr = import ./nix/modules/nixos/picr inputs;
+      projectsend = import ./nix/modules/nixos/projectsend inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp picr;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr;
+
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
     };
