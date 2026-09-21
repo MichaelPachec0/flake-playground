@@ -17,5 +17,6 @@ inputs: {
     (import ./mcp inputs)
     (import ./picr inputs)
     (import ./projectsend inputs)
+    (import ./pingvin-share inputs)
   ];
 }
