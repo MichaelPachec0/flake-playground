@@ -118,6 +118,19 @@ in {
     services.projectsend.database.createLocally = true;
   };
 
+  nixos-pingvin-share = evalNixos "pingvin-share" {
+    services.pingvin-share-x.enable = true;
+    services.pingvin-share-x.nginx.enable = true;
+    services.pingvin-share-x.nginx.hostName = "ci.example";
+    services.pingvin-share-x.settings.general.appUrl = "https://ci.example";
+    # Path literal; eval never reads it (LoadCredential is runtime-only).
+    services.pingvin-share-x.secrets."smtp.password" = "/run/secrets/pingvin-smtp";
+    # nginx.enable turns on enableACME/forceSSL, which assert ToS
+    # acceptance (same as nixos-picr-secrets below).
+    security.acme.acceptTerms = true;
+    security.acme.defaults.email = "ci@example.com";
+  };
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }
