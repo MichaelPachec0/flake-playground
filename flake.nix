@@ -53,8 +53,8 @@
     # absent too -- nix/pkgs/{playground,vimPlugins} are already
     # pkgs-parameterised imports and the overlay calls them directly.
     mkLocalPkgs = pkgs': {
+      inherit (pkgs') cynthion;
       linux-show-player = pkgs'.callPackage ./nix/pkgs/linux-show-player.nix {};
-      cynthion = pkgs'.callPackage ./nix/pkgs/cynthion {};
       memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
