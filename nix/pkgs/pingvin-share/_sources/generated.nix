@@ -4,7 +4,8 @@
   fetchurl,
   fetchFromGitHub,
   dockerTools,
-}: {
+}:
+{
   pingvin-share-x = {
     pname = "pingvin-share-x";
     version = "v1.22.3";
