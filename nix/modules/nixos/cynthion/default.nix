@@ -41,12 +41,8 @@ in {
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [
-      # We are using NixOS, make sure that the software knows that we are doing so.
-      # Negative to this is that this wont be cached, but its better for either NixOS users getting errors
-      # when execing "cynthion setup"
-      (inputs.self.packages.${system}.${module}.override
-        {nixosInstall = true;})
+    environment.systemPackages = with pkgs; [
+      cynthion
     ];
     services.udev = {
       packages = [
