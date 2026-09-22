@@ -48,6 +48,8 @@ Build any with `nix build .#<attr>`.
 | `ursh` | day50-dev/ursh, a Go CLI (the `/cli` subtree; `buildGoModule`). |
 | `urchin` | The Python component of day50-dev/ursh (the `/urchin` subtree), built from `pyproject.toml` via pyproject-nix. |
 | `llcat` | day50-dev/llcat v0.13.19, a Python package built via pyproject-nix. |
+| `arduino-flasher-cli` | arduino/arduino-flasher-cli v0.5.3, Arduino's CLI for downloading and flashing Debian images onto UNO Q boards (`buildGoModule`). Upstream's build downloads a prebuilt static qdl from a GitHub release into the tree for a `//go:embed`; here `preBuild` installs the `qdl-arduino` build into that same path instead, so nothing is fetched outside the fixed-output vendor derivation. |
+| `qdl-arduino` | linux-msm/qdl v2.4, the exact revision `arduino-flasher-cli` embeds (upstream ships arduino/qdl-packing `v2.4-26`, which is plain qdl v2.4 plus a `--static` LDFLAGS patch that a store path does not need). Deliberately not nixpkgs' `qdl` 2.7.1: flasher-cli drives qdl with a fixed argv and screen-scrapes its log lines, so the version is pinned to what upstream tests against. v2.4 predates qdl's move to meson, so this is the plain Makefile build. |
 | `nvchad`, `nvchad-ui`, `base46`, `minty`, `volt`, `menu` | The NvChad neovim plugin set: core on the `v2.5` branch, `ui`/`base46` on `v3.0`, plus the nvzone plugins (`volt`, `minty`, `menu`). Revs are hand-pinned. The `nvchad` package replaces NvChad's `nvim-treesitter-legacy` dependency with the new `nvim-treesitter` (which core `d042cc9` requires) and carries small nixpkgs-name patches. See `nix/pkgs/nvchad/NOTES.md`. |
 
 `affine-server` isn't in the table above (it's sourced from the `playground`
@@ -294,6 +296,7 @@ nix/pkgs/                      package definitions (callPackage style)
   nvchad/                      NvChad plugin set + NOTES.md (0.11 -> 0.12 notes)
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
   playground/                  latest-upstream pkgs (workstyle): nvfetcher.toml, _sources/, default.nix
+  arduino-flasher-cli/         arduino-flasher-cli + the pinned qdl v2.4 it embeds
 nix/modules/
   nixos/                       cynthion, realsense, zsa, hyprpolkitagent, tuwunel, affine
                                (+ default.nix importing all)
