@@ -8,17 +8,17 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.8.1";
+    version = "v3.8.2";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.8.1";
+      rev = "v3.8.2";
       fetchSubmodules = false;
-      sha256 = "sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=";
+      sha256 = "sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=";
     };
     extract = {
-      "package-lock.json" = ./. + "/sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=/package-lock.json";
-      "package.json" = ./. + "/sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=/package.json";
+      "package-lock.json" = ./. + "/sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=/package-lock.json";
+      "package.json" = ./. + "/sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=/package.json";
     };
   };
   affine-server = {
@@ -47,10 +47,10 @@
   };
   electron-mail = {
     pname = "electron-mail";
-    version = "5.3.8";
+    version = "5.3.9";
     src = fetchurl {
-      url = "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.8/electron-mail-5.3.8-linux-x86_64.AppImage";
-      sha256 = "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=";
+      url = "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.9/electron-mail-5.3.9-linux-x86_64.AppImage";
+      sha256 = "sha256-hZxcodnfQ4iyLaXE04QgIjOJs+3NJ7Ukckk71DqnRy0=";
     };
   };
   figmaqml = {
@@ -66,26 +66,26 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.0.180";
+    version = "0.0.183";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-SqZIAkVnYquU4dCXzNgg8FxdK4daX29THGnF180hyy8=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-KZhdQE/+V6000CBY5qG1N1fCBr13BzwhcU6lkdGxk14=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.0.180";
+    version = "0.0.183";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-y91nO9uysAdc6UNqAqdCkNVby0QKIYsykBUVn7s6Js0=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-69ivrSw8pn1Zu9LZa72KRceAuUKOeacp/7f68v2RhBE=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.0.180";
+    version = "0.0.183";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-+NZGzePIm0eZCtR96zPMkfB5fJiwgcJ/ssik1W5M5Rg=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-XcvydSBLS4d40fMh9Bojz/a3OLMVk1GQ3e2zL3RAXFc=";
     };
   };
   powertop = {

@@ -3,8 +3,8 @@
         "cargoLock": null,
         "date": null,
         "extract": {
-            "package-lock.json": "sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=/package-lock.json",
-            "package.json": "sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=/package.json"
+            "package-lock.json": "sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=/package-lock.json",
+            "package.json": "sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=/package.json"
         },
         "name": "affine-mcp-server",
         "passthru": null,
@@ -16,12 +16,12 @@
             "name": null,
             "owner": "DAWNCR0W",
             "repo": "affine-mcp-server",
-            "rev": "v3.8.1",
-            "sha256": "sha256-rDZV69uMruuz1SAWWRx9H+Pa8zfaEw79sLfvfahcjpM=",
+            "rev": "v3.8.2",
+            "sha256": "sha256-DySzJuFtWAo00KvNXhAtzbeGlDbE1P10dbfkDlNZ6Rs=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v3.8.1"
+        "version": "v3.8.2"
     },
     "affine-server": {
         "cargoLock": null,
@@ -72,11 +72,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-twqB1D3zLlZJuxQWD4dGF70w57yYv6i3abGBidERsss=",
+            "sha256": "sha256-hZxcodnfQ4iyLaXE04QgIjOJs+3NJ7Ukckk71DqnRy0=",
             "type": "url",
-            "url": "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.8/electron-mail-5.3.8-linux-x86_64.AppImage"
+            "url": "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.9/electron-mail-5.3.9-linux-x86_64.AppImage"
         },
-        "version": "5.3.8"
+        "version": "5.3.9"
     },
     "figmaqml": {
         "cargoLock": null,
@@ -108,11 +108,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-SqZIAkVnYquU4dCXzNgg8FxdK4daX29THGnF180hyy8=",
+            "sha256": "sha256-KZhdQE/+V6000CBY5qG1N1fCBr13BzwhcU6lkdGxk14=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-darwin-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-darwin-arm64.tar.gz"
         },
-        "version": "0.0.180"
+        "version": "0.0.183"
     },
     "freebuff-linux-arm64": {
         "cargoLock": null,
@@ -123,11 +123,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-y91nO9uysAdc6UNqAqdCkNVby0QKIYsykBUVn7s6Js0=",
+            "sha256": "sha256-69ivrSw8pn1Zu9LZa72KRceAuUKOeacp/7f68v2RhBE=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-arm64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-linux-arm64.tar.gz"
         },
-        "version": "0.0.180"
+        "version": "0.0.183"
     },
     "freebuff-linux-x64": {
         "cargoLock": null,
@@ -138,11 +138,11 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-+NZGzePIm0eZCtR96zPMkfB5fJiwgcJ/ssik1W5M5Rg=",
+            "sha256": "sha256-XcvydSBLS4d40fMh9Bojz/a3OLMVk1GQ3e2zL3RAXFc=",
             "type": "url",
-            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.180/freebuff-linux-x64.tar.gz"
+            "url": "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.0.183/freebuff-linux-x64.tar.gz"
         },
-        "version": "0.0.180"
+        "version": "0.0.183"
     },
     "powertop": {
         "cargoLock": null,
