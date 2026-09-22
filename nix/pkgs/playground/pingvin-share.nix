@@ -97,12 +97,10 @@
     ];
     buildInputs = [vips openssl stdenv.cc.cc.lib];
 
-    # npm installs both glibc and musl prebuilt addon variants for argon2
-    # and sharp (argon2 ships prebuilds/linux-x64/argon2.musl.node; sharp's
-    # musl optionalDependencies land too). NixOS uses only the glibc
-    # variants; the musl siblings are dead weight autoPatchelfHook would
-    # otherwise hard-fail on.
-    autoPatchelfIgnoreMissingDeps = ["libc.musl-x86_64.so.1"];
+    # npm installs glibc and musl prebuilt variants (argon2, sharp) for both
+    # x64 and arm64. NixOS uses the glibc ones; ignore the dead musl libc so
+    # autoPatchelfHook does not fail on the unused musl siblings.
+    autoPatchelfIgnoreMissingDeps = ["libc.musl-x86_64.so.1" "libc.musl-aarch64.so.1"];
 
     # argon2 compiles via node-gyp; sharp is rebuilt from source below
     # instead of using its broken prebuilt. Keep install scripts (no
@@ -150,7 +148,7 @@
     # from source here too.
     nativeBuildInputs = [nodejs python3 pkg-config node-gyp autoPatchelfHook];
     buildInputs = [vips];
-    autoPatchelfIgnoreMissingDeps = ["libc.musl-x86_64.so.1"];
+    autoPatchelfIgnoreMissingDeps = ["libc.musl-x86_64.so.1" "libc.musl-aarch64.so.1"];
 
     env.NEXT_TELEMETRY_DISABLED = "1";
 
