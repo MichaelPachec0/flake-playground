@@ -91,6 +91,9 @@
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
     # picr server + picr-ping sidecar, built from source (nix/pkgs/picr).
     picrPkgs = import ./nix/pkgs/picr {inherit pkgs;};
+    # arduino-flasher-cli + the qdl revision it embeds, both built from source
+    # at pinned upstream tags (nix/pkgs/arduino-flasher-cli).
+    arduinoFlasherPkgs = import ./nix/pkgs/arduino-flasher-cli {inherit pkgs;};
     # affine-server pulls+patches a ~1GB OCI image; like windscribe it's kept OUT
     # of the always-built CI aggregates (playground/default checks) but stays
     # buildable on demand and available to the NixOS module. Bumps are still
@@ -120,6 +123,7 @@
         memtimings-linux
         ryzen-monitor-ng
         ;
+      inherit (arduinoFlasherPkgs) arduino-flasher-cli qdl-arduino;
       inherit (nvchadPlugins) nvchad nvchad-ui base46 minty volt menu;
     };
     # Per-module eval checks (enable + evaluate each module). See
@@ -194,6 +198,7 @@
       vimPlugins = customVimPlugins;
       playground = playgroundPkgs;
       picr = picrPkgs;
+      arduino-flasher-cli = arduinoFlasherPkgs;
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
@@ -277,8 +282,9 @@
       picr = import ./nix/modules/nixos/picr inputs;
       projectsend = import ./nix/modules/nixos/projectsend inputs;
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
+      arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
