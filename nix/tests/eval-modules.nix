@@ -131,6 +131,13 @@ in {
     security.acme.defaults.email = "ci@example.com";
   };
 
+  # Also covers the optional group rule, which is the branch that grows the
+  # generated udev file beyond the plain uaccess line.
+  nixos-arduino-flasher-cli = evalNixos "arduino-flasher-cli" {
+    programs.arduino-flasher-cli.enable = true;
+    programs.arduino-flasher-cli.group = "plugdev";
+  };
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }
