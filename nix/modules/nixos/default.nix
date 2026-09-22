@@ -18,5 +18,6 @@ inputs: {
     (import ./picr inputs)
     (import ./projectsend inputs)
     (import ./pingvin-share inputs)
+    (import ./arduino-flasher-cli inputs)
   ];
 }

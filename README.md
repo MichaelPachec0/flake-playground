@@ -183,6 +183,8 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 | `projectsend` | `services.projectsend.enable` | Runs ProjectSend v2 (Laravel client file-sharing) natively: php-fpm + nginx (X-Accel-Redirect download offload) + two queue workers + per-minute scheduler timer, with optional local MariaDB/Redis. Package `packages.<system>.projectsend` is the prebuilt upstream release zip, tracked by nvfetcher. Secrets loaded via systemd LoadCredential. |
 | `pingvin-share` | `services.pingvin-share-x.enable` | Runs pingvin-share-x (self-hosted file sharing, built from source; see `packages.x86_64-linux` above) natively as NestJS backend + Next.js frontend systemd services, SQLite only. Optional nginx vhost splits `/api`. Config declarative (`settings` -> `config.yaml`), secrets spliced in at runtime from LoadCredential. Option namespace is `services.pingvin-share-x`, not `services.pingvin-share` (removed nixpkgs name). `package` defaults to stable; set `pingvin-share-x-beta` for the v2 beta. |
 
+| `arduino-flasher-cli` | `programs.arduino-flasher-cli.enable` | Installs the `arduino-flasher-cli` package and a udev rule tagging the Qualcomm EDL device (`05c6:9008`, an UNO Q held in Emergency Download mode) with `uaccess`, so flashing works without root. `group` additionally grants the device to a group, for flashing over SSH or on a machine with no local seat; `extraUdevRules` covers board variants with other USB IDs. |
+
 `default` imports every module above (from `nix/modules/nixos/default.nix`);
 enable only the ones you want, since each module's config is gated behind its own
 enable option.

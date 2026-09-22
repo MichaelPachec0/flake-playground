@@ -282,8 +282,9 @@
       picr = import ./nix/modules/nixos/picr inputs;
       projectsend = import ./nix/modules/nixos/projectsend inputs;
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
+      arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
