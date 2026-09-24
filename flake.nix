@@ -86,6 +86,12 @@
     # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
     customVimPlugins = import ./nix/pkgs/vimPlugins {inherit pkgs;};
     nvimLoads = import ./nix/tests/nvim-loads.nix {inherit pkgs;};
+    # Fails when the tracked NvChad specs ask for a plugin the hm module lacks.
+    nvchadDeps = import ./nix/tests/nvchad-deps.nix {
+      inherit pkgs;
+      inherit (inputs) home-manager;
+      inherit (self) homeManagerModules;
+    };
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
@@ -207,6 +213,7 @@
     checks.x86_64-linux =
       {
         nvim-loads = nvimLoads;
+        nvchad-deps = nvchadDeps;
         vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
         playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundCiPkgs);
         # Build every first-class package. This is the coverage that was missing:
@@ -223,7 +230,7 @@
           ++ (builtins.attrValues playgroundCiPkgs)
           ++ (builtins.attrValues mainPackages)
           ++ (builtins.attrValues moduleChecks)
-          ++ [nvimLoads]
+          ++ [nvimLoads nvchadDeps]
         );
       }
       // moduleChecks;

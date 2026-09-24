@@ -4,7 +4,7 @@ let
   # Sources are nvfetcher-tracked alongside the custom vim plugins
   # (../vimPlugins/nvfetcher.toml), each tracking NvChad's stable branch: core
   # v2.5, ui + base46 v3.0, nvzone main. The daily bump only lands if the full
-  # check set (incl. nvim-loads) passes. version is the commit
+  # check set (incl. nvim-loads and nvchad-deps) passes. version is the commit
   # date, prefixed with the branch for the NvChad repos.
   sources = callPackage ../vimPlugins/_sources/generated.nix { };
 in rec {
@@ -62,7 +62,8 @@ in rec {
     # nixpkgs' default nvim-treesitter-legacy dependency. Hardcode the dep list
     # (mirrors nixpkgs' nvchad deps with legacy -> nvim-treesitter) so the
     # deprecated legacy plugin is never referenced. Update if nixpkgs changes
-    # nvchad's deps. Grammars are supplied by the module's lazyPlugins.
+    # nvchad's deps. Grammars are supplied by the module's lazyPlugins. The
+    # nvchad-deps check catches a core bump that asks for a plugin we lack.
     dependencies = (with vimPlugins; [
       gitsigns-nvim
       luasnip

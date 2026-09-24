@@ -151,6 +151,10 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
   ships, and every custom plugin) and `pcall(require)`s the framework modules.
   This catches breakage that only appears when the set is loaded together:
   startup-script errors, removed APIs after a source bump, version conflicts.
+- `nvchad-deps` - reads the packaged NvChad core's lazy spec
+  (`lua/nvchad/plugins/init.lua`) and fails if any plugin it names is missing
+  from the nvchad home-manager module's lazy.nvim packdir (which would make
+  lazy.nvim try to download it at runtime). Eval-only on the module side.
 - `nixos-cynthion`, `nixos-realsense`, `nixos-zsa`, `nixos-hyprpolkitagent`,
   `nixos-tuwunel`, `nixos-affine` - *evaluate* the resulting NixOS system with
   each module enabled. These catch option-name typos, missing references, and
@@ -269,8 +273,9 @@ comprehensive CI gate, see [CI](#ci) below):
 
 The NvChad set (`nix/pkgs/nvchad`) rides the same `update.yml` bump: its sources
 live in `nix/pkgs/vimPlugins/nvfetcher.toml`, each on NvChad's stable
-branch (core `v2.5`, `ui`/`base46` `v3.0`, nvzone `main`). `nvim-loads` blocks a
-bump that no longer boots.
+branch (core `v2.5`, `ui`/`base46` `v3.0`, nvzone `main`). The `nvchad-deps`
+check blocks a bump whose core asks for a plugin the home-manager module does not
+ship; `nvim-loads` blocks one that no longer boots.
 
 ## CI
 
@@ -306,6 +311,7 @@ nix/modules/
                                (+ default.nix importing all)
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
+nix/tests/nvchad-deps.nix     NvChad core spec vs. module packdir dependency gate
 .github/workflows/            CI: ci.yml, update.yml, update-playground.yml, update-flake-lock.yml
 .github/actions/nix-checks/   composite action: runs nix-fast-build over checks
 ```

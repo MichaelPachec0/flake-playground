@@ -29,6 +29,9 @@ The daily `update.yml` re-runs nvfetcher and only commits when
 - each plugin's `nvim-require-check` (build time);
 - the `nvchad` `postPatch` uses `--replace-fail`, so an upstream spec rename
   fails the build;
+- `nvchad-deps` (`nix/tests/nvchad-deps.nix`): every plugin core's lazy spec
+  names must be in the module's `lazyPlugins` closure, else lazy.nvim would try
+  to clone it at runtime (fix: add it to the module's default `lazyPlugins`);
 - `nvim-loads`: the whole set boots headless.
 
 To see current revs: `jq 'with_entries(select(.key|test("^(nvchad|nvchadUi|base46|volt|minty|menu)$"))) | map_values(.version)' ../vimPlugins/_sources/generated.json`.
