@@ -12,7 +12,7 @@
   nvchad = pkgs.callPackage ../../../pkgs/nvchad {};
 
   # Grammar parsers for the rtp:append hack below. The NEW main-branch
-  # nvim-treesitter - NvChad core d042cc9 uses its .install/.setup API, and the
+  # nvim-treesitter - NvChad core v2.5 uses its .install/.setup API, and the
   # nvchad package swaps its legacy dep for this one.
   treesitterDeps = pkgs.symlinkJoin {
     name = "treesitter-dependencies";
@@ -71,12 +71,12 @@ in {
           # NvChad's default config uses these
           better-escape-nvim
           conform-nvim
-          # NEW nvim-treesitter (NvChad core d042cc9 calls its .install/.setup
+          # NEW nvim-treesitter (NvChad core v2.5 calls its .install/.setup
           # API). The nvchad package swaps its legacy dep for this, so there is
           # no "two versions of nvim-treesitter" packDir clash.
           nvim-treesitter.withAllGrammars
         ])
-        # base46, nvchad-ui, nvchad, minty, volt, menu - our pinned set.
+        # base46, nvchad-ui, nvchad, minty, volt, menu - our stable-tracked set.
         ++ nvchad.all;
       defaultText = literalExpression "<NvChad plugin set>";
       description = ''

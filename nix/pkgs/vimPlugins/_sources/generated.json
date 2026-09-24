@@ -1,4 +1,25 @@
 {
+    "base46": {
+        "cargoLock": null,
+        "date": "2026-09-18",
+        "extract": null,
+        "name": "base46",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "NvChad",
+            "repo": "base46",
+            "rev": "91b29a33670e77b3705001804670511a17c0c1dc",
+            "sha256": "sha256-d3jSfJU0KS0MG0sm6aYJlqRxajwe3rMWlffufrGj1IE=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "91b29a33670e77b3705001804670511a17c0c1dc"
+    },
     "blockNvim": {
         "cargoLock": null,
         "date": "2023-10-10",
@@ -219,6 +240,27 @@
         },
         "version": "b81215fdb138e4f345c82464996e46c0649fc962"
     },
+    "menu": {
+        "cargoLock": null,
+        "date": "2025-06-01",
+        "extract": null,
+        "name": "menu",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "nvzone",
+            "repo": "menu",
+            "rev": "7a0a4a2896b715c066cfbe320bdc048091874cc6",
+            "sha256": "sha256-4GfQ6Mo32rsoQAXKZF9Bpnm/sms2hfbrTldpLp5ySoY=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "7a0a4a2896b715c066cfbe320bdc048091874cc6"
+    },
     "miniMove": {
         "cargoLock": null,
         "date": "2026-07-07",
@@ -238,6 +280,27 @@
             "url": "https://github.com/echasnovski/mini.move"
         },
         "version": "48fcaac289a19b8eff2fd5fe203267d478a8abdc"
+    },
+    "minty": {
+        "cargoLock": null,
+        "date": "2025-02-28",
+        "extract": null,
+        "name": "minty",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "nvzone",
+            "repo": "minty",
+            "rev": "aafc9e8e0afe6bf57580858a2849578d8d8db9e0",
+            "sha256": "sha256-jdz0cR1uz1EdxFCuxndsK9gyTZ2jg8wdYA0v33SevOg=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "aafc9e8e0afe6bf57580858a2849578d8d8db9e0"
     },
     "neoai": {
         "cargoLock": null,
@@ -318,6 +381,48 @@
             "url": "https://github.com/nvimtools/none-ls-extras.nvim"
         },
         "version": "9a8b8a9aeb43382e5aaf49b00b7cfb5d42d32118"
+    },
+    "nvchad": {
+        "cargoLock": null,
+        "date": "2026-07-03",
+        "extract": null,
+        "name": "nvchad",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "NvChad",
+            "repo": "NvChad",
+            "rev": "add44b952d631981614bbb8cfc6f7002f296dfe6",
+            "sha256": "sha256-EuP+/HWJgqwG5LR2rNvtq7mhFkUDs0oyeG6xbbPogC4=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "add44b952d631981614bbb8cfc6f7002f296dfe6"
+    },
+    "nvchadUi": {
+        "cargoLock": null,
+        "date": "2026-08-31",
+        "extract": null,
+        "name": "nvchadUi",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "NvChad",
+            "repo": "ui",
+            "rev": "6ced1135d2d1f87ae01fe0995977372eef42cd03",
+            "sha256": "sha256-9i4j/4M+B2foHpoVICjaSIh4mg4nzsfGJO4mOHi5e6g=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "6ced1135d2d1f87ae01fe0995977372eef42cd03"
     },
     "nvimDapReplHighlights": {
         "cargoLock": null,
@@ -558,6 +663,27 @@
             "url": "https://github.com/lukas-reineke/virt-column.nvim"
         },
         "version": "b87e3e0864211a32724a2ebf3be37e24e9e2fa99"
+    },
+    "volt": {
+        "cargoLock": null,
+        "date": "2025-09-13",
+        "extract": null,
+        "name": "volt",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "nvzone",
+            "repo": "volt",
+            "rev": "620de1321f275ec9d80028c68d1b88b409c0c8b1",
+            "sha256": "sha256-5Xao1+QXZOvqwCXL6zWpckJPO1LDb8I7wtikMRFQ3Jk=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "620de1321f275ec9d80028c68d1b88b409c0c8b1"
     },
     "wtfNvim": {
         "cargoLock": null,

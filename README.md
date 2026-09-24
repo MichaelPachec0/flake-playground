@@ -20,9 +20,10 @@ The only intended difference between the branches is the `nixpkgs.url` line in
 `stable`, keeping the pin as the sole divergence.
 
 The split matters because neovim 0.12 moved treesitter into core and removed Lua
-APIs that 0.11 still provides. The packaged NvChad set is pinned to revisions
-that build and run on 0.12; see `nix/pkgs/nvchad/NOTES.md` for the full 0.11 ->
-0.12 story and the pinning rationale.
+APIs that 0.11 still provides. The packaged NvChad set tracks NvChad's stable
+branches and is gated on building and booting on 0.12; see
+`nix/pkgs/nvchad/NOTES.md` for the full 0.11 -> 0.12 story and the tracking
+rationale.
 
 ## Inputs
 
@@ -50,7 +51,7 @@ Build any with `nix build .#<attr>`.
 | `llcat` | day50-dev/llcat v0.13.19, a Python package built via pyproject-nix. |
 | `arduino-flasher-cli` | arduino/arduino-flasher-cli v0.5.3, Arduino's CLI for downloading and flashing Debian images onto UNO Q boards (`buildGoModule`). Upstream's build downloads a prebuilt static qdl from a GitHub release into the tree for a `//go:embed`; here `preBuild` installs the `qdl-arduino` build into that same path instead, so nothing is fetched outside the fixed-output vendor derivation. |
 | `qdl-arduino` | linux-msm/qdl v2.4, the exact revision `arduino-flasher-cli` embeds (upstream ships arduino/qdl-packing `v2.4-26`, which is plain qdl v2.4 plus a `--static` LDFLAGS patch that a store path does not need). Deliberately not nixpkgs' `qdl` 2.7.1: flasher-cli drives qdl with a fixed argv and screen-scrapes its log lines, so the version is pinned to what upstream tests against. v2.4 predates qdl's move to meson, so this is the plain Makefile build. |
-| `nvchad`, `nvchad-ui`, `base46`, `minty`, `volt`, `menu` | The NvChad neovim plugin set: core on the `v2.5` branch, `ui`/`base46` on `v3.0`, plus the nvzone plugins (`volt`, `minty`, `menu`). Revs are hand-pinned. The `nvchad` package replaces NvChad's `nvim-treesitter-legacy` dependency with the new `nvim-treesitter` (which core `d042cc9` requires) and carries small nixpkgs-name patches. See `nix/pkgs/nvchad/NOTES.md`. |
+| `nvchad`, `nvchad-ui`, `base46`, `minty`, `volt`, `menu` | The NvChad neovim plugin set: core on the `v2.5` branch, `ui`/`base46` on `v3.0`, plus the nvzone plugins (`volt`, `minty`, `menu`). Each tracks its stable branch via nvfetcher (bumped daily, gated on the checks). The `nvchad` package replaces NvChad's `nvim-treesitter-legacy` dependency with the new `nvim-treesitter` (which core v2.5 requires) and carries small nixpkgs-name patches. See `nix/pkgs/nvchad/NOTES.md`. |
 
 `affine-server` isn't in the table above (it's sourced from the `playground`
 set, see below) but is exposed directly at `packages.x86_64-linux.affine-server`
@@ -266,9 +267,10 @@ comprehensive CI gate, see [CI](#ci) below):
 - `.github/workflows/update-flake-lock.yml` - weekly, runs `nix flake update`,
   builds the checks, and commits `flake.lock` only if it passes.
 
-The NvChad set (`nix/pkgs/nvchad`) is deliberately not nvfetcher-tracked: its
-revs are hand-pinned for the v2.5-core / v3.0-ui compatibility documented in
-`nix/pkgs/nvchad/NOTES.md`.
+The NvChad set (`nix/pkgs/nvchad`) rides the same `update.yml` bump: its sources
+live in `nix/pkgs/vimPlugins/nvfetcher.toml`, each on NvChad's stable
+branch (core `v2.5`, `ui`/`base46` `v3.0`, nvzone `main`). `nvim-loads` blocks a
+bump that no longer boots.
 
 ## CI
 
@@ -295,7 +297,7 @@ nix/pkgs/                      package definitions (callPackage style)
   linux-show-player.nix
   cynthion/  memtimings-linux/  ryzen-monitor-ng/
   ursh/                        ursh (Go), urchin + llcat (Python via pyproject-nix)
-  nvchad/                      NvChad plugin set + NOTES.md (0.11 -> 0.12 notes)
+  nvchad/                      NvChad plugin set (sources in vimPlugins/_sources) + NOTES.md
   vimPlugins/                  custom plugins: nvfetcher.toml, _sources/, default.nix
   playground/                  latest-upstream pkgs (workstyle): nvfetcher.toml, _sources/, default.nix
   arduino-flasher-cli/         arduino-flasher-cli + the pinned qdl v2.4 it embeds
