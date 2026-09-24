@@ -92,6 +92,13 @@
       inherit (inputs) home-manager;
       inherit (self) homeManagerModules;
     };
+    # Boots lazy.nvim on the module's packdir with each programs.nvchad.completion
+    # value and asserts nvim-cmp / blink.cmp is the one resolved and loadable.
+    nvchadCompletion = import ./nix/tests/nvchad-completion.nix {
+      inherit pkgs;
+      inherit (inputs) home-manager;
+      inherit (self) homeManagerModules;
+    };
     # third-party packages tracked at latest upstream via nvfetcher
     # (nix/pkgs/playground) -- exposed under the `playground` attrset.
     playgroundPkgs = import ./nix/pkgs/playground {inherit pkgs;};
@@ -214,6 +221,7 @@
       {
         nvim-loads = nvimLoads;
         nvchad-deps = nvchadDeps;
+        nvchad-completion = nvchadCompletion;
         vimplugins = pkgs.linkFarmFromDrvs "vimplugins" (builtins.attrValues customVimPlugins);
         playground = pkgs.linkFarmFromDrvs "playground" (builtins.attrValues playgroundCiPkgs);
         # Build every first-class package. This is the coverage that was missing:
@@ -230,7 +238,7 @@
           ++ (builtins.attrValues playgroundCiPkgs)
           ++ (builtins.attrValues mainPackages)
           ++ (builtins.attrValues moduleChecks)
-          ++ [nvimLoads nvchadDeps]
+          ++ [nvimLoads nvchadDeps nvchadCompletion]
         );
       }
       // moduleChecks;

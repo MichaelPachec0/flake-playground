@@ -29,11 +29,26 @@ The daily `update.yml` re-runs nvfetcher and only commits when
 - each plugin's `nvim-require-check` (build time);
 - the `nvchad` `postPatch` uses `--replace-fail`, so an upstream spec rename
   fails the build;
-- `nvchad-deps` (`nix/tests/nvchad-deps.nix`): every plugin core's lazy spec
-  names must be in the module's `lazyPlugins` closure, else lazy.nvim would try
-  to clone it at runtime (fix: add it to the module's default `lazyPlugins`);
-  also fails on two different plugins sharing a packdir name;
+- `nvchad-deps` (`nix/tests/nvchad-deps.nix`): every plugin named by core's
+  lazy spec and ui's blink spec must be in the module's `lazyPlugins` closure,
+  else lazy.nvim would try to clone it at runtime (fix: add it to the module's
+  default `lazyPlugins`); also fails on two different plugins sharing a
+  packdir name;
+- `nvchad-completion` (`nix/tests/nvchad-completion.nix`): lazy.nvim, run on
+  the module's real packdir, resolves nvim-cmp or blink.cmp per the switch;
 - `nvim-loads`: the whole set boots headless.
+
+## Completion switch (nvim-cmp / blink.cmp)
+
+NvChad ui ships an opt-in `lua/nvchad/blink/lazyspec.lua` (disables nvim-cmp,
+adds blink.cmp + LuaSnip + friendly-snippets + autopairs) and
+`nvchad.blink.config`; base46 ships the `blink` highlight integration. The
+`nvchad` package adds `lua/nvchad/plugins/nix-completion.lua`, an `import` of
+that spec gated on `vim.g.nvchad_completion == "blink-cmp"`. lazy's
+`import = "nvchad.plugins"` loads every module in that directory, so the
+starter needs no edit. The home-manager option `programs.nvchad.completion`
+sets the global; a non-nix config can set it directly. blink.cmp from nixpkgs
+ships its Rust fuzzy library, so `fuzzy = "prefer_rust"` works offline.
 
 ## Dependency hygiene
 
@@ -63,8 +78,11 @@ Key decisions:
 ## Patches
 
 - **`nvchad` `postPatch`** - renames `"L3MON4D3/LuaSnip"` -> `"L3MON4D3/luasnip"`
-  and names the `"nvchad/ui"` lazy spec `nvchad-ui` (nixpkgs plugin names).
-- **`nvchad-ui`: no patch.** v3.0 resolves the base46 themes directory
+  and names the `"nvchad/ui"` lazy spec `nvchad-ui` (nixpkgs plugin names);
+  also writes `lua/nvchad/plugins/nix-completion.lua` (see the completion
+  switch above).
+- **`nvchad-ui` `postPatch`** - the same `LuaSnip` rename in the blink lazyspec.
+  No theme-path patch: v3.0 resolves the base46 themes directory
   dynamically (`debug.getinfo` on the loaded `base46` module), so it finds our
   packDir copy with no path patch. (The old `ui.patch` / `substituteInPlace`
   that hardcoded lazy.nvim's `data` path is gone as of the v3.0 bump.)

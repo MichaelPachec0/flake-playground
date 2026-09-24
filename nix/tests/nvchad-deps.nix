@@ -1,12 +1,13 @@
 # Dependency-drift gate for the nvfetcher-tracked NvChad set: every plugin that
-# the packaged core's lazy spec (lua/nvchad/plugins/init.lua) asks for must be
-# present in the home-manager module's lazy.nvim local packdir. lazy.nvim looks
-# a local plugin up by its spec name (`name = ...`, else the repo basename minus
-# `.git`), and vimUtils.packDir links each plugin as `lib.getName drv`, so the
-# check compares those two name sets. A core bump that adds a plugin we do not
-# ship fails here, and the daily updater does not commit it. It also fails on
-# two different plugins sharing a name: packDir would link only one of them
-# (e.g. nixpkgs' nvchad-ui leaking in through an inherited dependency list).
+# the packaged lazy specs ask for (core's lua/nvchad/plugins/init.lua and ui's
+# opt-in lua/nvchad/blink/lazyspec.lua) must be present in the home-manager
+# module's lazy.nvim local packdir. lazy.nvim looks a local plugin up by its
+# spec name (`name = ...`, else the repo basename minus `.git`), and
+# vimUtils.packDir links each plugin as `lib.getName drv`, so the check
+# compares those two name sets. A core bump that adds a plugin we do not ship
+# fails here, and the daily updater does not commit it. It also fails on two
+# different plugins sharing a name: packDir would link only one of them (e.g.
+# nixpkgs' nvchad-ui leaking in through an inherited dependency list).
 #
 # Eval-only on the module side: lazyPlugins and its dependency closure are only
 # walked for names, nothing in it is built (withAllGrammars stays unbuilt).
@@ -32,6 +33,8 @@
   set = pkgs.callPackage ../pkgs/nvchad {};
   specFiles = [
     "${set.nvchad}/lua/nvchad/plugins/init.lua"
+    "${set.nvchad-ui}/lua/nvchad/blink/lazyspec.lua"
+    "${set.nvchad}/lua/nvchad/plugins/nix-completion.lua"
   ];
 
   # Same closure vimUtils.packDir links into pack/lazyPlugins/start.

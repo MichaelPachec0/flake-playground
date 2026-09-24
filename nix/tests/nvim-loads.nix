@@ -47,6 +47,7 @@
       nvim-autopairs
       comment-nvim
       # opt-in alternatives the nvchad module also ships
+      blink-cmp
       neo-tree-nvim
       plenary-nvim
       nui-nvim
@@ -65,6 +66,7 @@
     "gitsigns"
     "nvim-autopairs"
     "Comment"
+    "blink.cmp"
     "neo-tree"
     "nvim-treesitter"
     "plenary"

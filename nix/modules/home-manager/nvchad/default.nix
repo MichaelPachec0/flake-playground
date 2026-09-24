@@ -48,6 +48,9 @@ in {
       type = with types; listOf package;
       default =
         (with pkgs.vimPlugins; [
+          # nvim-cmp replacement, picked with `completion = "blink-cmp"`. Ships
+          # its prebuilt Rust fuzzy matcher, so nothing is downloaded.
+          blink-cmp
           cmp-async-path
           cmp-buffer
           cmp-nvim-lsp
@@ -89,6 +92,20 @@ in {
         Neovim plugins required by NvChad, made available to lazy.nvim's local
         plugins search path (~/.config/nvim/lazyPlugins/pack/lazyPlugins/start).
         Normally you don't need to change this option.
+      '';
+    };
+
+    completion = mkOption {
+      type = types.enum ["nvim-cmp" "blink-cmp"];
+      default = "nvim-cmp";
+      example = "blink-cmp";
+      description = ''
+        Completion engine. "nvim-cmp" is NvChad's default. "blink-cmp" pulls in
+        NvChad ui's blink.cmp spec (nvchad.blink.lazyspec), which disables
+        nvim-cmp and configures blink with NvChad's menu and highlights. Works
+        through the `import = "nvchad.plugins"` in your starter; no change to
+        your plugin specs is needed. Sets vim.g.nvchad_completion early in
+        init.lua, so a non-nix config can set that global itself.
       '';
     };
 
@@ -170,6 +187,8 @@ in {
         ''
           -- HACK: remove the default nvim parsers, they clash with treesitter.
           vim.opt.rtp:remove("${cfg.package}/lib/nvim")
+          -- programs.nvchad.completion; read by nvchad.plugins.nix-completion.
+          vim.g.nvchad_completion = "${cfg.completion}"
         ''
         cfg.extraEarlyConfig
         cfg.extraConfig

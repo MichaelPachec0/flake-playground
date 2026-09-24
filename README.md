@@ -151,11 +151,14 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
   ships, and every custom plugin) and `pcall(require)`s the framework modules.
   This catches breakage that only appears when the set is loaded together:
   startup-script errors, removed APIs after a source bump, version conflicts.
-- `nvchad-deps` - reads the packaged NvChad core's lazy spec
-  (`lua/nvchad/plugins/init.lua`) and fails if any plugin it names is missing
-  from the nvchad home-manager module's lazy.nvim packdir (which would make
-  lazy.nvim try to download it at runtime), or if two different plugins share
-  a packdir name. Eval-only on the module side.
+- `nvchad-deps` - reads the packaged NvChad lazy specs (core's
+  `lua/nvchad/plugins/init.lua` and ui's opt-in blink spec) and fails if any
+  plugin they name is missing from the nvchad home-manager module's lazy.nvim
+  packdir (which would make lazy.nvim try to download it at runtime), or if two
+  different plugins share a packdir name. Eval-only on the module side.
+- `nvchad-completion` - boots lazy.nvim headless on the module's packdir with
+  each `programs.nvchad.completion` value and asserts the right engine is
+  resolved and loads, and that no resolved plugin is missing from the packdir.
 - `nixos-cynthion`, `nixos-realsense`, `nixos-zsa`, `nixos-hyprpolkitagent`,
   `nixos-tuwunel`, `nixos-affine` - *evaluate* the resulting NixOS system with
   each module enabled. These catch option-name typos, missing references, and
@@ -225,9 +228,13 @@ VM integration test, and ARM64.
   packdir at `~/.config/nvim/lazyPlugins`. Options:
   - `enable`
   - `package` - the (unwrapped) neovim to install
+  - `completion` - `"nvim-cmp"` (default) or `"blink-cmp"`. `blink-cmp` pulls in
+    NvChad ui's own blink.cmp spec (`nvchad.blink.lazyspec`), which disables
+    nvim-cmp; it rides your starter's `import = "nvchad.plugins"`, so no plugin
+    spec edits are needed
   - `lazyPlugins` - the default plugin list (the NvChad set plus the runtime
-    plugins it needs, including neo-tree.nvim as a ready-to-use alternative
-    to nvim-tree); normally left untouched
+    plugins it needs, including blink.cmp and neo-tree.nvim as ready-to-use
+    alternatives to nvim-cmp and nvim-tree); normally left untouched
   - `extraEarlyPlugins` - extra non-lazy plugins (loaded at startup)
   - `extraLazyPlugins` - extra plugins added to the lazy.nvim local search path
   - `extraEarlyConfig` / `extraConfig` - Lua placed early / later in the
@@ -314,6 +321,7 @@ nix/modules/
   home-manager/                nvchad, cspell; default.nix imports both
 nix/tests/nvim-loads.nix      headless-nvim integration smoke test
 nix/tests/nvchad-deps.nix     NvChad core spec vs. module packdir dependency gate
+nix/tests/nvchad-completion.nix  nvim-cmp / blink.cmp switch, booted through lazy.nvim
 .github/workflows/            CI: ci.yml, update.yml, update-playground.yml, update-flake-lock.yml
 .github/actions/nix-checks/   composite action: runs nix-fast-build over checks
 ```

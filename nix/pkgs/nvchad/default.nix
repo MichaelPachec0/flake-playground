@@ -62,6 +62,13 @@ in rec {
     inherit (sources.nvchadUi) src;
     # Our tracked volt, not nixpkgs' nvzone-volt (same packdir name).
     dependencies = [ volt ];
+    # ui ships an opt-in blink.cmp spec (`{ import = "nvchad.blink.lazyspec" }`
+    # replaces nvim-cmp); give its LuaSnip the nixpkgs plugin name, as the core
+    # postPatch does.
+    postPatch = (old.postPatch or "") + ''
+      substituteInPlace lua/nvchad/blink/lazyspec.lua \
+        --replace-fail '"L3MON4D3/LuaSnip"' '"L3MON4D3/luasnip"'
+    '';
   });
 
   nvchad = vimPlugins.nvchad.overrideAttrs (old: {
@@ -86,7 +93,21 @@ in rec {
     # nix-specific plugin-name fixes (nixpkgs ships these as `luasnip` and
     # `nvchad-ui`). --replace-fail makes a bump that moves these specs fail
     # the build instead of silently shipping unresolvable names.
+    # nix-completion.lua is the switch behind programs.nvchad.completion: lazy's
+    # `import = "nvchad.plugins"` loads every module in that directory, so this
+    # file pulls in ui's blink.cmp spec (which disables nvim-cmp) whenever
+    # vim.g.nvchad_completion == "blink-cmp", with no change to the starter.
     postPatch = ''
+      cat > lua/nvchad/plugins/nix-completion.lua <<'EOF'
+      return {
+        {
+          import = "nvchad.blink.lazyspec",
+          enabled = function()
+            return vim.g.nvchad_completion == "blink-cmp"
+          end,
+        },
+      }
+      EOF
       substituteInPlace lua/nvchad/plugins/init.lua \
         --replace-fail '"L3MON4D3/LuaSnip"' '"L3MON4D3/luasnip"' \
         --replace-fail '"nvchad/ui",' '"nvchad/ui", name = "nvchad-ui",'
