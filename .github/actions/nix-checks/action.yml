@@ -1,11 +1,26 @@
 name: "Nix flake checks"
-description: "Set up Nix, optionally regenerate inputs, then build every flake check in parallel with nix-fast-build."
+description: "Set up Nix, optionally regenerate inputs, then build a set of flake checks in parallel with nix-fast-build."
 
 inputs:
   pre-build-command:
     description: "Optional shell command run after Nix is set up but before the checks build (e.g. nvfetcher or `nix flake update`). The cron bump workflows use this."
     required: false
     default: ""
+  flake-attr:
+    description: >-
+      Flake attribute (an attrset of derivations) handed to nix-fast-build.
+      Defaults to the merge gate, which is every check except the heavy VM
+      tests; CI builds those in a parallel job via
+      .#legacyPackages.x86_64-linux.ci.vm. See `ci` in flake.nix.
+    required: false
+    default: ".#legacyPackages.x86_64-linux.ci.gate"
+  cache-key-prefix:
+    description: >-
+      Prefix for the nix store cache keys. Jobs that build different closures
+      in parallel need distinct prefixes, or they would race to save (and purge)
+      the same cache entry.
+    required: false
+    default: "nix"
 
 runs:
   using: composite
@@ -85,11 +100,11 @@ runs:
     - name: Cache nix store
       uses: nix-community/cache-nix-action@v7
       with:
-        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-
+        primary-key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+        restore-prefixes-first-match: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
         gc-max-store-size-linux: 5G
         purge: true
-        purge-prefixes: nix-${{ runner.os }}-
+        purge-prefixes: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
         purge-created: 0
         purge-primary-key: never
 
@@ -151,6 +166,7 @@ runs:
       shell: bash
       env:
         NIXPKGS_ALLOW_UNFREE: "1"
+        FLAKE_ATTR: ${{ inputs.flake-attr }}
       run: |
         # In-flight resource sampler. A postmortem `free -h` says nothing after an
         # OOM kill -- the memory is free again by the time the step fails -- so
@@ -207,7 +223,7 @@ runs:
         # claiming a job again.
         status=0
         nix run nixpkgs#nix-fast-build -- \
-          --flake ".#checks.x86_64-linux" \
+          --flake "$FLAKE_ATTR" \
           --skip-cached \
           --retries 1 \
           --no-nom \

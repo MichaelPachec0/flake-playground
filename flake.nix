@@ -150,6 +150,13 @@
     # NOT in the merge gate.
     #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
     pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
+    # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
+    # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
+    # reach them), but the CI split below keeps them out of the merge gate.
+    vmChecks = {
+      picr-vm = picrVmTest;
+      pingvin-share-vm = pingvinShareVmTest;
+    };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -199,6 +206,17 @@
       playground = playgroundPkgs;
       picr = picrPkgs;
       arduino-flasher-cli = arduinoFlasherPkgs;
+      # What CI builds, split so the jobs run in parallel (.github/workflows/ci.yml,
+      # via the nix-checks action's flake-attr input):
+      #   ci.gate - every check except the VM tests: the merge gate, and what the
+      #             daily bump workflows gate their commits on.
+      #   ci.vm   - the VM tests, built by a separate CI job with its own timeout.
+      # nix-fast-build over all of checks.x86_64-linux used to build the VM tests
+      # inside the gate, which pushed CI past its 30-minute timeout.
+      ci = {
+        gate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+        vm = vmChecks;
+      };
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
