@@ -160,17 +160,17 @@
   };
   kittyScrollback = {
     pname = "kittyScrollback";
-    version = "b81215fdb138e4f345c82464996e46c0649fc962";
+    version = "4994c85e0f291598d0748488653c83cb698fd281";
     src = fetchgit {
       url = "https://github.com/mikesmithgh/kitty-scrollback.nvim";
-      rev = "b81215fdb138e4f345c82464996e46c0649fc962";
+      rev = "4994c85e0f291598d0748488653c83cb698fd281";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-jksebCpuEGtIfuhfUqxrGjRKsqdvsMaz/6mgBIHnSgw=";
+      sha256 = "sha256-d3QGc4243XrzRpVgj0D137+x/r8VzjYdDJrElp/yv4I=";
     };
-    date = "2026-09-22";
+    date = "2026-09-23";
   };
   menu = {
     pname = "menu";
