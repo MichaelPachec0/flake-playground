@@ -43,15 +43,21 @@ in rec {
   base46 = vimPlugins.base46.overrideAttrs (old: {
     version = "3.0-unstable-${sources.base46.date}";
     inherit (sources.base46) src;
+    # nixpkgs' base46 depends on nixpkgs' nvchad-ui; point it at ours so the
+    # closure holds one stable-tracked nvchad-ui (two same-named plugins would
+    # collide in the packdir).
+    dependencies = [ nvchad-ui ];
   });
 
   # ui v3.0 resolves the base46 themes path dynamically
   # (debug.getinfo on the loaded base46 module), so it needs no theme-path
   # patch, and the base derivation's nvimSkipModules already covers its
-  # nvconfig-only modules - hence a minimal override.
+  # nvconfig-only modules.
   nvchad-ui = vimPlugins.nvchad-ui.overrideAttrs (old: {
     version = "3.0-unstable-${sources.nvchadUi.date}";
     inherit (sources.nvchadUi) src;
+    # Our tracked volt, not nixpkgs' nvzone-volt (same packdir name).
+    dependencies = [ volt ];
   });
 
   nvchad = vimPlugins.nvchad.overrideAttrs (old: {

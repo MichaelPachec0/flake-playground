@@ -154,7 +154,8 @@ Build one with `nix build .#legacyPackages.x86_64-linux.playground.<name>`.
 - `nvchad-deps` - reads the packaged NvChad core's lazy spec
   (`lua/nvchad/plugins/init.lua`) and fails if any plugin it names is missing
   from the nvchad home-manager module's lazy.nvim packdir (which would make
-  lazy.nvim try to download it at runtime). Eval-only on the module side.
+  lazy.nvim try to download it at runtime), or if two different plugins share
+  a packdir name. Eval-only on the module side.
 - `nixos-cynthion`, `nixos-realsense`, `nixos-zsa`, `nixos-hyprpolkitagent`,
   `nixos-tuwunel`, `nixos-affine` - *evaluate* the resulting NixOS system with
   each module enabled. These catch option-name typos, missing references, and

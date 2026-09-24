@@ -4,7 +4,9 @@
 # a local plugin up by its spec name (`name = ...`, else the repo basename minus
 # `.git`), and vimUtils.packDir links each plugin as `lib.getName drv`, so the
 # check compares those two name sets. A core bump that adds a plugin we do not
-# ship fails here, and the daily updater does not commit it.
+# ship fails here, and the daily updater does not commit it. It also fails on
+# two different plugins sharing a name: packDir would link only one of them
+# (e.g. nixpkgs' nvchad-ui leaking in through an inherited dependency list).
 #
 # Eval-only on the module side: lazyPlugins and its dependency closure are only
 # walked for names, nothing in it is built (withAllGrammars stays unbuilt).
@@ -34,7 +36,9 @@
 
   # Same closure vimUtils.packDir links into pack/lazyPlugins/start.
   closure = p: [p] ++ lib.concatMap closure (p.dependencies or []);
-  shipped = lib.unique (map lib.getName (lib.concatMap closure cfg.lazyPlugins));
+  plugins = lib.unique (lib.concatMap closure cfg.lazyPlugins);
+  shipped = lib.unique (map lib.getName plugins);
+  clashes = lib.filter (n: lib.count (p: lib.getName p == n) plugins > 1) shipped;
   shippedFile = pkgs.writeText "nvchad-shipped-plugins" (lib.concatLines shipped);
 
   # Walks the spec table (strings, spec tables, nested `dependencies`) and
@@ -75,6 +79,10 @@
   '';
 in
   pkgs.runCommand "nvchad-deps" {nativeBuildInputs = [pkgs.luajit];} ''
+    ${lib.optionalString (clashes != []) ''
+      echo "nvchad-deps: FAIL, several different plugins share a packdir name: ${toString clashes}" >&2
+      exit 1
+    ''}
     luajit ${specNames} ${lib.escapeShellArgs specFiles} | sort -u > wanted
     sort -u ${shippedFile} > shipped
     echo "NvChad specs ask for: $(tr '\n' ' ' < wanted)"

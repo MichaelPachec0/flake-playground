@@ -32,7 +32,15 @@ The daily `update.yml` re-runs nvfetcher and only commits when
 - `nvchad-deps` (`nix/tests/nvchad-deps.nix`): every plugin core's lazy spec
   names must be in the module's `lazyPlugins` closure, else lazy.nvim would try
   to clone it at runtime (fix: add it to the module's default `lazyPlugins`);
+  also fails on two different plugins sharing a packdir name;
 - `nvim-loads`: the whole set boots headless.
+
+## Dependency hygiene
+
+The `nvchad-ui` and `base46` overrides set `dependencies` explicitly: the
+nixpkgs derivations point at nixpkgs' own `nvzone-volt` / `nvchad-ui`, which
+would put a second, non-tracked copy of those plugins in the closure under
+the same packdir name. `nvchad-deps` fails on any such name clash.
 
 To see current revs: `jq 'with_entries(select(.key|test("^(nvchad|nvchadUi|base46|volt|minty|menu)$"))) | map_values(.version)' ../vimPlugins/_sources/generated.json`.
 
