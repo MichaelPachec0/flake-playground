@@ -172,18 +172,6 @@
     };
     date = "2026-09-23";
   };
-  menu = {
-    pname = "menu";
-    version = "7a0a4a2896b715c066cfbe320bdc048091874cc6";
-    src = fetchFromGitHub {
-      owner = "nvzone";
-      repo = "menu";
-      rev = "7a0a4a2896b715c066cfbe320bdc048091874cc6";
-      fetchSubmodules = false;
-      sha256 = "sha256-4GfQ6Mo32rsoQAXKZF9Bpnm/sms2hfbrTldpLp5ySoY=";
-    };
-    date = "2025-06-01";
-  };
   miniMove = {
     pname = "miniMove";
     version = "48fcaac289a19b8eff2fd5fe203267d478a8abdc";
