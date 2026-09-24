@@ -66,6 +66,9 @@ in {
           nvim-tree-lua
           nvim-web-devicons
           nvterm
+          # NvChad core lists plenary itself; nixpkgs' telescope-nvim no longer
+          # pulls it in as a dependency, so ship it explicitly.
+          plenary-nvim
           telescope-nvim
           which-key-nvim
           # NvChad's default config uses these
