@@ -71,9 +71,10 @@ Key decisions:
 
 ## nvim-require-check skips
 
-`buildVimPlugin` require-checks every Lua module at build time. One is excluded:
-- `menus.neo-tree` (`menu`) - optional `neo-tree.nvim` integration we don't
-  bundle.
+`buildVimPlugin` require-checks every Lua module at build time. None of the
+set's own modules are excluded: `menu`'s `menus.neo-tree` is covered because
+`neo-tree-nvim` (plus its `nui-nvim` / `plenary-nvim`, since the check only puts
+direct dependencies on the path) are `menu` dependencies.
 
 (`nvchad-ui` needs no extra skip on v3.0: the base derivation's own
 `nvimSkipModules` already covers its `nvconfig`-only modules.)

@@ -226,7 +226,8 @@ VM integration test, and ARM64.
   - `enable`
   - `package` - the (unwrapped) neovim to install
   - `lazyPlugins` - the default plugin list (the NvChad set plus the runtime
-    plugins it needs); normally left untouched
+    plugins it needs, including neo-tree.nvim as a ready-to-use alternative
+    to nvim-tree); normally left untouched
   - `extraEarlyPlugins` - extra non-lazy plugins (loaded at startup)
   - `extraLazyPlugins` - extra plugins added to the lazy.nvim local search path
   - `extraEarlyConfig` / `extraConfig` - Lua placed early / later in the

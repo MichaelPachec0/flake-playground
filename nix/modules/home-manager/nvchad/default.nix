@@ -59,6 +59,9 @@ in {
           gitsigns-nvim
           indent-blankline-nvim
           luasnip
+          # Alternative file tree (nvim-tree stays NvChad's default); menu's
+          # neo-tree context menu targets it.
+          neo-tree-nvim
           nvim-autopairs
           nvim-cmp
           nvim-colorizer-lua

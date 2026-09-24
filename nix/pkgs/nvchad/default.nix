@@ -27,13 +27,17 @@ in rec {
     pname = "menu";
     version = sources.menu.date;
     inherit (sources.menu) src;
-    # nvim-tree-lua kept for NvChad's nvimtree context-menu entries (current
-    # menu HEAD only `require`s volt directly, but the default menu acts on
-    # nvim-tree buffers).
-    dependencies = [ volt vimPlugins.nvim-tree-lua ];
-    # menus/neo-tree.lua is an optional neo-tree.nvim integration we don't
-    # bundle; exclude just that module from nvim-require-check.
-    nvimSkipModules = [ "menus.neo-tree" ];
+    # nvim-tree-lua and neo-tree-nvim back menu's two file-tree context menus
+    # (the default menu acts on nvim-tree buffers; menus/neo-tree.lua requires
+    # neo-tree.sources.*). Shipping neo-tree lets nvim-require-check cover that
+    # integration instead of skipping it. nvim-require-check only puts direct
+    # dependencies on the path, so neo-tree's own nui/plenary are listed too.
+    dependencies = [ volt ] ++ (with vimPlugins; [
+      nvim-tree-lua
+      neo-tree-nvim
+      nui-nvim
+      plenary-nvim
+    ]);
   };
 
   # NvChad set: the core tracks v2.5 (NvChad's stable branch; there is no v3.0

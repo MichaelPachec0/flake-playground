@@ -46,6 +46,8 @@
       gitsigns-nvim
       nvim-autopairs
       comment-nvim
+      # opt-in alternatives the nvchad module also ships
+      neo-tree-nvim
       plenary-nvim
       nui-nvim
     ])
@@ -63,6 +65,7 @@
     "gitsigns"
     "nvim-autopairs"
     "Comment"
+    "neo-tree"
     "nvim-treesitter"
     "plenary"
   ];
