@@ -4,8 +4,19 @@
   fetchurl,
   fetchFromGitHub,
   dockerTools,
-}:
-{
+}: {
+  base46 = {
+    pname = "base46";
+    version = "91b29a33670e77b3705001804670511a17c0c1dc";
+    src = fetchFromGitHub {
+      owner = "NvChad";
+      repo = "base46";
+      rev = "91b29a33670e77b3705001804670511a17c0c1dc";
+      fetchSubmodules = false;
+      sha256 = "sha256-d3jSfJU0KS0MG0sm6aYJlqRxajwe3rMWlffufrGj1IE=";
+    };
+    date = "2026-09-18";
+  };
   blockNvim = {
     pname = "blockNvim";
     version = "6fb969ab12579e58b9379aa51933cad4a466cf75";
@@ -15,7 +26,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-dqi4srdtm7TNsFPNcGpV8iwyTL+ov4AEfuQpVnikiYI=";
     };
     date = "2023-10-10";
@@ -29,7 +40,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-9WVYHQNBKxMqhCzI8UBuZGe4gX6gB3/V5kIc/sPB3TQ=";
     };
     date = "2024-05-17";
@@ -43,7 +54,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-xHCX3KWtA2+YrGRgua+vdI+8/yEJQjnZS0u82eHhuqw=";
     };
     date = "2022-04-30";
@@ -57,7 +68,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-xQd0tNkKFH/BDNPoeC1jEr2zcR0L5ICxjIwhuTkC4P8=";
     };
     date = "2024-03-20";
@@ -71,7 +82,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-NTgIaEWqtubjFEfIrw8sKTjhNbnmJ1In0OcddRg5W0w=";
     };
     date = "2025-12-17";
@@ -85,7 +96,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-Lwwm95UEkS8Q0Qsoh10o3sFn48wf7v7eCX/FJJV1HMI=";
     };
     date = "2023-12-02";
@@ -99,7 +110,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-cv7AjXZiSEwvPwlBn9rTFFA6lMAZOcQ8K6iCVm6BANI=";
     };
     date = "2026-03-08";
@@ -113,7 +124,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-e0Almh8wWGp5NxHX48Y4XGEUHtPCYOXi4BIlfeSzaIs=";
     };
     date = "2026-07-03";
@@ -127,7 +138,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-XcoBNrvFMmEMcgrknDg/HnxRNssom6vLeOKiu1qJKBo=";
     };
     date = "2026-01-04";
@@ -141,7 +152,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-cDWx08N+NhN5Voxh8f7RGzerbAYB5FHE6TpD4/o/MIQ=";
     };
     date = "2022-08-12";
@@ -155,10 +166,22 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-d3QGc4243XrzRpVgj0D137+x/r8VzjYdDJrElp/yv4I=";
     };
     date = "2026-09-23";
+  };
+  menu = {
+    pname = "menu";
+    version = "7a0a4a2896b715c066cfbe320bdc048091874cc6";
+    src = fetchFromGitHub {
+      owner = "nvzone";
+      repo = "menu";
+      rev = "7a0a4a2896b715c066cfbe320bdc048091874cc6";
+      fetchSubmodules = false;
+      sha256 = "sha256-4GfQ6Mo32rsoQAXKZF9Bpnm/sms2hfbrTldpLp5ySoY=";
+    };
+    date = "2025-06-01";
   };
   miniMove = {
     pname = "miniMove";
@@ -169,10 +192,22 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-rPcX2Qql7UtPxNhMHW0W5ZDM5s1apw6AMI+orOW9dqc=";
     };
     date = "2026-07-07";
+  };
+  minty = {
+    pname = "minty";
+    version = "aafc9e8e0afe6bf57580858a2849578d8d8db9e0";
+    src = fetchFromGitHub {
+      owner = "nvzone";
+      repo = "minty";
+      rev = "aafc9e8e0afe6bf57580858a2849578d8d8db9e0";
+      fetchSubmodules = false;
+      sha256 = "sha256-jdz0cR1uz1EdxFCuxndsK9gyTZ2jg8wdYA0v33SevOg=";
+    };
+    date = "2025-02-28";
   };
   neoai = {
     pname = "neoai";
@@ -183,7 +218,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-72njaioZ1vegP+k6Lv+PaVgPcE8aPwjvpQv4Az1m/HQ=";
     };
     date = "2025-07-25";
@@ -197,7 +232,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-3za8pI1WmKprBhEVcf8P6rWtsc3pe55EqshN7xDIIQY=";
     };
     date = "2025-09-26";
@@ -211,7 +246,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-z+iiRl0C0aaT/vm+apyr5PL91TbzBl+FVwgXY+hJz54=";
     };
     date = "2026-08-11";
@@ -225,10 +260,34 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-YmDhDUqSJPOllXzkyrVUgnshrI5+Kt5Te8tEmnjOAVQ=";
     };
     date = "2026-07-17";
+  };
+  nvchad = {
+    pname = "nvchad";
+    version = "add44b952d631981614bbb8cfc6f7002f296dfe6";
+    src = fetchFromGitHub {
+      owner = "NvChad";
+      repo = "NvChad";
+      rev = "add44b952d631981614bbb8cfc6f7002f296dfe6";
+      fetchSubmodules = false;
+      sha256 = "sha256-EuP+/HWJgqwG5LR2rNvtq7mhFkUDs0oyeG6xbbPogC4=";
+    };
+    date = "2026-07-03";
+  };
+  nvchadUi = {
+    pname = "nvchadUi";
+    version = "6ced1135d2d1f87ae01fe0995977372eef42cd03";
+    src = fetchFromGitHub {
+      owner = "NvChad";
+      repo = "ui";
+      rev = "6ced1135d2d1f87ae01fe0995977372eef42cd03";
+      fetchSubmodules = false;
+      sha256 = "sha256-9i4j/4M+B2foHpoVICjaSIh4mg4nzsfGJO4mOHi5e6g=";
+    };
+    date = "2026-08-31";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";
@@ -239,7 +298,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-1QjmDy4v1AvNs5F4V8C3Lu7CVQH+uOV8gU855oz2IjY=";
     };
     date = "2025-10-07";
@@ -253,7 +312,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-LgKASQ1xBL8ugxK1g4R3BLQ3ha05cFtZaSYvd2Hy73c=";
     };
     date = "2024-05-31";
@@ -267,7 +326,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-IqyNgMf8hH2KpRY8gTrqREMCZwMNfDRdH/joqhGhjxI=";
     };
     date = "2026-01-12";
@@ -281,7 +340,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-K1JwjVYj16aB7sH/9xsqHyniuX8cRQoonfVa/543hLY=";
     };
     date = "2019-09-21";
@@ -295,7 +354,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-/dvV22Z+FdcEZV1lBxM2KIYKSEkCzy86nORL/GvuP9Y=";
     };
     date = "2026-08-11";
@@ -309,7 +368,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-AL9QU42MiHvJYipBtXM8x1Bj0LrF/0yQO+i63jeXzbE=";
     };
     date = "2026-09-10";
@@ -323,7 +382,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-i5g+pzxB8pAORLbr1wlYWUTsrJJmVj9UwlCg8pU3Suw=";
     };
     date = "2025-01-21";
@@ -337,7 +396,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-TIiv0pwBkwn7n1JFVqgcruKZ69OdxdEId4ca+M5hZ9k=";
     };
     date = "2024-11-12";
@@ -351,7 +410,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-nOMPWVlQR4jRdIt7UDADxl1p3lkx7+fVVboF/6wZW1g=";
     };
     date = "2023-06-05";
@@ -365,7 +424,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-qYIO+CuRa6kT3G77OL6UafX7prdgypDm6jitZaglZpY=";
     };
     date = "2026-09-16";
@@ -379,7 +438,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-yrNZV90yiHIxw0OMSSvi5SMApR2oFT8EpvF6TiUlC88=";
     };
     date = "2024-12-04";
@@ -393,10 +452,22 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-ozrjz34YIlDziuc9KLYM9zikTlg2YKYlIewapzN/nlY=";
     };
     date = "2024-11-12";
+  };
+  volt = {
+    pname = "volt";
+    version = "620de1321f275ec9d80028c68d1b88b409c0c8b1";
+    src = fetchFromGitHub {
+      owner = "nvzone";
+      repo = "volt";
+      rev = "620de1321f275ec9d80028c68d1b88b409c0c8b1";
+      fetchSubmodules = false;
+      sha256 = "sha256-5Xao1+QXZOvqwCXL6zWpckJPO1LDb8I7wtikMRFQ3Jk=";
+    };
+    date = "2025-09-13";
   };
   wtfNvim = {
     pname = "wtfNvim";
@@ -407,7 +478,7 @@
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
-      sparseCheckout = [ ];
+      sparseCheckout = [];
       sha256 = "sha256-rVkZ5fkqts7bB87oxO8N6bB1m43CrpP2kbLSJHZUsH4=";
     };
     date = "2026-06-02";

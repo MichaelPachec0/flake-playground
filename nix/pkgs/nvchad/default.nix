@@ -1,90 +1,86 @@
-{ fetchFromGitHub, vimUtils, vimPlugins }:
+{ callPackage, vimUtils, vimPlugins }:
 let
   inherit (vimUtils) buildVimPlugin;
+  # Sources are nvfetcher-tracked alongside the custom vim plugins
+  # (../vimPlugins/nvfetcher.toml), each tracking NvChad's stable branch: core
+  # v2.5, ui + base46 v3.0, nvzone main. The daily bump only lands if the full
+  # check set (incl. nvim-loads and nvchad-deps) passes. version is the commit
+  # date, prefixed with the branch for the NvChad repos.
+  sources = callPackage ../vimPlugins/_sources/generated.nix { };
 in rec {
   # nvzone plugins live on `main` (rolling). volt is the shared runtime that
   # minty and menu require.
   volt = buildVimPlugin {
     pname = "volt";
-    version = "2025-09-13";
-    src = fetchFromGitHub {
-      owner = "nvzone";
-      repo = "volt";
-      rev = "620de1321f275ec9d80028c68d1b88b409c0c8b1";
-      hash = "sha256-5Xao1+QXZOvqwCXL6zWpckJPO1LDb8I7wtikMRFQ3Jk=";
-    };
+    version = sources.volt.date;
+    inherit (sources.volt) src;
   };
 
   minty = buildVimPlugin {
     pname = "minty";
-    version = "2025-02-28";
-    src = fetchFromGitHub {
-      owner = "nvzone";
-      repo = "minty";
-      rev = "aafc9e8e0afe6bf57580858a2849578d8d8db9e0";
-      hash = "sha256-jdz0cR1uz1EdxFCuxndsK9gyTZ2jg8wdYA0v33SevOg=";
-    };
+    version = sources.minty.date;
+    inherit (sources.minty) src;
     dependencies = [ volt ];
   };
 
   menu = buildVimPlugin {
     pname = "menu";
-    version = "2025-06-01";
-    src = fetchFromGitHub {
-      owner = "nvzone";
-      repo = "menu";
-      rev = "7a0a4a2896b715c066cfbe320bdc048091874cc6";
-      hash = "sha256-4GfQ6Mo32rsoQAXKZF9Bpnm/sms2hfbrTldpLp5ySoY=";
-    };
-    # nvim-tree-lua kept for NvChad's nvimtree context-menu entries (current
-    # menu HEAD only `require`s volt directly, but the default menu acts on
-    # nvim-tree buffers).
-    dependencies = [ volt vimPlugins.nvim-tree-lua ];
-    # menus/neo-tree.lua is an optional neo-tree.nvim integration we don't
-    # bundle; exclude just that module from nvim-require-check.
-    nvimSkipModules = [ "menus.neo-tree" ];
+    version = sources.menu.date;
+    inherit (sources.menu) src;
+    # nvim-tree-lua and neo-tree-nvim back menu's two file-tree context menus
+    # (the default menu acts on nvim-tree buffers; menus/neo-tree.lua requires
+    # neo-tree.sources.*). Shipping neo-tree lets nvim-require-check cover that
+    # integration instead of skipping it. nvim-require-check only puts direct
+    # dependencies on the path, so neo-tree's own nui/plenary are listed too.
+    dependencies = [ volt ] ++ (with vimPlugins; [
+      nvim-tree-lua
+      neo-tree-nvim
+      nui-nvim
+      plenary-nvim
+    ]);
   };
 
-  # NvChad set: the core stays on v2.5 (the only repo that regressed on neovim
-  # 0.12 - v2.5 HEAD 2026-04-13 dropped vim.tbl_islist / the legacy
-  # nvim-treesitter configs.setup), while ui + base46 track the v3.0 line. The
-  # v2.5 core and v3.0 ui/base46 are verified compatible on 0.12 (the prior ui
-  # pin adcc97d was itself an early v3.0-line commit). See ./NOTES.md.
+  # NvChad set: the core tracks v2.5 (NvChad's stable branch; there is no v3.0
+  # core yet), while ui + base46 track v3.0, the branch core v2.5 pulls them
+  # from (it pins no branch and v3.0 is their default). The mix is verified
+  # compatible on neovim 0.12. See ./NOTES.md.
   base46 = vimPlugins.base46.overrideAttrs (old: {
-    version = "3.0-unstable-2026-01-16";
-    src = fetchFromGitHub {
-      inherit (old.src) owner repo;
-      rev = "884b990dcdbe07520a0892da6ba3e8d202b46337";
-      hash = "sha256-AUdBZbGcPDtixHMFms9Y0EyUdAXOzvcA2AbrRdYQ4ig=";
-    };
+    version = "3.0-unstable-${sources.base46.date}";
+    inherit (sources.base46) src;
+    # nixpkgs' base46 depends on nixpkgs' nvchad-ui; point it at ours so the
+    # closure holds one stable-tracked nvchad-ui (two same-named plugins would
+    # collide in the packdir).
+    dependencies = [ nvchad-ui ];
   });
 
-  # ui on the v3.0 tip. v3.0 resolves the base46 themes path dynamically
+  # ui v3.0 resolves the base46 themes path dynamically
   # (debug.getinfo on the loaded base46 module), so it needs no theme-path
   # patch, and the base derivation's nvimSkipModules already covers its
-  # nvconfig-only modules - hence a minimal override.
+  # nvconfig-only modules.
   nvchad-ui = vimPlugins.nvchad-ui.overrideAttrs (old: {
-    version = "3.0-unstable-2026-05-10";
-    src = fetchFromGitHub {
-      inherit (old.src) owner repo;
-      rev = "3e67e9d5325fd47fdbc90ca00a147db2f3525754";
-      hash = "sha256-bl2erzyZCZp9seb4E7o/SFsBUHwocVOmQNv0mbO5yR0=";
-    };
+    version = "3.0-unstable-${sources.nvchadUi.date}";
+    inherit (sources.nvchadUi) src;
+    # Our tracked volt, not nixpkgs' nvzone-volt (same packdir name).
+    dependencies = [ volt ];
+    # ui ships an opt-in blink.cmp spec (`{ import = "nvchad.blink.lazyspec" }`
+    # replaces nvim-cmp); give its LuaSnip the nixpkgs plugin name, as the core
+    # postPatch does.
+    postPatch = (old.postPatch or "") + ''
+      substituteInPlace lua/nvchad/blink/lazyspec.lua \
+        --replace-fail '"L3MON4D3/LuaSnip"' '"L3MON4D3/luasnip"'
+    '';
   });
 
   nvchad = vimPlugins.nvchad.overrideAttrs (old: {
-    version = "2.5-unstable-2026-04-13";
-    src = fetchFromGitHub {
-      inherit (old.src) owner repo;
-      rev = "d042cc975247c2aa55fcb228e5d146dc1dc6c648";
-      hash = "sha256-WNQMaM5EQBRQC9JfvEIgFhn3K5n8q0YeiJ9NdG3E+z4=";
-    };
-    # Core d042cc9 uses the NEW nvim-treesitter API
+    version = "2.5-unstable-${sources.nvchad.date}";
+    inherit (sources.nvchad) src;
+    # Core v2.5 uses the NEW nvim-treesitter API
     # (require("nvim-treesitter").install / .setup via lazy), so it must NOT get
     # nixpkgs' default nvim-treesitter-legacy dependency. Hardcode the dep list
     # (mirrors nixpkgs' nvchad deps with legacy -> nvim-treesitter) so the
     # deprecated legacy plugin is never referenced. Update if nixpkgs changes
-    # nvchad's deps. Grammars are supplied by the module's lazyPlugins.
+    # nvchad's deps. Grammars are supplied by the module's lazyPlugins. The
+    # nvchad-deps check catches a core bump that asks for a plugin we lack.
     dependencies = (with vimPlugins; [
       gitsigns-nvim
       luasnip
@@ -95,8 +91,23 @@ in rec {
       nvim-treesitter
     ]) ++ [ nvchad-ui ];
     # nix-specific plugin-name fixes (nixpkgs ships these as `luasnip` and
-    # `nvchad-ui`); still present in v2.5 HEAD's lua/nvchad/plugins/init.lua.
+    # `nvchad-ui`). --replace-fail makes a bump that moves these specs fail
+    # the build instead of silently shipping unresolvable names.
+    # nix-completion.lua is the switch behind programs.nvchad.completion: lazy's
+    # `import = "nvchad.plugins"` loads every module in that directory, so this
+    # file pulls in ui's blink.cmp spec (which disables nvim-cmp) whenever
+    # vim.g.nvchad_completion == "blink-cmp", with no change to the starter.
     postPatch = ''
+      cat > lua/nvchad/plugins/nix-completion.lua <<'EOF'
+      return {
+        {
+          import = "nvchad.blink.lazyspec",
+          enabled = function()
+            return vim.g.nvchad_completion == "blink-cmp"
+          end,
+        },
+      }
+      EOF
       substituteInPlace lua/nvchad/plugins/init.lua \
         --replace-fail '"L3MON4D3/LuaSnip"' '"L3MON4D3/luasnip"' \
         --replace-fail '"nvchad/ui",' '"nvchad/ui", name = "nvchad-ui",'

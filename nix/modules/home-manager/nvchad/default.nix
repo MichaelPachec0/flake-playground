@@ -12,7 +12,7 @@
   nvchad = pkgs.callPackage ../../../pkgs/nvchad {};
 
   # Grammar parsers for the rtp:append hack below. The NEW main-branch
-  # nvim-treesitter - NvChad core d042cc9 uses its .install/.setup API, and the
+  # nvim-treesitter - NvChad core v2.5 uses its .install/.setup API, and the
   # nvchad package swaps its legacy dep for this one.
   treesitterDeps = pkgs.symlinkJoin {
     name = "treesitter-dependencies";
@@ -48,6 +48,9 @@ in {
       type = with types; listOf package;
       default =
         (with pkgs.vimPlugins; [
+          # nvim-cmp replacement, picked with `completion = "blink-cmp"`. Ships
+          # its prebuilt Rust fuzzy matcher, so nothing is downloaded.
+          blink-cmp
           cmp-async-path
           cmp-buffer
           cmp-nvim-lsp
@@ -59,6 +62,9 @@ in {
           gitsigns-nvim
           indent-blankline-nvim
           luasnip
+          # Alternative file tree (nvim-tree stays NvChad's default); menu's
+          # neo-tree context menu targets it.
+          neo-tree-nvim
           nvim-autopairs
           nvim-cmp
           nvim-colorizer-lua
@@ -66,23 +72,40 @@ in {
           nvim-tree-lua
           nvim-web-devicons
           nvterm
+          # NvChad core lists plenary itself; nixpkgs' telescope-nvim no longer
+          # pulls it in as a dependency, so ship it explicitly.
+          plenary-nvim
           telescope-nvim
           which-key-nvim
           # NvChad's default config uses these
           better-escape-nvim
           conform-nvim
-          # NEW nvim-treesitter (NvChad core d042cc9 calls its .install/.setup
+          # NEW nvim-treesitter (NvChad core v2.5 calls its .install/.setup
           # API). The nvchad package swaps its legacy dep for this, so there is
           # no "two versions of nvim-treesitter" packDir clash.
           nvim-treesitter.withAllGrammars
         ])
-        # base46, nvchad-ui, nvchad, minty, volt, menu - our pinned set.
+        # base46, nvchad-ui, nvchad, minty, volt, menu - our stable-tracked set.
         ++ nvchad.all;
       defaultText = literalExpression "<NvChad plugin set>";
       description = ''
         Neovim plugins required by NvChad, made available to lazy.nvim's local
         plugins search path (~/.config/nvim/lazyPlugins/pack/lazyPlugins/start).
         Normally you don't need to change this option.
+      '';
+    };
+
+    completion = mkOption {
+      type = types.enum ["nvim-cmp" "blink-cmp"];
+      default = "nvim-cmp";
+      example = "blink-cmp";
+      description = ''
+        Completion engine. "nvim-cmp" is NvChad's default. "blink-cmp" pulls in
+        NvChad ui's blink.cmp spec (nvchad.blink.lazyspec), which disables
+        nvim-cmp and configures blink with NvChad's menu and highlights. Works
+        through the `import = "nvchad.plugins"` in your starter; no change to
+        your plugin specs is needed. Sets vim.g.nvchad_completion early in
+        init.lua, so a non-nix config can set that global itself.
       '';
     };
 
@@ -164,6 +187,8 @@ in {
         ''
           -- HACK: remove the default nvim parsers, they clash with treesitter.
           vim.opt.rtp:remove("${cfg.package}/lib/nvim")
+          -- programs.nvchad.completion; read by nvchad.plugins.nix-completion.
+          vim.g.nvchad_completion = "${cfg.completion}"
         ''
         cfg.extraEarlyConfig
         cfg.extraConfig

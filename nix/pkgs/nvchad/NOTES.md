@@ -4,16 +4,60 @@ Covers the NvChad set packaged in `default.nix` (`nvchad`, `nvchad-ui`,
 `base46`, plus the nvzone `volt`, `minty`, `menu`) and what the move to neovim
 0.12 means for it.
 
-## What's pinned, and why
+## What's tracked, and why
 
-| plugin      | repo            | branch     | rev (short) | date       |
-|-------------|-----------------|------------|-------------|------------|
-| `nvchad`    | `NvChad/NvChad` | `v2.5`     | `d042cc9`   | 2026-04-13 |
-| `nvchad-ui` | `NvChad/ui`     | `v3.0`     | `3e67e9d`   | 2026-05-10 |
-| `base46`    | `NvChad/base46` | `v3.0`     | `884b990`   | 2026-01-16 |
-| `volt`      | `nvzone/volt`   | `main`     | `620de13`   | 2025-09-13 |
-| `minty`     | `nvzone/minty`  | `main`     | `aafc9e8`   | 2025-02-28 |
-| `menu`      | `nvzone/menu`   | `main`     | `7a0a4a2`   | 2025-06-01 |
+Sources are nvfetcher-tracked in `../vimPlugins/nvfetcher.toml` (generated into
+`../vimPlugins/_sources`), each on NvChad's stable branch, i.e. exactly what
+the official NvChad starter installs:
+
+| plugin      | repo            | branch | why this branch                                   |
+|-------------|-----------------|--------|---------------------------------------------------|
+| `nvchad`    | `NvChad/NvChad` | `v2.5` | the starter's `branch = "v2.5"`; repo default     |
+| `nvchad-ui` | `NvChad/ui`     | `v3.0` | core v2.5 names `nvchad/ui` with no branch -> default |
+| `base46`    | `NvChad/base46` | `v3.0` | same, `nvchad/base46` -> default                  |
+| `volt`      | `nvzone/volt`   | `main` | same -> default                                   |
+| `minty`     | `nvzone/minty`  | `main` | same -> default                                   |
+| `menu`      | `nvzone/menu`   | `main` | same -> default                                   |
+
+The branches are written out explicitly rather than following each repo's
+default, so an upstream promotion (a v3.0 core) is a deliberate edit, not a
+silent jump that would also need the postPatch / dep-list shims revisited.
+
+The daily `update.yml` re-runs nvfetcher and only commits when
+`checks.x86_64-linux.default` passes. The NvChad-relevant gates:
+
+- each plugin's `nvim-require-check` (build time);
+- the `nvchad` `postPatch` uses `--replace-fail`, so an upstream spec rename
+  fails the build;
+- `nvchad-deps` (`nix/tests/nvchad-deps.nix`): every plugin named by core's
+  lazy spec and ui's blink spec must be in the module's `lazyPlugins` closure,
+  else lazy.nvim would try to clone it at runtime (fix: add it to the module's
+  default `lazyPlugins`); also fails on two different plugins sharing a
+  packdir name;
+- `nvchad-completion` (`nix/tests/nvchad-completion.nix`): lazy.nvim, run on
+  the module's real packdir, resolves nvim-cmp or blink.cmp per the switch;
+- `nvim-loads`: the whole set boots headless.
+
+## Completion switch (nvim-cmp / blink.cmp)
+
+NvChad ui ships an opt-in `lua/nvchad/blink/lazyspec.lua` (disables nvim-cmp,
+adds blink.cmp + LuaSnip + friendly-snippets + autopairs) and
+`nvchad.blink.config`; base46 ships the `blink` highlight integration. The
+`nvchad` package adds `lua/nvchad/plugins/nix-completion.lua`, an `import` of
+that spec gated on `vim.g.nvchad_completion == "blink-cmp"`. lazy's
+`import = "nvchad.plugins"` loads every module in that directory, so the
+starter needs no edit. The home-manager option `programs.nvchad.completion`
+sets the global; a non-nix config can set it directly. blink.cmp from nixpkgs
+ships its Rust fuzzy library, so `fuzzy = "prefer_rust"` works offline.
+
+## Dependency hygiene
+
+The `nvchad-ui` and `base46` overrides set `dependencies` explicitly: the
+nixpkgs derivations point at nixpkgs' own `nvzone-volt` / `nvchad-ui`, which
+would put a second, non-tracked copy of those plugins in the closure under
+the same packdir name. `nvchad-deps` fails on any such name clash.
+
+To see current revs: `jq 'with_entries(select(.key|test("^(nvchad|nvchadUi|base46|volt|minty|menu)$"))) | map_values(.version)' ../vimPlugins/_sources/generated.json`.
 
 Key decisions:
 
@@ -25,7 +69,7 @@ Key decisions:
   tracks v3.0 for ui/base46.
 - **The core was the only 0.12 break.** Older `nvchad` revs used APIs neovim
   0.12 removed (`vim.tbl_islist`, the legacy `nvim-treesitter.configs.setup`,
-  ...). Core **v2.5 HEAD (2026-04-13)** dropped them - that is the 0.12 fix.
+  ...). Core v2.5 as of 2026-04-13 dropped them - that is the 0.12 fix.
 - **History note.** The previous ui pin (`adcc97d`, Jan 2025) was *not* a v2.5
   commit - `git branch --contains` puts it on `v3.0`/`dev` (89 behind the v3.0
   tip, 201 ahead of the v2.5 tip). It was an early v3.0-line commit all along;
@@ -34,17 +78,21 @@ Key decisions:
 ## Patches
 
 - **`nvchad` `postPatch`** - renames `"L3MON4D3/LuaSnip"` -> `"L3MON4D3/luasnip"`
-  and names the `"nvchad/ui"` lazy spec `nvchad-ui` (nixpkgs plugin names).
-- **`nvchad-ui`: no patch.** v3.0 resolves the base46 themes directory
+  and names the `"nvchad/ui"` lazy spec `nvchad-ui` (nixpkgs plugin names);
+  also writes `lua/nvchad/plugins/nix-completion.lua` (see the completion
+  switch above).
+- **`nvchad-ui` `postPatch`** - the same `LuaSnip` rename in the blink lazyspec.
+  No theme-path patch: v3.0 resolves the base46 themes directory
   dynamically (`debug.getinfo` on the loaded `base46` module), so it finds our
   packDir copy with no path patch. (The old `ui.patch` / `substituteInPlace`
   that hardcoded lazy.nvim's `data` path is gone as of the v3.0 bump.)
 
 ## nvim-require-check skips
 
-`buildVimPlugin` require-checks every Lua module at build time. One is excluded:
-- `menus.neo-tree` (`menu`) - optional `neo-tree.nvim` integration we don't
-  bundle.
+`buildVimPlugin` require-checks every Lua module at build time. None of the
+set's own modules are excluded: `menu`'s `menus.neo-tree` is covered because
+`neo-tree-nvim` (plus its `nui-nvim` / `plenary-nvim`, since the check only puts
+direct dependencies on the path) are `menu` dependencies.
 
 (`nvchad-ui` needs no extra skip on v3.0: the base derivation's own
 `nvimSkipModules` already covers its `nvconfig`-only modules.)
@@ -70,7 +118,7 @@ Context: `main` tracks `nixos-unstable` (**neovim 0.12+**); `stable` tracks
 2. **This set uses the NEW nvim-treesitter.** When `nvim-treesitter` was archived
    (2026-04-03), nixpkgs split it: the old master-branch plugin (with
    `configs.setup()`) became `nvim-treesitter-legacy`, and the main-branch
-   rewrite kept the `nvim-treesitter` name. NvChad core `d042cc9` was already
+   rewrite kept the `nvim-treesitter` name. NvChad core v2.5 was already
    rewritten for the new API (`require("nvim-treesitter").install` / `.setup`),
    so the **`nvchad` package overrides nixpkgs' default `nvim-treesitter-legacy`
    dependency with the new `nvim-treesitter`**. (Legacy would both trip packDir's
@@ -108,6 +156,6 @@ Context: `main` tracks `nixos-unstable` (**neovim 0.12+**); `stable` tracks
 
 `ui` and `base46` are already on v3.0; only the **core** remains on v2.5 (no
 v3.0 core branch exists yet). The set already uses the new `nvim-treesitter`
-(core d042cc9 was rewritten for it), so a v3.0 core would mainly let us drop the
+(core v2.5 was rewritten for it), so a v3.0 core would mainly let us drop the
 remaining nix-specific shims (the hardcoded dep list, the name-fix postPatch).
 Bump `nvchad` when a v3.0 core ships.

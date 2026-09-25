@@ -7,10 +7,8 @@
 #
 #   nix develop -c nvfetcher -c nix/pkgs/vimPlugins/nvfetcher.toml -o nix/pkgs/vimPlugins/_sources
 #
-# NOTE: the NvChad set (nix/pkgs/nvchad) is intentionally NOT tracked here - its
-# revs are hand-pinned for the v2.5-core / v3.0-ui compat documented in
-# nix/pkgs/nvchad/NOTES.md. It could be migrated under nvfetcher later if that
-# pinning is relaxed.
+# The NvChad set (nix/pkgs/nvchad) is tracked here too, each repo on its stable
+# branch; see the block at the bottom.
 
 [blockNvim]
 src.git = "https://github.com/HampusHauffman/block.nvim"
@@ -127,3 +125,42 @@ fetch.git = "https://github.com/anurag3301/nvim-platformio.lua"
 [pioNvim]
 src.git = "https://github.com/batoaqaa/nvim-pio"
 fetch.git = "https://github.com/batoaqaa/nvim-pio"
+
+# --- NvChad set (consumed by nix/pkgs/nvchad) ---
+# Each repo tracks the branch NvChad's official starter installs, i.e. its
+# stable line: core `v2.5` (the starter's `branch = "v2.5"`), ui + base46 on
+# `v3.0` and the nvzone plugins on `main` (the branches core v2.5 resolves them
+# to, as it pins no branch and those are the repos' defaults). The branches are
+# explicit so an upstream default-branch flip (e.g. a future v3.0 core) is an
+# intentional bump here, not a silent jump. `nvchad-deps` in checks.default
+# fails the bump if a new core rev asks for a plugin we do not package.
+
+[nvchad]
+src.git = "https://github.com/NvChad/NvChad"
+src.branch = "v2.5"
+fetch.github = "NvChad/NvChad"
+
+[nvchadUi]
+src.git = "https://github.com/NvChad/ui"
+src.branch = "v3.0"
+fetch.github = "NvChad/ui"
+
+[base46]
+src.git = "https://github.com/NvChad/base46"
+src.branch = "v3.0"
+fetch.github = "NvChad/base46"
+
+[volt]
+src.git = "https://github.com/nvzone/volt"
+src.branch = "main"
+fetch.github = "nvzone/volt"
+
+[minty]
+src.git = "https://github.com/nvzone/minty"
+src.branch = "main"
+fetch.github = "nvzone/minty"
+
+[menu]
+src.git = "https://github.com/nvzone/menu"
+src.branch = "main"
+fetch.github = "nvzone/menu"
