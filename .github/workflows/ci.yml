@@ -1,9 +1,11 @@
 name: "CI"
 
 # The merge gate: build every package and evaluate every module on PRs and on
-# pushes to main/master. Same checks reproducible locally via
-#   nix run nixpkgs#nix-fast-build -- --flake .#checks.x86_64-linux --impure
-# or `nix build .#checks.x86_64-linux.default`.
+# pushes to main/master. The heavy NixOS VM tests run in a second job, in
+# parallel, so they neither block nor slow the gate. Same sets locally via
+#   nix run nixpkgs#nix-fast-build -- --flake .#legacyPackages.x86_64-linux.ci.gate --impure
+#   nix run nixpkgs#nix-fast-build -- --flake .#legacyPackages.x86_64-linux.ci.vm --impure
+# or `nix build .#checks.x86_64-linux.default` for the gate.
 on:
   pull_request:
     branches: [main, master]
@@ -14,11 +16,15 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    # A passing run takes ~6 minutes. Without this the GitHub default of 360
-    # applies, and a hang burns six runner-hours before anyone notices: run
-    # 31251212510 sat silent for 2h12m after two nix-eval-jobs eval workers
-    # raced to unpack different flake inputs into the same git cache, and only
-    # stopped because it was cancelled by hand. 30 also makes the failure
+    # A passing run builds for ~8 minutes (plus ~5 of runner setup and ~3 of
+    # cache save). It used to also build the VM tests, ~10 more minutes that
+    # pushed it past this limit; they now live in `vm-tests` below.
+    #
+    # Without a limit the GitHub default of 360 applies, and a hang burns six
+    # runner-hours before anyone notices: run 31251212510 sat silent for 2h12m
+    # after two nix-eval-jobs eval workers raced to unpack different flake
+    # inputs into the same git cache, and only stopped because it was
+    # cancelled by hand. 30 also makes the failure
     # USEFUL: a timeout is a failure, so the `if: failure()` diagnostics and
     # artifact upload below actually run, whereas a manual cancel skips them
     # and throws away the evidence.
@@ -29,3 +35,24 @@ jobs:
 
       - name: Run flake checks
         uses: ./.github/actions/nix-checks
+
+  # The NixOS VM integration tests (picr-vm, pingvin-share-vm). Separate from
+  # `checks` so they run in parallel with it: they build for ~10 minutes, and
+  # inside the gate they pushed it past its timeout. The pingvin bump workflow
+  # still runs pingvin-share-vm itself before committing a source bump.
+  vm-tests:
+    runs-on: ubuntu-latest
+    # ~10 minutes of build plus setup and cache save; same hang protection
+    # rationale as `checks`.
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run VM tests
+        uses: ./.github/actions/nix-checks
+        with:
+          flake-attr: ".#legacyPackages.x86_64-linux.ci.vm"
+          # Own cache: the VM closures are large and would otherwise evict the
+          # gate's cache (and the two jobs would race to save one key).
+          cache-key-prefix: "nix-vm"
