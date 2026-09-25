@@ -1,7 +1,7 @@
 {
     "base46": {
         "cargoLock": null,
-        "date": "2026-09-18",
+        "date": "2026-09-25",
         "extract": null,
         "name": "base46",
         "passthru": null,
@@ -13,12 +13,12 @@
             "name": null,
             "owner": "NvChad",
             "repo": "base46",
-            "rev": "91b29a33670e77b3705001804670511a17c0c1dc",
-            "sha256": "sha256-d3jSfJU0KS0MG0sm6aYJlqRxajwe3rMWlffufrGj1IE=",
+            "rev": "7df2bd89295db00b649cbc49bdf6fe5a1cc5df3b",
+            "sha256": "sha256-LIYAurLRSHnGtDUvxUvIE0PJ1cZ6L0M4nQ+a1H2SgJg=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "91b29a33670e77b3705001804670511a17c0c1dc"
+        "version": "7df2bd89295db00b649cbc49bdf6fe5a1cc5df3b"
     },
     "blockNvim": {
         "cargoLock": null,
