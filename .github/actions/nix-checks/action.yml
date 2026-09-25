@@ -29,6 +29,10 @@ runs:
       uses: jlumbroso/free-disk-space@main
       with:
         tool-cache: false
+        # Skip the apt purge of large misc. packages (llvm, php, mongodb, ...):
+        # it is ~1 minute for 4.5 GiB, and the runner already starts with
+        # ~86 GB free (the other removals take it to ~109 GB).
+        large-packages: false
 
     # free-disk-space deletes the runner's default /mnt/swapfile, leaving the
     # 16 GB runner with zero swap. Nix eval + parallel builds spike past 16 GB
@@ -103,6 +107,12 @@ runs:
         primary-key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
         restore-prefixes-first-match: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
         gc-max-store-size-linux: 5G
+        # Save only from pushes and scheduled/dispatched runs. A PR restores
+        # main's snapshot (caches from the base branch are readable) but a
+        # cache it saved would be scoped to refs/pull/N/merge, reusable only
+        # by that PR's own re-runs, while costing 3-6 minutes of upload and
+        # ~1.7 GB of the repo's 10 GB cache budget.
+        save: ${{ github.event_name != 'pull_request' }}
         purge: true
         purge-prefixes: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
         purge-created: 0
