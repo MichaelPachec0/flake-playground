@@ -226,17 +226,17 @@
   };
   neotestGtest = {
     pname = "neotestGtest";
-    version = "b66f1d33cbf3b37b9803e6bc7ef47ac60eba86b1";
+    version = "bdffb45731ed2a6f40ca94ed662cadb8add73b30";
     src = fetchgit {
       url = "https://github.com/alfaix/neotest-gtest";
-      rev = "b66f1d33cbf3b37b9803e6bc7ef47ac60eba86b1";
+      rev = "bdffb45731ed2a6f40ca94ed662cadb8add73b30";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-3za8pI1WmKprBhEVcf8P6rWtsc3pe55EqshN7xDIIQY=";
+      sha256 = "sha256-qQfNur/XKGI6yTSMdqaGZrO6LqWD41TXL2E2Y9zH3tc=";
     };
-    date = "2025-09-26";
+    date = "2026-09-28";
   };
   noneLs = {
     pname = "noneLs";
