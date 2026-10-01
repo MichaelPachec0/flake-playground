@@ -49,6 +49,7 @@ jobs:
             .#checks.x86_64-linux.pingvin-share-vm
 
       - name: Commit bumped sources
+        id: commit
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -56,3 +57,8 @@ jobs:
           # ONE LINE only - see update-projectsend.yml: multi-line
           # file_pattern silently degrades to its first entry.
           file_pattern: "nix/pkgs/pingvin-share/_sources/"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry

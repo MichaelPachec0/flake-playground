@@ -44,6 +44,7 @@ jobs:
             -o nix/pkgs/playground/_sources
 
       - name: Commit bumped sources
+        id: commit
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -60,3 +61,8 @@ jobs:
           # version bump commits the new extract directory and drops the old one
           # in the same commit (nvfetcher prunes the stale one itself).
           file_pattern: "nix/pkgs/playground/_sources/"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry

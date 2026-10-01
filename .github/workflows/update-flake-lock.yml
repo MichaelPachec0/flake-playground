@@ -31,8 +31,14 @@ jobs:
           pre-build-command: "nix flake update"
 
       - name: Commit flake.lock
+        id: commit
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: update flake.lock"
           file_pattern: "flake.lock"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry

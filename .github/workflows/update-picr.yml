@@ -43,8 +43,14 @@ jobs:
             .#checks.x86_64-linux.nixos-picr-ping
 
       - name: Commit bumped sources
+        id: commit
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: bump picr source"
           file_pattern: "nix/pkgs/picr/_sources/"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry
