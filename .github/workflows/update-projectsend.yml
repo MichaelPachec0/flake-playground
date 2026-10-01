@@ -41,6 +41,7 @@ jobs:
             -o nix/pkgs/projectsend/_sources
 
       - name: Commit bumped source
+        id: commit
         if: ${{ success() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -55,3 +56,8 @@ jobs:
           # (generated.{nix,json}); `git add <dir>` stages creations AND
           # deletions, so a version bump commits cleanly.
           file_pattern: "nix/pkgs/projectsend/_sources/"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry

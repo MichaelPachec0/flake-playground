@@ -1,0 +1,47 @@
+name: "Push with rebase + retry"
+description: "Push the commit made by git-auto-commit-action (run with skip_push: true), rebasing onto the remote tip and retrying if a sibling bump workflow pushed first."
+
+# Why this exists: the daily bump workflows run concurrently (GitHub's cron
+# delay collapses their staggered schedules into the same ~10 minutes), each
+# checks out main at job start, and git-auto-commit-action does a single plain
+# `git push`. Whichever finishes second is rejected as non-fast-forward. Every
+# workflow writes only its own nix/pkgs/<x>/_sources/ (or flake.lock), so a
+# rebase onto the new tip never conflicts.
+#
+# Attribution is unchanged: rebase keeps the original author (the workflow
+# actor, set by git-auto-commit-action) and takes the committer from local git
+# config, which is pinned to the same bot identity the action uses.
+
+inputs:
+  branch:
+    description: "Branch to rebase onto and push to."
+    required: false
+    default: ${{ github.ref_name }}
+  attempts:
+    description: "How many rebase + push attempts before failing."
+    required: false
+    default: "5"
+
+runs:
+  using: composite
+  steps:
+    - name: Rebase onto remote tip and push
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.branch }}
+        ATTEMPTS: ${{ inputs.attempts }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        for i in $(seq 1 "$ATTEMPTS"); do
+          # --autostash: the build steps may leave tracked files dirty
+          # outside the committed pathspec; keep them out of the way.
+          if git pull --rebase --autostash origin "$BRANCH" \
+            && git push origin "HEAD:$BRANCH"; then
+            exit 0
+          fi
+          echo "::warning::push attempt $i/$ATTEMPTS failed, retrying"
+          sleep $((i * 5))
+        done
+        echo "::error::could not push to $BRANCH after $ATTEMPTS attempts"
+        exit 1
