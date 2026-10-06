@@ -2,22 +2,20 @@
   pkgs,
   devMode ? false,
 }: let
-  wsnetSrc = import ./deps/wsnet.nix {inherit pkgs;};
+  # Desktop-App, wsnet and wstunnel sources, tracked by nvfetcher (./nvfetcher.toml).
+  sources = pkgs.callPackage ./_sources/generated.nix {};
+
+  wsnetSrc = import ./deps/wsnet.nix {inherit sources;};
   small = import ./deps/small/default.nix {inherit pkgs;};
 
-  # Windscribe Desktop C++ source, tag v2.23.9 (= master @ 82503fdb on the official repo).
-  # src/ is pristine at this tag, so the build-time patches below apply cleanly.
-  wsSrc = pkgs.fetchFromGitHub {
-    owner = "Windscribe";
-    repo = "Desktop-App";
-    rev = "v2.23.9";
-    hash = "sha256-VmhIDGXKQnwjuQewQuGII/BjqswhWuudkQNmP7F/NvQ=";
-  };
+  # Windscribe Desktop C++ source. The build-time patches below are written
+  # against this tag's src/; a bump that breaks them fails the build.
+  wsSrc = sources.windscribe.src;
 
   # DNS / network helper scripts the helper invokes from WS_LINUX_INSTALL_DIR/scripts.
   scriptsDir = "${wsSrc}/src/installer/windscribe/linux/opt/windscribe/scripts";
 
-  wstunnel = import ./deps/wstunnel.nix {inherit pkgs;};
+  wstunnel = import ./deps/wstunnel.nix {inherit pkgs sources;};
   ctrld = import ./deps/ctrld.nix {inherit pkgs;};
   openvpn-ws = import ./deps/openvpn-ws.nix {inherit pkgs;};
 
@@ -41,7 +39,7 @@
 in
   pkgs.stdenv.mkDerivation {
     pname = "windscribe";
-    version = "2.23.9";
+    version = pkgs.lib.removePrefix "v" sources.windscribe.version;
     src = wsSrc;
     patches = [./patches/cmake-system-deps.patch ./patches/source-native-fixes.patch];
 

@@ -1,0 +1,24 @@
+# Source pins for the Windscribe Desktop package, tracked by nvfetcher.
+# Standalone (not nix/pkgs/playground/_sources) so windscribe bumps run in
+# their own workflow (update-windscribe.yml) and a failed bump (patch no
+# longer applies, wstunnel vendorHash moved) fails only that workflow.
+#
+# Regenerate (from the repo root):
+#   nix shell nixpkgs#nvfetcher nixpkgs#curl nixpkgs#jq -c \
+#     nvfetcher -c nix/pkgs/windscribe/nvfetcher.toml -o nix/pkgs/windscribe/_sources
+#   git add -AN nix/pkgs/windscribe/_sources
+#
+# Keep the "v" in versions: nvfetcher 0.8 has no rev template for
+# fetch.github and reuses `version` as the git rev. Nix strips it with
+# lib.removePrefix "v".
+[windscribe]
+src.manual = "v2.23.9"
+fetch.github = "Windscribe/Desktop-App"
+
+[wsnet]
+src.manual = "1.5.20"
+fetch.github = "Windscribe/wsnet"
+
+[wstunnel]
+src.manual = "v1.0.6"
+fetch.github = "Windscribe/wstunnel"
