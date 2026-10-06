@@ -8,35 +8,35 @@
 {
   windscribe = {
     pname = "windscribe";
-    version = "v2.23.9";
+    version = "v2.24.13";
     src = fetchFromGitHub {
       owner = "Windscribe";
       repo = "Desktop-App";
-      rev = "v2.23.9";
+      rev = "v2.24.13";
       fetchSubmodules = false;
-      sha256 = "sha256-VmhIDGXKQnwjuQewQuGII/BjqswhWuudkQNmP7F/NvQ=";
+      sha256 = "sha256-zpaEOrgFnxoZ/d6bAF0SlbB0q/+pGIxhWU8t0F16F/Q=";
     };
   };
   wsnet = {
     pname = "wsnet";
-    version = "1.5.20";
+    version = "1.5.32";
     src = fetchFromGitHub {
       owner = "Windscribe";
       repo = "wsnet";
-      rev = "1.5.20";
+      rev = "1.5.32";
       fetchSubmodules = false;
-      sha256 = "sha256-2PGaoE0p3kr50rdVtvUnG5qdYERBuF5LF88qboxLZgc=";
+      sha256 = "sha256-W4qArEGc5Vk9HXoZlZxD8JEl9NRadJzZsKBYf5zZyOI=";
     };
   };
   wstunnel = {
     pname = "wstunnel";
-    version = "v1.0.6";
+    version = "v1.0.7";
     src = fetchFromGitHub {
       owner = "Windscribe";
       repo = "wstunnel";
-      rev = "v1.0.6";
+      rev = "v1.0.7";
       fetchSubmodules = false;
-      sha256 = "sha256-WGLgZStXzZjseMumxQ2D1UFSdE3xZpYE6g5omPw6swQ=";
+      sha256 = "sha256-m1vy6yQKE4PSAcYRvHIz0f3Mc08NB9OdZwhB0zk0LjA=";
     };
   };
 }

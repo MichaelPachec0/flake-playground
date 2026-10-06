@@ -13,12 +13,12 @@
             "name": null,
             "owner": "Windscribe",
             "repo": "Desktop-App",
-            "rev": "v2.23.9",
-            "sha256": "sha256-VmhIDGXKQnwjuQewQuGII/BjqswhWuudkQNmP7F/NvQ=",
+            "rev": "v2.24.13",
+            "sha256": "sha256-zpaEOrgFnxoZ/d6bAF0SlbB0q/+pGIxhWU8t0F16F/Q=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v2.23.9"
+        "version": "v2.24.13"
     },
     "wsnet": {
         "cargoLock": null,
@@ -34,12 +34,12 @@
             "name": null,
             "owner": "Windscribe",
             "repo": "wsnet",
-            "rev": "1.5.20",
-            "sha256": "sha256-2PGaoE0p3kr50rdVtvUnG5qdYERBuF5LF88qboxLZgc=",
+            "rev": "1.5.32",
+            "sha256": "sha256-W4qArEGc5Vk9HXoZlZxD8JEl9NRadJzZsKBYf5zZyOI=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "1.5.20"
+        "version": "1.5.32"
     },
     "wstunnel": {
         "cargoLock": null,
@@ -55,11 +55,11 @@
             "name": null,
             "owner": "Windscribe",
             "repo": "wstunnel",
-            "rev": "v1.0.6",
-            "sha256": "sha256-WGLgZStXzZjseMumxQ2D1UFSdE3xZpYE6g5omPw6swQ=",
+            "rev": "v1.0.7",
+            "sha256": "sha256-m1vy6yQKE4PSAcYRvHIz0f3Mc08NB9OdZwhB0zk0LjA=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v1.0.6"
+        "version": "v1.0.7"
     }
 }

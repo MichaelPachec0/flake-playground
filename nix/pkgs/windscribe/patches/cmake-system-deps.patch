@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index ecf3985c..1ef709ec 100644
+index db7cd90..0662c38 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -51,6 +51,7 @@ endif()
+@@ -78,6 +78,7 @@ endif()
  option(BUILD_SYMBOLS "Collect PDB symbol files" OFF)
  option(STATIC_ANALYSIS "Run clang-tidy static analysis" OFF)
  option(UPDATE_TRANSLATIONS "Run lupdate to regenerate .ts translation files" OFF)
@@ -10,7 +10,7 @@ index ecf3985c..1ef709ec 100644
  
  # Platform-specific build options (these use WIN32/APPLE which are set before project()
  # when using a platform-native generator, e.g. Visual Studio on Windows)
-@@ -95,7 +96,7 @@ endif()
+@@ -122,7 +123,7 @@ endif()
  # ------------------------------------------------------------------------------
  
  # vcpkg integration (only needed for build operations, must be before project())
@@ -19,12 +19,35 @@ index ecf3985c..1ef709ec 100644
      include(cmake/vcpkg.cmake)
  endif()
  
-@@ -214,7 +215,7 @@ endif()
- message(STATUS "==================================================")
- message(STATUS "")
- 
+@@ -135,7 +136,7 @@ project(WS LANGUAGES CXX C)
+ # wsnet ahead of the install only fails on CI.  The macro depends solely on state established before
+ # project() (VCPKG_ROOT, VCPKG_TARGET_TRIPLET, CMAKE_BUILD_TYPE, the manifest root), so hoisting it
+ # here is safe.
 -if(BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP)
 +if((BUILD_APP OR BUILD_INSTALLER OR BUILD_BOOTSTRAP) AND NOT WS_USE_SYSTEM_DEPS)
      install_vcpkg_dependencies()
  endif()
  
+@@ -213,12 +214,20 @@ endif()
+ # leaving VCPKG_ROOT unset. Defined only here so an unguarded use fails to compile rather than
+ # silently getting "".
+ if(BUILD_APP)
+-    ws_resolve_openvpn_version(WS_OPENVPN_VERSION)
++    if(WS_USE_SYSTEM_DEPS)
++        # No vcpkg tree to query: the caller passes the bundled OpenVPN's version.
++        if(NOT WS_OPENVPN_VERSION MATCHES "^[0-9]+\\.[0-9]+")
++            message(FATAL_ERROR "WS_USE_SYSTEM_DEPS needs -DWS_OPENVPN_VERSION=<version>, got \"${WS_OPENVPN_VERSION}\"")
++        endif()
++    else()
++        ws_resolve_openvpn_version(WS_OPENVPN_VERSION)
++    endif()
+     add_compile_definitions(WS_OPENVPN_VERSION="${WS_OPENVPN_VERSION}")
+ 
+     # Resolved here rather than next to ws_resolve_shared_libs() below, because the names are needed
+     # by the branding definitions that follow and by the subdirectories those definitions reach.
+-    if(NOT WIN32)
++    # System deps take OpenSSL from the host (Nix store): no vcpkg libs to resolve, ship or RPATH-fix.
++    if(NOT WIN32 AND NOT WS_USE_SYSTEM_DEPS)
+         ws_resolve_openssl_libs()
+         if(APPLE)
+             # Not in the branding block below: the value is platform-specific, so a WS_MAC_ name must

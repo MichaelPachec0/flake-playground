@@ -11,14 +11,22 @@
 # Keep the "v" in versions: nvfetcher 0.8 has no rev template for
 # fetch.github and reuses `version` as the git rev. Nix strips it with
 # lib.removePrefix "v".
+#
+# Desktop-App follows GitHub's /releases/latest (skips prereleases, so the
+# v2.25.x betas are ignored). wsnet and wstunnel are NOT tracked at their own
+# latest: upstream pins them inside the app tree (cmake/fetch_wsnet.cmake
+# GIT_TAG, tools/vars/wstunnel.yml VERSION_WSTUNNEL), so src.cmd reads those
+# pins at the same latest-release tag. Needs curl + jq (provided by the
+# `nix shell` above); sends GITHUB_TOKEN when set to avoid API rate limits.
 [windscribe]
-src.manual = "v2.23.9"
+src.github = "Windscribe/Desktop-App"
+src.use_latest_release = true
 fetch.github = "Windscribe/Desktop-App"
 
 [wsnet]
-src.manual = "1.5.20"
+src.cmd = 'tag=$(curl -fsSL ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} https://api.github.com/repos/Windscribe/Desktop-App/releases/latest | jq -er .tag_name) && f=$(curl -fsSL "https://raw.githubusercontent.com/Windscribe/Desktop-App/$tag/cmake/fetch_wsnet.cmake") && printf "%s\n" "$f" | sed -nE "s/^[[:space:]]*GIT_TAG[[:space:]]+([^[:space:]]+).*/\1/p" | head -n1'
 fetch.github = "Windscribe/wsnet"
 
 [wstunnel]
-src.manual = "v1.0.6"
+src.cmd = 'tag=$(curl -fsSL ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} https://api.github.com/repos/Windscribe/Desktop-App/releases/latest | jq -er .tag_name) && f=$(curl -fsSL "https://raw.githubusercontent.com/Windscribe/Desktop-App/$tag/tools/vars/wstunnel.yml") && printf "%s\n" "$f" | sed -nE "s/^[[:space:]]*VERSION_WSTUNNEL:[[:space:]]*[^v]*(v[0-9][0-9.]*).*/\1/p" | head -n1'
 fetch.github = "Windscribe/wstunnel"

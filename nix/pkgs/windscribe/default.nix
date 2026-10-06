@@ -80,6 +80,8 @@ in
         nlohmann_json
         protobuf
         acl
+        # The v2.24.13 helper links libnftables for its firewall (moved from iptables).
+        nftables
         curlCmakeShim
       ])
       ++ (builtins.attrValues small);
@@ -96,16 +98,20 @@ in
         "-DFETCHCONTENT_SOURCE_DIR_WSNET=${wsnetSrc}"
         "-DOPENSSL_ROOT_DIR=${pkgs.opensslEch.out}"
         "-DOPENSSL_USE_STATIC_LIBS=ON"
+        # Upstream reads the bundled OpenVPN version from vcpkg at configure time and
+        # sends it to the API as ovpn_version; with system deps the patch takes it from here.
+        "-DWS_OPENVPN_VERSION=${openvpn-ws.version}"
       ]
       ++ (
         if devMode
         then ["-DDEV_MODE=ON"]
         else [
           "-DDEV_MODE=OFF"
-          # Point the install-dir macro at $out/bin, the GUI binary's own directory. This makes the
-          # helper's WS_LINUX_INSTALL_DIR coincide with the client engine's applicationDirPath()
-          # (openvpnversioncontroller.cpp resolves windscribeopenvpn relative to the GUI binary), exactly
-          # as the upstream .deb's single /opt/windscribe dir does. realpath() of this store path
+          # Point the install-dir macro at $out/bin, the GUI binary's own directory, mirroring the
+          # upstream .deb's single /opt/windscribe dir. The helper resolves the bundled binaries
+          # (windscribeopenvpn/wstunnel/ctrld, see resolveExePath() in helper/linux/utils.cpp) and the
+          # scripts/ dir from WS_LINUX_INSTALL_DIR, and the GUI loads Qt plugins from
+          # dirname(/proc/self/exe)/plugins, so both must be $out/bin. realpath() of this store path
           # canonicalizes to itself, so the helper's non-dev path check passes with no symlink indirection.
           "-DWS_LINUX_INSTALL_DIR=${placeholder "out"}/bin"
         ]
@@ -178,15 +184,16 @@ in
     # (cp -rs leaves them +x) would each be replaced by a makeBinaryWrapper stub; Qt then rejects the
     # plugin stubs, and the helper/engine would exec wrapper shims. postFixup runs after that hook.
     postFixup = pkgs.lib.optionalString (!devMode) ''
-      # Bundled VPN helpers, under the 'windscribe'-prefixed names resolveExePath() (helper) and
-      # OpenVpnVersionController (engine) expect. Symlinks suffice; neither side realpaths the file.
+      # Bundled VPN helpers, under the 'windscribe'-prefixed names the helper's resolveExePath()
+      # expects (process_command.cpp; getOpenVpnExeNames() also scans this dir for "openvpn").
+      # Symlinks suffice: only the directory is realpath()ed, not the file.
       ln -s ${openvpn-ws}/bin/openvpn  $out/bin/windscribeopenvpn
       ln -s ${wstunnel}/bin/wstunnel   $out/bin/windscribewstunnel
       ln -s ${ctrld}/bin/ctrld         $out/bin/windscribectrld
 
       # DNS / network helper scripts (WS_LINUX_INSTALL_DIR/scripts); shebangs rewritten to store paths.
       mkdir -p $out/bin/scripts
-      for s in update-systemd-resolved update-resolv-conf update-network-manager dns-leak-protect gai-ipv4-priority; do
+      for s in update-systemd-resolved update-resolv-conf update-network-manager gai-ipv4-priority; do
         install -Dm755 ${scriptsDir}/$s $out/bin/scripts/$s
       done
       patchShebangs $out/bin/scripts
