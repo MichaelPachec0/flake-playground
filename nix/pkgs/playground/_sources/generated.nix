@@ -8,17 +8,17 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.8.5";
+    version = "v3.9.0";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.8.5";
+      rev = "v3.9.0";
       fetchSubmodules = false;
-      sha256 = "sha256-IaXc0Yg2bYmAevLT1sgrcc1wtkLuU86heivaA21WpYA=";
+      sha256 = "sha256-px+6j1F4fkFilna3m+et/g1JRFsVUW7qdqf0Mowow+4=";
     };
     extract = {
-      "package-lock.json" = ./. + "/sha256-IaXc0Yg2bYmAevLT1sgrcc1wtkLuU86heivaA21WpYA=/package-lock.json";
-      "package.json" = ./. + "/sha256-IaXc0Yg2bYmAevLT1sgrcc1wtkLuU86heivaA21WpYA=/package.json";
+      "package-lock.json" = ./. + "/sha256-px+6j1F4fkFilna3m+et_g1JRFsVUW7qdqf0Mowow+4=/package-lock.json";
+      "package.json" = ./. + "/sha256-px+6j1F4fkFilna3m+et_g1JRFsVUW7qdqf0Mowow+4=/package.json";
     };
   };
   affine-server = {
@@ -66,26 +66,26 @@
   };
   freebuff-darwin-arm64 = {
     pname = "freebuff-darwin-arm64";
-    version = "0.2.15";
+    version = "0.2.19";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.15/freebuff-darwin-arm64.tar.gz";
-      sha256 = "sha256-QFU2a3kiBnESB4owj17bcik7wqplq76LgdnUQlepvKw=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.19/freebuff-darwin-arm64.tar.gz";
+      sha256 = "sha256-bJA/iO64Zd3E2Cqj4MyqH9rmgjce3O/ZUb2yCPCxfA4=";
     };
   };
   freebuff-linux-arm64 = {
     pname = "freebuff-linux-arm64";
-    version = "0.2.15";
+    version = "0.2.19";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.15/freebuff-linux-arm64.tar.gz";
-      sha256 = "sha256-ve+kkV3FNlnA+rlR5RG4MZiBNU95QyTqmzq8oSUli9k=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.19/freebuff-linux-arm64.tar.gz";
+      sha256 = "sha256-/tQLMSmN6bmDq3HB1EnKE8OhO16G4y+eg/P/XlEmOhA=";
     };
   };
   freebuff-linux-x64 = {
     pname = "freebuff-linux-x64";
-    version = "0.2.15";
+    version = "0.2.19";
     src = fetchurl {
-      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.15/freebuff-linux-x64.tar.gz";
-      sha256 = "sha256-8FpKk4UhMZMHL3pdVKxmIDCErapM/VLeJr1eTV0dahc=";
+      url = "https://github.com/CodebuffAI/codebuff-community/releases/download/freebuff-v0.2.19/freebuff-linux-x64.tar.gz";
+      sha256 = "sha256-8EfFlhc6k0fEDws3w4kw1rIPQr5RXZHtekjxwouWW7Q=";
     };
   };
   powertop = {
