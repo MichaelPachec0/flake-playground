@@ -191,6 +191,7 @@ pkgs.stdenv.mkDerivation {
       chmod -R u+w $out/bin/plugins
     done
   '';
+  env.NIX_CFLAGS_COMPILE = " -Wno-error=deprecated-declarations";
 
   meta = {
     description = "Windscribe Desktop VPN, native build (Nix-provided deps)";
