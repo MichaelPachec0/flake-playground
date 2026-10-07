@@ -584,26 +584,6 @@
         },
         "version": "e1a63ccaf2584e97c0ef8e64f9654c9a80d983f6"
     },
-    "telescopeDocker": {
-        "cargoLock": null,
-        "date": "2023-06-05",
-        "extract": null,
-        "name": "telescopeDocker",
-        "passthru": null,
-        "pinned": false,
-        "src": {
-            "deepClone": false,
-            "fetchSubmodules": false,
-            "leaveDotGit": false,
-            "name": null,
-            "rev": "4219840291d9e3e64f6b8eefa11e8deb14357581",
-            "sha256": "sha256-nOMPWVlQR4jRdIt7UDADxl1p3lkx7+fVVboF/6wZW1g=",
-            "sparseCheckout": [],
-            "type": "git",
-            "url": "https://github.com/lpoto/telescope-docker.nvim"
-        },
-        "version": "4219840291d9e3e64f6b8eefa11e8deb14357581"
-    },
     "tsSoftwareLicenses": {
         "cargoLock": null,
         "date": "2026-09-16",

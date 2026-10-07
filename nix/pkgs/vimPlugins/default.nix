@@ -123,10 +123,6 @@ in {
 
   stay-centered = build "stay-centered.nvim" sources.stayCentered {};
 
-  telescope-docker-nvim = build "telescope-docker.nvim" sources.telescopeDocker {
-    dependencies = with vimPlugins; [telescope-nvim plenary-nvim];
-  };
-
   ts-software-licenses-nvim = build "telescope-software-licenses.nvim" sources.tsSoftwareLicenses {};
 
   vimBeGood = build "vim-be-good" sources.vimBeGood {};
