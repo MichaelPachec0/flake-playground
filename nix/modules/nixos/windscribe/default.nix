@@ -144,7 +144,21 @@ let
 in
 {
   options.services.windscribe = {
-    enable = lib.mkEnableOption "Windscribe Desktop VPN (helper service + GUI/CLI)";
+    enable = lib.mkEnableOption "" // {
+      description = ''
+        Whether to enable Windscribe Desktop VPN (helper service + GUI/CLI).
+
+        The helper keeps its kill switch in its own nftables table,
+        `inet windscribe`. With `networking.nftables.enable`, the supported setup
+        is `networking.nftables.flushRuleset = false` with your own rules declared
+        in `networking.nftables.tables`: NixOS then replaces only the tables it
+        declares. `flushRuleset = true` (the default when `ruleset` or
+        `rulesetFile` is set, or `system.stateVersion` is older than 23.11)
+        deletes `inet windscribe` on every nftables reload. That setup is
+        unsupported; this module only warns and enables a best-effort reconnect
+        hook (`windscribe-nft-reapply.service`).
+      '';
+    };
 
     package = lib.mkOption {
       type = lib.types.package;
