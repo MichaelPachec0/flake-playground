@@ -46,6 +46,27 @@
       echo "${builtins.unsafeDiscardOutputDependency sys.config.system.build.toplevel.drvPath}" > $out
     '';
 
+  # Like evalNixos, but also fail the check unless `check sys.config` is true.
+  # `checkName` names the derivation, so several checks of one module stay
+  # distinguishable in build logs.
+  # `deps` (strings with store-path context) are real build inputs of the check,
+  # so small derivations named there get built (e.g. to run their shellcheck).
+  evalNixosAssert = checkName: name: enableCfg: {
+    check,
+    message,
+    deps ? (_: []),
+  }: let
+    sys = lib.nixosSystem {
+      inherit system;
+      modules = [nixosModules.${name} nixosStub enableCfg];
+    };
+  in
+    assert lib.assertMsg (check sys.config) "${name}: ${message}";
+      pkgs.runCommand "eval-${checkName}" {} ''
+        echo "${builtins.unsafeDiscardOutputDependency sys.config.system.build.toplevel.drvPath}" > $out
+        ${lib.concatMapStrings (d: "echo ${d} >> $out\n") (deps sys.config)}
+      '';
+
   # Enable `homeManagerModules.<name>` with `enableCfg`, force eval of the
   # activation package.
   evalHome = name: enableCfg: let
@@ -71,6 +92,49 @@ in {
     services.tuwunel.settings.global.server_name = "ci.example";
   };
   nixos-windscribe = evalNixos "windscribe" {services.windscribe.enable = true;};
+  # flushRuleset = true deletes the helper's `inet windscribe` table on every
+  # nftables reload: the module must warn and add the re-apply unit. A stub
+  # package keeps the heavy Windscribe build out of the gate while the re-apply
+  # script itself is built, so its shellcheck runs here.
+  nixos-windscribe-nft-flush = let
+    stub = pkgs.runCommand "windscribe-stub" {} "mkdir -p $out/bin";
+  in
+    evalNixosAssert "nixos-windscribe-nft-flush" "windscribe" {
+      services.windscribe.enable = true;
+      services.windscribe.package = stub;
+      services.windscribe.addUsersToGroup = ["alice"];
+      networking.nftables.enable = true;
+      networking.nftables.flushRuleset = true;
+    } {
+      check = c:
+        lib.any (lib.hasInfix "windscribe-nft-reapply.service") c.warnings
+        && c.systemd.services ? windscribe-nft-reapply;
+      message = "flushRuleset = true must warn and define windscribe-nft-reapply";
+      deps = c: [c.systemd.services.windscribe-nft-reapply.serviceConfig.ExecStart];
+    };
+  nixos-windscribe-nft-noflush =
+    evalNixosAssert "nixos-windscribe-nft-noflush" "windscribe" {
+      services.windscribe.enable = true;
+      networking.nftables.enable = true;
+      networking.nftables.flushRuleset = false;
+    } {
+      check = c:
+        !(lib.any (lib.hasInfix "windscribe-nft-reapply") c.warnings)
+        && !(c.systemd.services ? windscribe-nft-reapply);
+      message = "flushRuleset = false must neither warn nor define windscribe-nft-reapply";
+    };
+  # Without nftables, flushRuleset is irrelevant: no warning, no re-apply unit.
+  nixos-windscribe-no-nftables =
+    evalNixosAssert "nixos-windscribe-no-nftables" "windscribe" {
+      services.windscribe.enable = true;
+      networking.nftables.enable = false;
+      networking.nftables.flushRuleset = true;
+    } {
+      check = c:
+        !(lib.any (lib.hasInfix "windscribe-nft-reapply") c.warnings)
+        && !(c.systemd.services ? windscribe-nft-reapply);
+      message = "nftables disabled must neither warn nor define windscribe-nft-reapply";
+    };
   nixos-affine = evalNixos "affine" {
     services.affine.enable = true;
     services.affine.externalUrl = "https://ci.example";
