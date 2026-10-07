@@ -50,6 +50,11 @@ in
     systemd.services.windscribe-helper = {
       description = "Windscribe helper service";
       before = [ "network-pre.target" ];
+      # Both units sit before network-pre.target with no order between them. With
+      # networking.nftables.flushRuleset = true, a `flush ruleset` that ran after
+      # the helper loaded its boot rules into inet windscribe would silently drop
+      # the boot kill switch. No-op when nftables is not enabled.
+      after = [ "nftables.service" ];
       wants = [ "network-pre.target" ];
       wantedBy = [ "multi-user.target" ];
       # NixOS `path` replaces (not extends) the unit PATH; the service does NOT
