@@ -70,6 +70,9 @@ in
         e2fsprogs
         openresolv
         iproute2
+        # The helper's firewall is nftables-only. iptables stays solely for
+        # purgeLegacyIptables(), which removes legacy windscribe_* iptables chains
+        # left by older installs (skipped when the binary is absent).
         iptables
         kmod
         procps
