@@ -36,6 +36,22 @@ let
       # it is logged, or a crafted line could be recorded at a forged priority.
       oneline() { printf '%s' "$1" | tr '\n\r\t' '   ' | tr -d '[:cntrl:]'; }
 
+      # windscribe-nft-reapply and windscribe-nft-reapply-onstop both run this
+      # script (a restart of nftables starts both). Serialize them: the second
+      # run blocks here, then sees the restored table and exits. umask 077 keeps
+      # the lock file root-only, so an unprivileged user cannot open it and hold
+      # the lock to stall the repair; it is restored right after the open so
+      # nothing else (e.g. files the CLI writes) inherits it. A lock failure only
+      # loses the serialization, so continue unlocked rather than skip the repair.
+      old_umask=$(umask)
+      umask 077
+      lock_fd_ok=0
+      { exec 9>/run/windscribe-nft-reapply.lock; } 2>/dev/null && lock_fd_ok=1
+      umask "$old_umask"
+      if [[ $lock_fd_ok -ne 1 ]] || ! flock 9 2>/dev/null; then
+        warn "cannot lock /run/windscribe-nft-reapply.lock; continuing unlocked"
+      fi
+
       # The helper keeps chains in inet windscribe while anything is active.
       # FirewallController::disable() and DnsLeakProtect::disable() leave an
       # empty table behind, so an empty table counts as flushed as well.
@@ -51,12 +67,13 @@ let
       info "table inet windscribe is absent or empty; checking running Windscribe sessions"
 
       # Run windscribe-cli as $user with a hard cap of $1 seconds (SIGKILL 5 s
-      # after SIGTERM). Uses reapply_user's locals user/uid/home.
+      # after SIGTERM). Uses reapply_user's locals user/uid/home. 9>&- keeps
+      # the lock fd out of the CLI, so nothing it leaves behind holds the lock.
       as_user() {
         local secs=$1
         shift
         timeout -k 5 "$secs" runuser -u "$user" -- \
-          env HOME="$home" XDG_RUNTIME_DIR="/run/user/$uid" "$cli" "$@"
+          env HOME="$home" XDG_RUNTIME_DIR="/run/user/$uid" "$cli" "$@" 9>&-
       }
 
       # Run a CLI command, log its (sanitized) output, return its exit code.
@@ -154,9 +171,14 @@ in
         in `networking.nftables.tables`: NixOS then replaces only the tables it
         declares. `flushRuleset = true` (the default when `ruleset` or
         `rulesetFile` is set, or `system.stateVersion` is older than 23.11)
-        deletes `inet windscribe` on every nftables reload. That setup is
+        deletes `inet windscribe` on every nftables reload or stop. That setup is
         unsupported; this module only warns and enables a best-effort reconnect
-        hook (`windscribe-nft-reapply.service`).
+        hook (`windscribe-nft-reapply.service`, plus
+        `windscribe-nft-reapply-onstop.service` for a stop). After switching
+        `flushRuleset` from true to false (nftables still enabled), the next
+        nftables reload replays the old saved `flush ruleset` once while the
+        reapply hook is already gone, so reconnect Windscribe once after that
+        switch.
       '';
     };
 
@@ -251,7 +273,7 @@ in
     warnings = lib.optional nftFlushes ''
       services.windscribe: networking.nftables.flushRuleset = true is
       experimental and not supported by Windscribe or this repo. Every nftables
-      reload deletes the Windscribe kill-switch table (inet windscribe). A
+      reload or stop deletes the Windscribe kill-switch table (inet windscribe). A
       best-effort reconnect hook (windscribe-nft-reapply.service) is enabled; it
       leaves a seconds-long, partly fail-open gap. Supported setup:
       networking.nftables.flushRuleset = false with rules in
@@ -288,6 +310,52 @@ in
         TimeoutStartSec = "infinity";
         TimeoutStopSec = 30;
       };
+    };
+
+    # With flushRuleset = true, nftables.service's ExecStop replays the saved
+    # deletions, i.e. `flush ruleset`, so a bare `systemctl stop nftables` also
+    # deletes inet windscribe. windscribe-nft-reapply cannot repair that: PartOf
+    # stops it first. This second unit runs the same script once per stop. It is
+    # separate because RemainAfterExit = true on the main unit would leave it
+    # active, and a later `systemctl start nftables` would then skip its
+    # ExecStart; and a process backgrounded from ExecStopPost would be killed
+    # with the nftables cgroup. No RemainAfterExit: the unit returns to inactive
+    # after each run, so every stop can trigger it again. Not partOf or wantedBy
+    # anything: only the ExecStopPost below starts it. Best-effort: a stop that
+    # arrives while this unit is still activating is merged by systemd into the
+    # in-flight start job, so a stop->start->stop within one reconnect window
+    # can be missed.
+    systemd.services.windscribe-nft-reapply-onstop = lib.mkIf nftFlushes {
+      description = "Re-apply the Windscribe firewall after nftables is stopped";
+      # Run after any pending nftables job, e.g. the start half of a restart
+      # (the script lock then makes this run a no-op if the main unit got there
+      # first).
+      after = [ "nftables.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        # "-": keep a failed run from leaving the unit failed. The script exits 0 anyway.
+        ExecStart = "-${lib.getExe nftReapply}";
+        # Same bounds as windscribe-nft-reapply: every CLI call is capped.
+        TimeoutStartSec = "infinity";
+        TimeoutStopSec = 30;
+      };
+    };
+
+    # --no-block only enqueues the start job, so the nftables stop does not wait
+    # for a reconnect. During shutdown the start is refused: the on-stop unit has
+    # default dependencies (Conflicts=shutdown.target), which is what we want.
+    # "-": that refusal (or any other failure to enqueue) must not fail the
+    # nftables stop or leave nftables.service failed. ExecStopPost also runs
+    # after a failed nftables start; nft -f is atomic, so the table is intact
+    # and that run is a no-op. As a list, NixOS merges
+    # this with any other ExecStopPost definition by concatenation (nixpkgs'
+    # nftables.service sets none), so nothing is replaced. mkIf on the whole
+    # unit, not on ExecStopPost: otherwise the key alone would define an empty
+    # nftables.service when nftables is disabled.
+    systemd.services.nftables = lib.mkIf nftFlushes {
+      serviceConfig.ExecStopPost = [
+        "-${config.systemd.package}/bin/systemctl start --no-block windscribe-nft-reapply-onstop.service"
+      ];
     };
   };
 }
