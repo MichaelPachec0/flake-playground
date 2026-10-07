@@ -9,7 +9,10 @@ name: "Bump windscribe"
 # workflow. Expected failures that need a human: a build-time patch no longer
 # applies to the new tag, upstream added a new build dependency, or wstunnel
 # moved and its buildGoModule vendorHash (nix/pkgs/windscribe/deps/wstunnel.nix)
-# must be updated from the `got: sha256-...` line in the log. Weekly because
+# must be updated from the `got: sha256-...` line in the log. For the
+# vendorHash case, regenerate _sources locally and commit it together with the
+# new hash: the workflow commits nothing on failure, so _sources still pins the
+# old wstunnel and pushing only the hash would break the package. Weekly because
 # upstream stable releases land every few weeks and the from-source build is
 # heavy.
 on:

@@ -80,7 +80,7 @@ in
         nlohmann_json
         protobuf
         acl
-        # The v2.24.13 helper links libnftables for its firewall (moved from iptables).
+        # Since v2.24.13 the helper links libnftables for its firewall (moved from iptables).
         nftables
         curlCmakeShim
       ])
