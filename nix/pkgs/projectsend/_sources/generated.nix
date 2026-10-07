@@ -8,10 +8,10 @@
 {
   projectsend = {
     pname = "projectsend";
-    version = "2.6.0";
+    version = "2.7.0";
     src = fetchurl {
-      url = "https://github.com/projectsend/projectsend/releases/download/v2.6.0/projectsend-2.6.0.zip";
-      sha256 = "sha256-5LIHSH/zgA4/Co/Z9edWjvOZOKG5Sx9aYrAyGtvRMyg=";
+      url = "https://github.com/projectsend/projectsend/releases/download/v2.7.0/projectsend-2.7.0.zip";
+      sha256 = "sha256-eQBLKrvExjpCbuMLUiEUZ9YsAEHOnUlGSA2VySDtg5Q=";
     };
   };
 }
