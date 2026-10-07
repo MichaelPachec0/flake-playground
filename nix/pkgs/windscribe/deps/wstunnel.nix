@@ -1,14 +1,19 @@
-{ pkgs }:
+{
+  pkgs,
+  sources,
+}:
 pkgs.buildGoModule {
   pname = "windscribe-wstunnel";
-  version = "1.0.6";
-  src = pkgs.fetchFromGitHub {
-    owner = "Windscribe"; repo = "wstunnel"; rev = "v1.0.6";
-    hash = "sha256-WGLgZStXzZjseMumxQ2D1UFSdE3xZpYE6g5omPw6swQ=";
-  };
-  vendorHash = "sha256-Ma9bTnJmQ983Oio1c8T4eC4Sg45y0vGoaRIeKaSVhLM=";   # go.mod has a local replace for gorilla/websocket; buildGoModule vendors it
+  version = pkgs.lib.removePrefix "v" sources.wstunnel.version;
+  # Version is coupled to the Desktop-App tag (upstream pins it in
+  # tools/vars/wstunnel.yml); tracked by nvfetcher in ../nvfetcher.toml.
+  inherit (sources.wstunnel) src;
+  # NOT tracked by nvfetcher: a wstunnel bump changes this hash, so the bump
+  # then fails with `got: sha256-...`. Regenerate _sources locally (command
+  # in ../nvfetcher.toml) and commit the new hash together with it.
+  vendorHash = "sha256-sl1QKXijUj/uM+3fOuufFQH0+X8I07UVTEOSPteNDYQ="; # go.mod has a local replace for gorilla/websocket; buildGoModule vendors it
   # build only the root package; ./websocket is a local-replace module, not a buildable subpackage
-  subPackages = [ "." ];
+  subPackages = ["."];
   # match upstream build flags (strip debug info / symbol table)
-  ldflags = [ "-w" "-s" ];
+  ldflags = ["-w" "-s"];
 }

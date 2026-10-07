@@ -98,10 +98,6 @@ fetch.git = "https://github.com/sourcegraph/sg.nvim"
 src.git = "https://github.com/arnamak/stay-centered.nvim"
 fetch.git = "https://github.com/arnamak/stay-centered.nvim"
 
-[telescopeDocker]
-src.git = "https://github.com/lpoto/telescope-docker.nvim"
-fetch.git = "https://github.com/lpoto/telescope-docker.nvim"
-
 [tsSoftwareLicenses]
 src.git = "https://github.com/chip/telescope-software-licenses.nvim"
 fetch.git = "https://github.com/chip/telescope-software-licenses.nvim"

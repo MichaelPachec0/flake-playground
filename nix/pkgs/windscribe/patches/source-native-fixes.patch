@@ -1,5 +1,5 @@
 diff --git a/src/client/client-common/CMakeLists.txt b/src/client/client-common/CMakeLists.txt
-index 3dedd381..e1568343 100644
+index 87bf2aa..cd02928 100644
 --- a/src/client/client-common/CMakeLists.txt
 +++ b/src/client/client-common/CMakeLists.txt
 @@ -13,6 +13,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,11 +22,11 @@ index 3dedd381..e1568343 100644
 +if(TARGET c-ares::cares)
 +    target_link_libraries(client-common PRIVATE c-ares::cares)
 +endif()
- target_compile_definitions(client-common PRIVATE CMAKE_LIBRARY_LIBRARY
-                                   WINVER=0x0601
-                                   _WIN32_WINNT=0x0601
+ 
+ if(WIN32)
+     target_compile_definitions(client-common PRIVATE CMAKE_LIBRARY_LIBRARY WIN32_LEAN_AND_MEAN PIO_APC_ROUTINE_DEFINED)
 diff --git a/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h b/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
-index 7df7fa00..73b9a18a 100644
+index 7df7fa0..73b9a18 100644
 --- a/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
 +++ b/src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h
 @@ -5,6 +5,10 @@
@@ -41,7 +41,7 @@ index 7df7fa00..73b9a18a 100644
  // measuring time in ms helper
  template <
 diff --git a/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp b/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
-index 3fb67258..230acbb5 100644
+index 8463240..9ea326e 100644
 --- a/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
 +++ b/src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp
 @@ -5,6 +5,7 @@

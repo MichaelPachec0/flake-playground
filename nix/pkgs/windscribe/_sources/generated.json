@@ -1,0 +1,65 @@
+{
+    "windscribe": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "windscribe",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "Windscribe",
+            "repo": "Desktop-App",
+            "rev": "v2.24.13",
+            "sha256": "sha256-zpaEOrgFnxoZ/d6bAF0SlbB0q/+pGIxhWU8t0F16F/Q=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v2.24.13"
+    },
+    "wsnet": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "wsnet",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "Windscribe",
+            "repo": "wsnet",
+            "rev": "1.5.32",
+            "sha256": "sha256-W4qArEGc5Vk9HXoZlZxD8JEl9NRadJzZsKBYf5zZyOI=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "1.5.32"
+    },
+    "wstunnel": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "wstunnel",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "Windscribe",
+            "repo": "wstunnel",
+            "rev": "v1.0.7",
+            "sha256": "sha256-m1vy6yQKE4PSAcYRvHIz0f3Mc08NB9OdZwhB0zk0LjA=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v1.0.7"
+    }
+}

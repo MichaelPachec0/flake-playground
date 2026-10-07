@@ -71,9 +71,9 @@
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
-    # package is self-contained: it fetches the Windscribe Desktop source (v2.23.9) and
-    # its Go/prebuilt deps itself. `devMode = false` is the hardened production build the
-    # NixOS module consumes.
+    # package is self-contained: it fetches the Windscribe Desktop source (tracked by
+    # nvfetcher) and its Go/prebuilt deps itself. `devMode = false` is the hardened
+    # production build the NixOS module consumes.
     windscribePkgs = import nixpkgs {
       inherit system;
       config.allowUnfree = true;

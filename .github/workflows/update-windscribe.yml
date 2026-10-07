@@ -1,0 +1,72 @@
+name: "Bump windscribe"
+
+# Weekly: re-run nvfetcher for the windscribe sources (Desktop-App latest
+# stable release, plus the wsnet/wstunnel versions that release pins), build
+# windscribe and the CI gate, and only commit the regenerated _sources when
+# everything passes.
+#
+# Separate from the playground bump so a failure here fails only this
+# workflow. Expected failures that need a human: a build-time patch no longer
+# applies to the new tag, upstream added a new build dependency, or wstunnel
+# moved and its buildGoModule vendorHash (nix/pkgs/windscribe/deps/wstunnel.nix)
+# must be updated from the `got: sha256-...` line in the log. For the
+# vendorHash case, regenerate _sources locally and commit it together with the
+# new hash: the workflow commits nothing on failure, so _sources still pins the
+# old wstunnel and pushing only the hash would break the package. Weekly because
+# upstream stable releases land every few weeks and the from-source build is
+# heavy.
+on:
+  schedule:
+    - cron: "54 4 * * 1"
+  push:
+    paths:
+      - "nix/pkgs/windscribe/nvfetcher.toml"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Cold cache rebuilds static OpenSSL 4, curl and the Qt app from source.
+    # Still well under the 360-minute default so a hang fails fast.
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    # Job-level so it reaches the composite action's steps: the wsnet and
+    # wstunnel src.cmd entries call the GitHub API and send this token when
+    # set, avoiding the unauthenticated rate limit on shared runner IPs.
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # nix-checks has no build-command input (only pre-build-command), and its
+      # own build step targets ci.gate, which does NOT include windscribe (kept
+      # out of mainPackages: heavy C++ build on its own overlaid nixpkgs). Chain
+      # the explicit build onto the nvfetcher run; ci.gate then still covers the
+      # nixos-windscribe module eval.
+      - name: Regenerate sources + build windscribe
+        uses: ./.github/actions/nix-checks
+        with:
+          pre-build-command: >-
+            nix shell nixpkgs#nvfetcher nixpkgs#curl nixpkgs#jq -c
+            nvfetcher
+            -c nix/pkgs/windscribe/nvfetcher.toml
+            -o nix/pkgs/windscribe/_sources
+            &&
+            nix build -L .#windscribe
+
+      - name: Commit bumped sources
+        id: commit
+        if: ${{ success() }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: bump windscribe source"
+          # ONE LINE only - see update-projectsend.yml: multi-line
+          # file_pattern silently degrades to its first entry.
+          file_pattern: "nix/pkgs/windscribe/_sources/"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry

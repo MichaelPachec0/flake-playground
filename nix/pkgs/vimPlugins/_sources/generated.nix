@@ -402,20 +402,6 @@
     };
     date = "2024-11-12";
   };
-  telescopeDocker = {
-    pname = "telescopeDocker";
-    version = "4219840291d9e3e64f6b8eefa11e8deb14357581";
-    src = fetchgit {
-      url = "https://github.com/lpoto/telescope-docker.nvim";
-      rev = "4219840291d9e3e64f6b8eefa11e8deb14357581";
-      fetchSubmodules = false;
-      deepClone = false;
-      leaveDotGit = false;
-      sparseCheckout = [ ];
-      sha256 = "sha256-nOMPWVlQR4jRdIt7UDADxl1p3lkx7+fVVboF/6wZW1g=";
-    };
-    date = "2023-06-05";
-  };
   tsSoftwareLicenses = {
     pname = "tsSoftwareLicenses";
     version = "f52dd003129833b0d77613a13d815a50b953b190";
