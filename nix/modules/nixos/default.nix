@@ -19,5 +19,6 @@ inputs: {
     (import ./projectsend inputs)
     (import ./pingvin-share inputs)
     (import ./arduino-flasher-cli inputs)
+    (import ./zipline-latest inputs)
   ];
 }

@@ -166,12 +166,17 @@
     # NOT in the merge gate.
     #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
     pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
+    # zipline-latest VM tests: fresh installs (pg + pglite) and the migration
+    # paths (nixpkgs 4.7.0 import, Prisma->Drizzle gate, PGlite cutover).
+    #   nix build .#checks.x86_64-linux.zipline-latest-vm -L
+    ziplineLatestVmTest = import ./nix/tests/zipline-latest-vm.nix {inherit pkgs self;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.
     vmChecks = {
       picr-vm = picrVmTest;
       pingvin-share-vm = pingvinShareVmTest;
+      zipline-latest-vm = ziplineLatestVmTest;
     };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
@@ -257,6 +262,7 @@
         # `default` aggregate and the CI gate.
         picr-vm = picrVmTest;
         pingvin-share-vm = pingvinShareVmTest;
+        zipline-latest-vm = ziplineLatestVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
@@ -328,8 +334,9 @@
       projectsend = import ./nix/modules/nixos/projectsend inputs;
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
       arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
+      zipline-latest = import ./nix/modules/nixos/zipline-latest inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-latest;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
