@@ -9,7 +9,9 @@
 # checksums inside one transaction; on mismatch it rolls back, records nothing
 # and the unit fails with "cannot safely migrate from prisma to drizzle").
 # Before that, this module's pre-start check logs the follow-up steps and, with
-# backupBeforeAdoption, pg_dumps to /var/lib/zipline-latest/backups.
+# backupBeforeAdoption, pg_dumps to /var/lib/zipline-latest/backups. A
+# `?schema=` parameter in DATABASE_URL is stripped for that pre-check (libpq
+# rejects it; upstream's driver ignores it).
 #
 # Follow-up steps after 4.8.0 that cannot be inferred:
 #   * behind a reverse proxy, set trustedProxies (CORE_TRUST_PROXY alone is
@@ -97,18 +99,27 @@ inputs: {
       fi
       case "$DATABASE_URL" in pglite:*) exit 0 ;; esac
 
-      q() { psql "$DATABASE_URL" -XAtq -c "$1"; }
+      # libpq rejects the `schema` query parameter that upstream's 4.7 README
+      # documents (node-postgres ignores it): strip only that one for psql and pg_dump.
+      pg_url=$(printf '%s' "$DATABASE_URL" | sed -E -e 's/([?&])schema=[^&]*&/\1/' -e 's/[?&]schema=[^&]*$//')
 
-      [ "$(q "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")" = t ] || exit 0
-      if [ "$(q "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")" = t ] &&
-        [ "$(q 'SELECT count(*) > 0 FROM drizzle.__drizzle_migrations')" = t ]; then
-        exit 0
+      q() { psql "$pg_url" -XAtq -c "$1"; }
+
+      # Capture first: a failing psql inside a bare `[ "$(...)" ]` test would not
+      # trip errexit and would read as "no Prisma history", failing open.
+      prisma=$(q "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")
+      [ "$prisma" = t ] || exit 0
+      drizzle_table=$(q "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")
+      if [ "$drizzle_table" = t ]; then
+        drizzle_rows=$(q 'SELECT count(*) > 0 FROM drizzle.__drizzle_migrations')
+        [ "$drizzle_rows" = t ] && exit 0
       fi
 
       while IFS= read -r line; do echo "<4>$line"; done <<'EOF'
       ${name}: this start will adopt a Zipline 4.7 database (Prisma -> Drizzle).
       Upstream refuses unless the database is exactly on 4.7.0; nothing is changed if it refuses.
       Follow-up steps after 4.8.0:
+        - back up the database first (automatic when services.${name}.backupBeforeAdoption is on)
         - behind a reverse proxy: set services.${name}.trustedProxies (CORE_TRUST_PROXY alone is ignored)
         - custom uploaders: partialIdentifier / x-zipline-p-identifier -> partialToken / x-zipline-p-token
         - keep the same CORE_SECRET as the old install
@@ -118,7 +129,7 @@ inputs: {
       ${lib.optionalString cfg.backupBeforeAdoption ''
         install -d -m 0700 "$STATE_DIRECTORY/backups"
         out="$STATE_DIRECTORY/backups/pre-drizzle-$(date -u +%Y%m%dT%H%M%SZ).sql"
-        pg_dump "$DATABASE_URL" --file="$out"
+        pg_dump "$pg_url" --file="$out"
         echo "<5>${name}: backup written to $out"
       ''}
     '';
