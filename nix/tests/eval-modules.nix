@@ -237,6 +237,11 @@ in {
     services.zipline-latest.enable = true;
     services.zipline-latest.experimental.importFromNixpkgs.enable = true;
   };
+  nixos-zipline-latest-cutover = evalNixos "zipline-latest" {
+    services.zipline-latest.enable = true;
+    services.zipline-latest.database.type = "pglite";
+    services.zipline-latest.experimental.migrateToPglite.enable = true;
+  };
   nixos-zipline-latest-pglite = evalNixos "zipline-latest" {
     services.zipline-latest.enable = true;
     services.zipline-latest.database.type = "pglite";

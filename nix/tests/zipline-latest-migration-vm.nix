@@ -69,6 +69,11 @@ in
         imports = [latest];
         services.zipline-latest.experimental.importFromNixpkgs.enable = true;
       };
+      specialisation.pglite.configuration = {
+        imports = [latest];
+        services.zipline-latest.database.type = "pglite";
+        services.zipline-latest.experimental.migrateToPglite.enable = true;
+      };
     };
     testScript = ''
       import json
@@ -122,6 +127,16 @@ in
       assert psql(migration, "zipline-latest", "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations") == "t"
       # source left untouched (rollback path): still Prisma-only
       assert psql(migration, "zipline", "SELECT to_regclass('drizzle.__drizzle_migrations') IS NULL") == "t"
+
+      # migration, step 2: adopted PostgreSQL -> PGlite cutover
+      switch(migration, "pglite")
+      migration.wait_for_unit("zipline-latest.service")
+      migration.wait_for_open_port(8000, timeout=300)
+      migration.succeed("systemctl is-active zipline-latest-pglite-cutover.service")
+      migration.succeed("test -d /var/lib/private/zipline-latest/db")
+      migration.succeed("ls /var/lib/private/zipline-latest/backups/pre-pglite-*.sql")
+      migration.succeed("systemctl show zipline-latest -p Environment --value | grep -q 'DATABASE_URL=pglite:///var/lib/zipline-latest/db'")
+      migration.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
 
       # gate, second half: re-run the import against a now non-empty target
       switch(gate, "import")

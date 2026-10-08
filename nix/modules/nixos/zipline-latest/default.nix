@@ -134,6 +134,40 @@ inputs: {
       ''}
     '';
   };
+  cut = cfg.experimental.migrateToPglite;
+
+  # Runs as the service's dynamic user (same name -> same UID), so the PGlite
+  # files it creates are owned by the server. Upstream removes the target
+  # directory on failure, so its existence is the done-marker.
+  cutoverScript = pkgs.writeShellApplication {
+    name = "${name}-pglite-cutover";
+    runtimeInputs = [pgPackage pkgs.coreutils pkgs.gnused cfg.package];
+    text = ''
+      src=${lib.escapeShellArg cut.sourceDatabaseUrl}
+      fail() { echo "<3>${name}-pglite-cutover: $1" >&2; exit 1; }
+
+      # libpq rejects the Prisma-only `schema` query parameter; strip it for
+      # psql and pg_dump. ziplinectl (node-postgres) gets the original URL.
+      pg_url=$(printf '%s' "$src" | sed -E -e 's/([?&])schema=[^&]*&/\1/' -e 's/[?&]schema=[^&]*$//')
+      q() { psql "$pg_url" -XAtq -c "$1"; }
+
+      # Capture first: a failing psql inside a bare `[ "$(...)" ]` test would
+      # not trip errexit and would read as "not adopted", failing open.
+      reg=$(q "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")
+      [ "$reg" = t ] || fail "source is not adopted by 4.8 yet; start ${name} on postgresql once before cutover"
+      rows=$(q 'SELECT count(*) > 0 FROM drizzle.__drizzle_migrations')
+      [ "$rows" = t ] || fail "source is not adopted by 4.8 yet; start ${name} on postgresql once before cutover"
+
+      install -d -m 0700 "$STATE_DIRECTORY/backups"
+      out="$STATE_DIRECTORY/backups/pre-pglite-$(date -u +%Y%m%dT%H%M%SZ).sql"
+      pg_dump "$pg_url" --file="$out"
+      echo "<5>${name}-pglite-cutover: backup written to $out"
+
+      ziplinectl migrate-pglite "$STATE_DIRECTORY/db" --source "$src"
+      echo "<4>${name}-pglite-cutover: done. PostgreSQL database left in place for rollback; writes on PGlite are not copied back."
+    '';
+  };
+
   imp = cfg.experimental.importFromNixpkgs;
   importMarker = "${privateDir}/.imported-from-nixpkgs";
 
@@ -389,6 +423,24 @@ in {
         RemainAfterExit = true;
         ExecStart = lib.getExe importScript;
       };
+    };
+
+    systemd.services."${name}-pglite-cutover" = lib.mkIf cut.enable {
+      description = "Zipline (latest stable): one-shot PostgreSQL -> PGlite cutover";
+      after = ["postgresql.target"];
+      wants = ["postgresql.target"];
+      before = ["${name}.service"];
+      requiredBy = ["${name}.service"];
+      unitConfig.ConditionPathExists = "!${privateDir}/db";
+      environment = serviceEnvironment;
+      serviceConfig =
+        hardening
+        // serviceIdentity
+        // {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = lib.getExe cutoverScript;
+        };
     };
 
     systemd.services.${name} = {
