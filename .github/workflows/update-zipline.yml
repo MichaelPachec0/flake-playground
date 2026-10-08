@@ -1,0 +1,63 @@
+name: "Bump zipline-latest"
+
+# Daily: re-run nvfetcher for the standalone zipline source, self-heal the pnpm
+# deps hash, build the package, eval the module and run both zipline VM tests;
+# commit the regenerated _sources and hash together only if everything passes.
+#
+# Separate from update-playground.yml on purpose: zipline has its own nvfetcher
+# config (nix/pkgs/zipline/nvfetcher.toml), so a failure here (a yanked
+# release, a lockfile that no longer fetches, a new upgrade precondition the
+# VM tests catch) fails only this workflow.
+on:
+  schedule:
+    - cron: "54 4 * * *"
+  push:
+    paths:
+      - "nix/pkgs/zipline/nvfetcher.toml"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # pnpm build + three VMs across two tests; same budget as pingvin.
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # heal-pnpm-hash.sh rewrites nix/pkgs/zipline/pnpm-deps.hash when the new
+      # release changed pnpm-lock.yaml (warning, not failure); any other
+      # pnpmDeps failure is fatal. The explicit build covers what the default
+      # gate does not (zipline-latest is excluded from the gate aggregates).
+      - name: Regenerate source + heal hash + build zipline
+        uses: ./.github/actions/nix-checks
+        with:
+          pre-build-command: >-
+            nix run nixpkgs#nvfetcher --
+            -c nix/pkgs/zipline/nvfetcher.toml
+            -o nix/pkgs/zipline/_sources
+            &&
+            scripts/heal-pnpm-hash.sh zipline-latest nix/pkgs/zipline/pnpm-deps.hash
+            &&
+            nix build -L
+            .#packages.x86_64-linux.zipline-latest
+            .#checks.x86_64-linux.nixos-zipline-latest
+            .#checks.x86_64-linux.zipline-latest-vm
+            .#checks.x86_64-linux.zipline-latest-migration-vm
+
+      - name: Commit bumped source
+        id: commit
+        if: ${{ success() }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: bump zipline source"
+          # ONE LINE only: the action does `read -r -a` on this input, which
+          # stops at the first newline (see update-projectsend.yml).
+          file_pattern: "nix/pkgs/zipline/_sources/ nix/pkgs/zipline/pnpm-deps.hash"
+          skip_push: true
+
+      - name: Push (rebase + retry)
+        if: ${{ steps.commit.outputs.changes_detected == 'true' }}
+        uses: ./.github/actions/push-retry
