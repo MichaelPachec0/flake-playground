@@ -171,8 +171,8 @@
     ziplineLatestVmTest = import ./nix/tests/zipline-latest-vm.nix {inherit pkgs self;};
     # zipline-latest migration VM test, seeded from a real nixpkgs 4.7.0
     # install. Covers the Prisma->Drizzle upgrade gate (upstream refusal plus
-    # our adoption warning and backup); the nixpkgs import and the PGlite
-    # cutover are added to the same test.
+    # our adoption warning and backup), the nixpkgs import (including the
+    # recovery path over a pre-existing state dir) and the PGlite cutover.
     #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
     ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux

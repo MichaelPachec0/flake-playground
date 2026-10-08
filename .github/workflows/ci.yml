@@ -36,7 +36,8 @@ jobs:
       - name: Run flake checks
         uses: ./.github/actions/nix-checks
 
-  # The NixOS VM integration tests (picr-vm, pingvin-share-vm). Separate from
+  # The NixOS VM integration tests (picr-vm, pingvin-share-vm, zipline-latest-vm,
+  # zipline-latest-migration-vm). Separate from
   # `checks` so they run in parallel with it: they build for ~10 minutes, and
   # inside the gate they pushed it past its timeout. The pingvin bump workflow
   # still runs pingvin-share-vm itself before committing a source bump.
