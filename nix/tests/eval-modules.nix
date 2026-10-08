@@ -283,6 +283,12 @@ in {
     services.zipline-latest.enable = true;
     services.zipline-latest.experimental.migrateToPglite.enable = true;
   } "migrateToPglite requires";
+  nixos-zipline-latest-assert-cutover-url = expectAssertion "zipline-latest-cutover-url" "zipline-latest" {
+    services.zipline-latest.enable = true;
+    services.zipline-latest.database.type = "pglite";
+    services.zipline-latest.experimental.migrateToPglite.enable = true;
+    services.zipline-latest.settings.DATABASE_URL = "pglite:///var/lib/zipline-latest/data";
+  } "migrateToPglite writes to";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};

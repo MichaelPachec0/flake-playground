@@ -163,7 +163,12 @@ inputs: {
       pg_dump "$pg_url" --file="$out"
       echo "<5>${name}-pglite-cutover: backup written to $out"
 
-      ziplinectl migrate-pglite "$STATE_DIRECTORY/db" --source "$src"
+      # Build in a scratch dir and rename: upstream's cleanup only runs on a thrown
+      # error, so a killed run would leave a schema-valid but empty db/ that
+      # counts as done. Only a complete copy ever appears at db/.
+      rm -rf "$STATE_DIRECTORY/db.cutover"
+      ziplinectl migrate-pglite "$STATE_DIRECTORY/db.cutover" --source "$src"
+      mv "$STATE_DIRECTORY/db.cutover" "$STATE_DIRECTORY/db"
       echo "<4>${name}-pglite-cutover: done. PostgreSQL database left in place for rollback; writes on PGlite are not copied back."
     '';
   };
@@ -391,6 +396,10 @@ in {
       {
         assertion = !cfg.experimental.migrateToPglite.enable || isPglite;
         message = "services.zipline-latest: experimental.migrateToPglite requires database.type = \"pglite\".";
+      }
+      {
+        assertion = !cfg.experimental.migrateToPglite.enable || (cfg.settings.DATABASE_URL or "") == "pglite://${stateDir}/db";
+        message = "services.zipline-latest: experimental.migrateToPglite writes to ${stateDir}/db; settings.DATABASE_URL must be \"pglite://${stateDir}/db\".";
       }
     ];
 
