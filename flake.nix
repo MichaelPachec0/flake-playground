@@ -166,10 +166,15 @@
     # NOT in the merge gate.
     #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
     pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
-    # zipline-latest VM tests: fresh installs (pg + pglite) and the migration
-    # paths (nixpkgs 4.7.0 import, Prisma->Drizzle gate, PGlite cutover).
+    # zipline-latest VM test: fresh installs only (pg + pglite).
     #   nix build .#checks.x86_64-linux.zipline-latest-vm -L
     ziplineLatestVmTest = import ./nix/tests/zipline-latest-vm.nix {inherit pkgs self;};
+    # zipline-latest migration VM test, seeded from a real nixpkgs 4.7.0
+    # install. Covers the Prisma->Drizzle upgrade gate (upstream refusal plus
+    # our adoption warning and backup); the nixpkgs import and the PGlite
+    # cutover are added to the same test.
+    #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
+    ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.
@@ -177,6 +182,7 @@
       picr-vm = picrVmTest;
       pingvin-share-vm = pingvinShareVmTest;
       zipline-latest-vm = ziplineLatestVmTest;
+      zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
     };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
@@ -263,6 +269,7 @@
         picr-vm = picrVmTest;
         pingvin-share-vm = pingvinShareVmTest;
         zipline-latest-vm = ziplineLatestVmTest;
+        zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (

@@ -81,6 +81,48 @@ inputs: {
     EnvironmentFile = cfg.environmentFiles;
   };
   serviceEnvironment = lib.mapAttrs (_: toString) cfg.settings;
+
+  # Runs as the service user before every start (postgresql only). Detects the
+  # one start that will adopt a 4.7.0 Prisma database (Prisma history present,
+  # Drizzle history absent), logs the follow-up steps and optionally pg_dumps.
+  # It never judges the Prisma history itself: upstream does that right after,
+  # transactionally, against its own checksum list.
+  adoptionCheck = pkgs.writeShellApplication {
+    name = "${name}-adoption-check";
+    runtimeInputs = [pgPackage pkgs.coreutils];
+    text = ''
+      if [ -z "''${DATABASE_URL:-}" ]; then
+        echo "<4>${name}: DATABASE_URL unset (DATABASE_* variables?); skipping the adoption pre-check"
+        exit 0
+      fi
+      case "$DATABASE_URL" in pglite:*) exit 0 ;; esac
+
+      q() { psql "$DATABASE_URL" -XAtq -c "$1"; }
+
+      [ "$(q "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")" = t ] || exit 0
+      if [ "$(q "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")" = t ] &&
+        [ "$(q 'SELECT count(*) > 0 FROM drizzle.__drizzle_migrations')" = t ]; then
+        exit 0
+      fi
+
+      while IFS= read -r line; do echo "<4>$line"; done <<'EOF'
+      ${name}: this start will adopt a Zipline 4.7 database (Prisma -> Drizzle).
+      Upstream refuses unless the database is exactly on 4.7.0; nothing is changed if it refuses.
+      Follow-up steps after 4.8.0:
+        - behind a reverse proxy: set services.${name}.trustedProxies (CORE_TRUST_PROXY alone is ignored)
+        - custom uploaders: partialIdentifier / x-zipline-p-identifier -> partialToken / x-zipline-p-token
+        - keep the same CORE_SECRET as the old install
+      Release notes: https://github.com/diced/zipline/releases/tag/v4.8.0
+      EOF
+
+      ${lib.optionalString cfg.backupBeforeAdoption ''
+        install -d -m 0700 "$STATE_DIRECTORY/backups"
+        out="$STATE_DIRECTORY/backups/pre-drizzle-$(date -u +%Y%m%dT%H%M%SZ).sql"
+        pg_dump "$DATABASE_URL" --file="$out"
+        echo "<5>${name}: backup written to $out"
+      ''}
+    '';
+  };
 in {
   options.services.zipline-latest = {
     enable = lib.mkEnableOption "Zipline (latest upstream stable release)";
@@ -270,6 +312,7 @@ in {
         hardening
         // serviceIdentity
         // {
+          ExecStartPre = lib.optional (!isPglite) (lib.getExe adoptionCheck);
           ExecStart = lib.getExe cfg.package;
         };
     };

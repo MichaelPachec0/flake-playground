@@ -43,8 +43,9 @@ jobs:
   vm-tests:
     runs-on: ubuntu-latest
     # ~10 minutes of build plus setup and cache save; same hang protection
-    # rationale as `checks`.
-    timeout-minutes: 45
+    # rationale as `checks`. The zipline-latest VM tests also build the
+    # zipline-latest package (pnpm build) in this job.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
