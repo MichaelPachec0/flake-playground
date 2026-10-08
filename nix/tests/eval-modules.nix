@@ -237,6 +237,16 @@ in {
     services.zipline-latest.enable = true;
     services.zipline-latest.database.type = "pglite";
   };
+  # Both services keep DATABASE_URL only in environmentFiles: nothing known to
+  # compare, so the shared-DB assertion must not fire.
+  nixos-zipline-latest-env-file-db = evalNixos "zipline-latest" {
+    services.zipline.enable = true;
+    services.zipline.database.createLocally = false;
+    services.zipline.environmentFiles = ["/run/secrets/zipline.env"];
+    services.zipline-latest.enable = true;
+    services.zipline-latest.database.createLocally = false;
+    services.zipline-latest.environmentFiles = ["/run/secrets/zipline-latest.env"];
+  };
   nixos-zipline-latest-assert-pglite-local = expectAssertion "zipline-latest-pglite-local" "zipline-latest" {
     services.zipline-latest.enable = true;
     services.zipline-latest.database.type = "pglite";

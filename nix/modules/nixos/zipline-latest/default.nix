@@ -229,7 +229,7 @@ in {
         message = "services.zipline-latest: database.type = \"pglite\" requires settings.DATABASE_URL = \"pglite:///<absolute path>\".";
       }
       {
-        assertion = !(config.services.zipline.enable && (config.services.zipline.settings.DATABASE_URL or null) == (cfg.settings.DATABASE_URL or null));
+        assertion = !(config.services.zipline.enable && cfg.settings ? DATABASE_URL && config.services.zipline.settings ? DATABASE_URL && config.services.zipline.settings.DATABASE_URL == cfg.settings.DATABASE_URL);
         message = "services.zipline-latest: nixpkgs services.zipline uses the same DATABASE_URL; a 4.7 server on a Drizzle-adopted database corrupts it.";
       }
       {
