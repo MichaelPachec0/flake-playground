@@ -279,6 +279,16 @@ in {
     services.zipline-latest.enable = true;
     services.zipline-latest.experimental.importFromNixpkgs.enable = true;
   } "importFromNixpkgs requires";
+  nixos-zipline-latest-assert-import-url = expectAssertion "zipline-latest-import-url" "zipline-latest" {
+    services.zipline-latest.enable = true;
+    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+    services.zipline-latest.settings.DATABASE_URL = "postgresql://x@localhost/x";
+  } "importFromNixpkgs restores into";
+  nixos-zipline-latest-assert-import-dir = expectAssertion "zipline-latest-import-dir" "zipline-latest" {
+    services.zipline-latest.enable = true;
+    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+    services.zipline-latest.settings.DATASOURCE_LOCAL_DIRECTORY = "/srv/uploads";
+  } "importFromNixpkgs restores into";
   nixos-zipline-latest-assert-cutover = expectAssertion "zipline-latest-cutover" "zipline-latest" {
     services.zipline-latest.enable = true;
     services.zipline-latest.experimental.migrateToPglite.enable = true;

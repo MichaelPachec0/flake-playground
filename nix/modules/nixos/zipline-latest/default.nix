@@ -28,6 +28,16 @@
 # then enable this module. experimental.importFromNixpkgs automates exactly
 # that; experimental.migrateToPglite automates upstream's
 # `ziplinectl migrate-pglite` cutover. Both are experimental.
+#
+# Rollback and re-run:
+#   * importFromNixpkgs: the done-marker /var/lib/private/zipline-latest/.imported-from-nixpkgs
+#     means re-enabling it after a rollback runs on the OLD copy. To re-import,
+#     drop the zipline-latest database (sudo -u postgres dropdb zipline-latest,
+#     then restart postgresql so it is recreated) and remove the marker.
+#   * migrateToPglite: roll back with database.type = "postgresql"; writes made
+#     on PGlite are not copied back. To cut over again later, move
+#     /var/lib/private/zipline-latest/db aside first, otherwise the stale PGlite
+#     is used.
 inputs: {
   config,
   lib,
@@ -40,7 +50,12 @@ inputs: {
   stateDir = "/var/lib/${name}";
   privateDir = "/var/lib/private/${name}";
   localPgUrl = "postgresql://${name}@localhost/${name}?host=/run/postgresql";
-  pgPackage = config.services.postgresql.package;
+  # services.postgresql.package has no value while the server is disabled
+  # (createLocally = false on an external database); psql/pg_dump still run.
+  pgPackage =
+    if config.services.postgresql.enable
+    then config.services.postgresql.package
+    else pkgs.postgresql;
   isPglite = cfg.database.type == "pglite";
   usesPostgres = cfg.database.createLocally;
 
@@ -234,6 +249,10 @@ inputs: {
         echo "<5>${name}-import: uploads copied"
       ''}
 
+      # Force systemd's recursive chown on the next main-unit start: it is
+      # skipped when the top-level dir is already owned by the dynamic UID.
+      chown 0:0 "$state"
+
       touch ${lib.escapeShellArg importMarker}
       echo "<4>${name}-import: done. Keep the old CORE_SECRET; the source database and uploads were not modified (drop them by hand once satisfied)."
     '';
@@ -291,6 +310,10 @@ in {
         description = ''
           postgresql: a PostgreSQL server (local when createLocally).
           pglite: embedded PGlite at /var/lib/zipline-latest/db, no server.
+
+          Switching an existing PostgreSQL install to "pglite" without
+          experimental.migrateToPglite starts an empty instance whose
+          first-run setup endpoint is open.
         '';
       };
       createLocally = lib.mkOption {
@@ -318,7 +341,9 @@ in {
       description = ''
         pg_dump to /var/lib/zipline-latest/backups/pre-drizzle-<ts>.sql before
         the first start adopts a 4.7.0 Prisma database. A dump failure fails
-        the unit.
+        the unit. The pre-check needs settings.DATABASE_URL; with only
+        DATABASE_USERNAME/DATABASE_HOST/... variables it is skipped (a warning
+        is logged) and no backup is taken.
       '';
     };
 
@@ -355,7 +380,12 @@ in {
         sourceDatabaseUrl = lib.mkOption {
           type = lib.types.str;
           default = localPgUrl;
-          description = "PostgreSQL source; must already be adopted by 4.8.0+.";
+          description = ''
+            PostgreSQL source; must already be adopted by 4.8.0+. The value is
+            world-readable in the Nix store and visible in `ps` (passed as
+            --source): use a password-less socket URL (peer auth) such as the
+            default.
+          '';
         };
       };
     };
@@ -394,6 +424,14 @@ in {
         message = "services.zipline-latest: experimental.importFromNixpkgs requires services.zipline.enable = false and database.type = \"postgresql\".";
       }
       {
+        assertion =
+          !imp.enable
+          || (cfg.database.createLocally
+            && (cfg.settings.DATABASE_URL or "") == localPgUrl
+            && (!imp.copyUploads || (cfg.settings.DATASOURCE_LOCAL_DIRECTORY or "") == "${stateDir}/uploads"));
+        message = "services.zipline-latest: importFromNixpkgs restores into the local ${name} database and ${stateDir}/uploads; it needs database.createLocally = true, settings.DATABASE_URL = \"${localPgUrl}\" and (with copyUploads) settings.DATASOURCE_LOCAL_DIRECTORY = \"${stateDir}/uploads\".";
+      }
+      {
         assertion = !cfg.experimental.migrateToPglite.enable || isPglite;
         message = "services.zipline-latest: experimental.migrateToPglite requires database.type = \"pglite\".";
       }
@@ -407,9 +445,9 @@ in {
       lib.optional ((cfg.settings ? CORE_TRUST_PROXY) && cfg.trustedProxies == [] && !(cfg.settings ? CORE_TRUSTED_PROXIES))
       "services.zipline-latest: CORE_TRUST_PROXY is set but trustedProxies is empty; since 4.8.0 forwarded headers are ignored, so all clients behind the proxy share rate limits."
       ++ lib.optional cfg.experimental.importFromNixpkgs.enable
-      "services.zipline-latest: experimental.importFromNixpkgs is EXPERIMENTAL; read the module header before relying on it. It runs once (marker ${privateDir}/.imported-from-nixpkgs) and can be removed afterwards."
+      "services.zipline-latest: experimental.importFromNixpkgs is EXPERIMENTAL; read the module header before relying on it. It runs once (marker ${privateDir}/.imported-from-nixpkgs) and can be removed afterwards. After a rollback, re-enabling it runs on the old copy; to re-import, drop the ${name} database and remove the marker."
       ++ lib.optional cfg.experimental.migrateToPglite.enable
-      "services.zipline-latest: experimental.migrateToPglite is EXPERIMENTAL; read the module header before relying on it. Writes made on PGlite are never copied back to PostgreSQL.";
+      "services.zipline-latest: experimental.migrateToPglite is EXPERIMENTAL; read the module header before relying on it. Writes made on PGlite are never copied back to PostgreSQL; roll back with database.type = \"postgresql\". To cut over again later, move ${privateDir}/db aside first, otherwise the stale PGlite is used.";
 
     services.postgresql = lib.mkIf usesPostgres {
       enable = true;

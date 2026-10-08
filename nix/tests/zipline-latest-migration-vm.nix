@@ -4,7 +4,17 @@
 # Prisma migration row (the very first one) is deleted. zipline-latest is
 # pointed at that DB in place. Upstream must refuse ("cannot safely migrate"),
 # record no Drizzle history, and our pre-start must still have logged the
-# adoption warning and written the pre-drizzle backup.
+# adoption warning and written the pre-drizzle backup. A second half re-runs
+# the import against a non-empty target and expects it to refuse.
+#
+# `migration`: real 4.7.0 install -> importFromNixpkgs -> 4.8 adoption, then
+# the adopted PostgreSQL database -> PGlite cutover (migrateToPglite).
+#
+# `recover`: the import over a state dir that zipline-latest already owns
+# (it ran fresh once, then its DB was dropped and recreated empty, the
+# documented recovery path). The import must hand the dir back to root so
+# systemd's recursive chown fixes the copied uploads and backups for the
+# dynamic user; the upload must be served afterwards.
 {
   pkgs,
   self,
@@ -75,6 +85,19 @@ in
         services.zipline-latest.experimental.migrateToPglite.enable = true;
       };
     };
+    nodes.recover = {
+      imports = [base];
+      # Fresh zipline-latest run only, to leave its state dir owned by the
+      # dynamic UID. Disabled nixpkgs zipline stops, freeing port 8000.
+      specialisation.fresh.configuration = {
+        imports = [latest];
+        services.zipline-latest.database.createLocally = true;
+      };
+      specialisation.import.configuration = {
+        imports = [latest];
+        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+      };
+    };
     testScript = ''
       import json
       import re
@@ -137,6 +160,27 @@ in
       migration.succeed("ls /var/lib/private/zipline-latest/backups/pre-pglite-*.sql")
       migration.succeed("systemctl show zipline-latest -p Environment --value | grep -q 'DATABASE_URL=pglite:///var/lib/zipline-latest/db'")
       migration.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
+
+      # recover: zipline-latest ran fresh first (state dir owned by its dynamic
+      # UID), its DB was then dropped, and a 4.7.0 install is imported over it.
+      recover.wait_for_unit("zipline.service")
+      switch(recover, "fresh")
+      recover.wait_for_unit("zipline-latest.service")
+      recover.wait_for_open_port(8000, timeout=300)
+      recover.succeed("systemctl stop zipline-latest.service")
+      # Back to the nixpkgs config (zipline-latest unit removed, so it is stopped).
+      recover.succeed("/run/booted-system/bin/switch-to-configuration test")
+      recover.wait_for_unit("zipline.service")
+      # Drop the empty 4.8 DB; the switch to `import` re-runs ensureDatabases.
+      recover.succeed("sudo -u postgres dropdb zipline-latest")
+      rfname = seed_47(recover)
+      recover.succeed("systemctl stop zipline.service")
+      switch(recover, "import")
+      recover.wait_for_unit("zipline-latest.service")
+      recover.wait_for_open_port(8000, timeout=300)
+      recover.succeed("systemctl is-active zipline-latest-import.service")
+      recover.succeed(f"curl -fs 127.0.0.1:8000/raw/{rfname} | grep -q hello-zipline")
+      recover.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
 
       # gate, second half: re-run the import against a now non-empty target
       switch(gate, "import")
