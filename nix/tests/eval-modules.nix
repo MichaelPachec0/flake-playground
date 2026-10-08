@@ -233,6 +233,10 @@ in {
     services.zipline-latest.environmentFiles = ["/run/secrets/zipline.env"];
     services.zipline-latest.trustedProxies = ["127.0.0.1" "10.0.0.0/8"];
   };
+  nixos-zipline-latest-import = evalNixos "zipline-latest" {
+    services.zipline-latest.enable = true;
+    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+  };
   nixos-zipline-latest-pglite = evalNixos "zipline-latest" {
     services.zipline-latest.enable = true;
     services.zipline-latest.database.type = "pglite";

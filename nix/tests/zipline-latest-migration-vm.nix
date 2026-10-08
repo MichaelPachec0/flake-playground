@@ -58,6 +58,17 @@ in
         systemd.services.zipline-latest.after = ["postgresql.target"];
         systemd.services.zipline-latest.requires = ["postgresql.target"];
       };
+      specialisation.import.configuration = {
+        imports = [latest];
+        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+      };
+    };
+    nodes.migration = {
+      imports = [base];
+      specialisation.import.configuration = {
+        imports = [latest];
+        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+      };
     };
     testScript = ''
       import json
@@ -97,5 +108,26 @@ in
       gate.succeed("journalctl -u zipline-latest -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'")
       gate.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
       assert psql(gate, "zipline", "SELECT to_regclass('drizzle.__drizzle_migrations') IS NULL") == "t"
+
+      # migration: real 4.7.0 install -> import -> 4.8 adoption
+      fname = seed_47(migration)
+      switch(migration, "import")
+      migration.wait_for_unit("zipline-latest.service")
+      migration.wait_for_open_port(8000, timeout=300)
+      migration.succeed("systemctl is-active zipline-latest-import.service")
+      migration.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
+      migration.succeed("ls /var/lib/private/zipline-latest/backups/import-*.dump")
+      migration.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
+      migration.succeed("test -e /var/lib/private/zipline-latest/.imported-from-nixpkgs")
+      assert psql(migration, "zipline-latest", "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations") == "t"
+      # source left untouched (rollback path): still Prisma-only
+      assert psql(migration, "zipline", "SELECT to_regclass('drizzle.__drizzle_migrations') IS NULL") == "t"
+
+      # gate, second half: re-run the import against a now non-empty target
+      switch(gate, "import")
+      gate.wait_until_fails("systemctl is-active zipline-latest.service", timeout=300)
+      gate.succeed("rm -f /var/lib/private/zipline-latest/.imported-from-nixpkgs")
+      gate.fail("systemctl restart zipline-latest-import.service")
+      gate.succeed("journalctl -u zipline-latest-import -b --no-pager | grep -q 'is not empty'")
     '';
   }

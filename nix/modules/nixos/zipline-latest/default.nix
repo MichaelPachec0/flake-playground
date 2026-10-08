@@ -134,6 +134,62 @@ inputs: {
       ''}
     '';
   };
+  imp = cfg.experimental.importFromNixpkgs;
+  importMarker = "${privateDir}/.imported-from-nixpkgs";
+
+  # Root: it must read another DynamicUser's private state and dump a database
+  # owned by another role. Talks to PostgreSQL as the `postgres` superuser.
+  # Every query result is captured into a variable before it is tested, so a
+  # failing psql aborts under errexit instead of reading as "no match".
+  importScript = pkgs.writeShellApplication {
+    name = "${name}-import";
+    runtimeInputs = [pgPackage pkgs.coreutils pkgs.util-linux pkgs.systemd];
+    text = ''
+      src_db=${lib.escapeShellArg imp.sourceDatabase}
+      dst_db=${lib.escapeShellArg name}
+      state=${lib.escapeShellArg privateDir}
+
+      fail() { echo "<3>${name}-import: $1" >&2; exit 1; }
+      q() { runuser -u postgres -- psql -XAtq -d "$1" -c "$2"; }
+
+      if systemctl is-active --quiet zipline.service; then
+        fail "nixpkgs zipline.service is still running; stop it first"
+      fi
+
+      n=$(q "$dst_db" "SELECT count(*) FROM pg_tables WHERE schemaname IN ('public', 'drizzle')")
+      [ "$n" = 0 ] || fail "target database $dst_db is not empty ($n tables); refusing to overwrite"
+
+      ok=false
+      prisma_table=$(q "$src_db" "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")
+      if [ "$prisma_table" = t ]; then
+        tail_rows=$(q "$src_db" "SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20260806081144_remove_version_api' AND finished_at IS NOT NULL AND rolled_back_at IS NULL")
+        [ "$tail_rows" = 0 ] || ok=true
+      fi
+      drizzle_table=$(q "$src_db" "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")
+      [ "$drizzle_table" = t ] && ok=true
+      $ok || fail "source database $src_db is not on Zipline 4.7.0; upgrade nixpkgs services.zipline to 4.7.0 and start it once first"
+
+      install -d -m 0700 "$state" "$state/backups"
+      dump="$state/backups/import-$(date -u +%Y%m%dT%H%M%SZ).dump"
+      runuser -u postgres -- pg_dump -Fc -d "$src_db" >"$dump"
+      echo "<5>${name}-import: source dumped to $dump"
+
+      # --no-acl/--no-comments: grants to the old `zipline` role and a COMMENT
+      # ON SCHEMA public would abort the single transaction under SET ROLE.
+      runuser -u postgres -- pg_restore --single-transaction --no-owner --no-acl --no-comments --role="$dst_db" -d "$dst_db" <"$dump"
+      echo "<5>${name}-import: restored into $dst_db"
+
+      ${lib.optionalString imp.copyUploads ''
+        [ -d ${lib.escapeShellArg imp.sourceUploadsDir} ] || fail "source uploads ${imp.sourceUploadsDir} missing (set copyUploads = false for S3)"
+        install -d -m 0700 "$state/uploads"
+        cp -a --reflink=auto ${lib.escapeShellArg imp.sourceUploadsDir}/. "$state/uploads/"
+        echo "<5>${name}-import: uploads copied"
+      ''}
+
+      touch ${lib.escapeShellArg importMarker}
+      echo "<4>${name}-import: done. Keep the old CORE_SECRET; the source database and uploads were not modified (drop them by hand once satisfied)."
+    '';
+  };
 in {
   options.services.zipline-latest = {
     enable = lib.mkEnableOption "Zipline (latest upstream stable release)";
@@ -310,6 +366,20 @@ in {
         ensureDBOwnership = true;
       };
       ensureDatabases = [name];
+    };
+
+    systemd.services."${name}-import" = lib.mkIf imp.enable {
+      description = "Zipline (latest stable): one-shot import from nixpkgs services.zipline";
+      after = ["postgresql.target"];
+      requires = ["postgresql.target"];
+      before = ["${name}.service"];
+      requiredBy = ["${name}.service"];
+      unitConfig.ConditionPathExists = "!${importMarker}";
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = lib.getExe importScript;
+      };
     };
 
     systemd.services.${name} = {
