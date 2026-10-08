@@ -1,0 +1,22 @@
+# Source pin for the zipline-latest package, tracked by nvfetcher. Standalone
+# (separate from nix/pkgs/playground/_sources) so zipline bumps do not churn the
+# playground set, and a failed zipline bump fails only update-zipline.yml.
+#
+# Regenerate with:
+#   nix run nixpkgs#nvfetcher -- -c nix/pkgs/zipline/nvfetcher.toml -o nix/pkgs/zipline/_sources
+#   git add -AN nix/pkgs/zipline/_sources
+#
+# use_latest_release reads GitHub's /releases/latest, which never returns a
+# prerelease: this tracks latest *stable*.
+#
+# Do NOT set `src.prefix = "v"`. nvfetcher 0.8.0 has no rev template for
+# fetch.github and reuses `version` as the git rev; upstream tags are
+# `v4.8.0`, so stripping the "v" would fetch rev `4.8.0` and 404. The package
+# strips it with lib.removePrefix "v".
+#
+# nvfetcher pins only the source. The pnpm dependency hash lives in
+# ./pnpm-deps.hash and is recomputed by scripts/heal-pnpm-hash.sh in CI.
+[zipline]
+src.github = "diced/zipline"
+src.use_latest_release = true
+fetch.github = "diced/zipline"

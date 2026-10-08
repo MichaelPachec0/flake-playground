@@ -59,6 +59,7 @@
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
       projectsend = import ./nix/pkgs/projectsend {pkgs = pkgs';};
+      zipline-latest = import ./nix/pkgs/zipline {pkgs = pkgs';};
     };
     inherit
       (mkLocalPkgs pkgs)
@@ -68,6 +69,7 @@
       ryzen-monitor-ng
       nvchadPlugins
       projectsend
+      zipline-latest
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
@@ -127,6 +129,7 @@
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
     picrPkgsAarch64 = import ./nix/pkgs/picr {pkgs = pkgsAarch64;};
     projectsendAarch64 = import ./nix/pkgs/projectsend {pkgs = pkgsAarch64;};
+    ziplineLatestAarch64 = import ./nix/pkgs/zipline {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -179,6 +182,10 @@
       // {
         inherit windscribe;
         inherit projectsend;
+        # zipline-latest: heavy pnpm build; kept out of mainPackages (and so out
+        # of the CI gate). Built by update-zipline.yml and by the zipline VM
+        # tests in ci.vm.
+        inherit zipline-latest;
         inherit
           (playgroundPkgs)
           affine-server
@@ -209,6 +216,7 @@
         ;
       inherit (picrPkgsAarch64) picr picr-ping;
       projectsend = projectsendAarch64;
+      zipline-latest = ziplineLatestAarch64;
     };
 
     # Nested trees; build one with e.g.
@@ -299,8 +307,12 @@
         # DEFERRED (spec section 8): top-level pkgs.picr vs pkgs.playground.picr.
         inherit (s) picr picr-ping;
       };
+      # Built from `final` so non-x86_64 hosts get their own build.
+      zipline-latest = final: prev: {
+        zipline-latest = import ./nix/pkgs/zipline {pkgs = final;};
+      };
     in {
-      inherit playground vimPlugins picr;
+      inherit playground vimPlugins picr zipline-latest;
       default = playground;
     };
     nixosModules = let
