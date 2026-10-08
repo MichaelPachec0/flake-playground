@@ -157,7 +157,7 @@ inputs: {
       fi
 
       n=$(q "$dst_db" "SELECT count(*) FROM pg_tables WHERE schemaname IN ('public', 'drizzle')")
-      [ "$n" = 0 ] || fail "target database $dst_db is not empty ($n tables); refusing to overwrite"
+      [ "$n" = 0 ] || fail "target database $dst_db is not empty ($n tables); refusing to overwrite. If a previous import failed part-way: sudo -u postgres dropdb $dst_db, restart postgresql so it is recreated, and re-run. If it already succeeded: touch ${importMarker}"
 
       ok=false
       prisma_table=$(q "$src_db" "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")
@@ -166,10 +166,21 @@ inputs: {
         [ "$tail_rows" = 0 ] || ok=true
       fi
       drizzle_table=$(q "$src_db" "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL")
-      [ "$drizzle_table" = t ] && ok=true
+      if [ "$drizzle_table" = t ]; then
+        drizzle_rows=$(q "$src_db" "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations")
+        [ "$drizzle_rows" = t ] && ok=true
+      fi
       $ok || fail "source database $src_db is not on Zipline 4.7.0; upgrade nixpkgs services.zipline to 4.7.0 and start it once first"
 
+      # Everything that can be checked up front happens before the restore
+      # commits: a failure afterwards leaves a non-empty target and no marker.
+      ${lib.optionalString imp.copyUploads ''
+        [ -d ${lib.escapeShellArg imp.sourceUploadsDir} ] || fail "source uploads ${imp.sourceUploadsDir} missing (set copyUploads = false for S3)"
+      ''}
       install -d -m 0700 "$state" "$state/backups"
+      ${lib.optionalString imp.copyUploads ''
+        install -d -m 0700 "$state/uploads"
+      ''}
       dump="$state/backups/import-$(date -u +%Y%m%dT%H%M%SZ).dump"
       runuser -u postgres -- pg_dump -Fc -d "$src_db" >"$dump"
       echo "<5>${name}-import: source dumped to $dump"
@@ -180,8 +191,6 @@ inputs: {
       echo "<5>${name}-import: restored into $dst_db"
 
       ${lib.optionalString imp.copyUploads ''
-        [ -d ${lib.escapeShellArg imp.sourceUploadsDir} ] || fail "source uploads ${imp.sourceUploadsDir} missing (set copyUploads = false for S3)"
-        install -d -m 0700 "$state/uploads"
         cp -a --reflink=auto ${lib.escapeShellArg imp.sourceUploadsDir}/. "$state/uploads/"
         echo "<5>${name}-import: uploads copied"
       ''}
