@@ -19,7 +19,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    # pnpm build + four VMs across two tests; same budget as pingvin.
+    # pnpm build + five VMs across two tests; same budget as pingvin.
     timeout-minutes: 60
     permissions:
       contents: write
