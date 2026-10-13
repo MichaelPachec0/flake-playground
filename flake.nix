@@ -23,10 +23,13 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # this is used to test the 4.7.0 -> 4.8.0 migration, unstable pushed zipline to 4.8.0 recently
+    nixpkgs-zipline-seed.url = "github:NixOS/nixpkgs/a7868a727837f3c09cee2ce0ca671c76b1589fed";
   };
   outputs = {
     self,
     nixpkgs,
+    nixpkgs-zipline-seed,
     pyproject-nix,
     ...
   } @ inputs: let
@@ -41,6 +44,7 @@
         inherit system;
       };
     pkgs = prepNixpkgs nixpkgs system;
+    seedNixpkgs = prepNixpkgs nixpkgs-zipline-seed system;
     # The locally-defined packages, as a function of the pkgs they build against.
     # The overlay MUST build them from its own `final`, not from the `pkgs` bound
     # above: that one is pinned to x86_64-linux, so an aarch64 host consuming
@@ -174,7 +178,7 @@
     # our adoption warning and backup), the nixpkgs import (including the
     # recovery path over a pre-existing state dir) and the PGlite cutover.
     #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
-    ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self;};
+    ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self seedNixpkgs;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.

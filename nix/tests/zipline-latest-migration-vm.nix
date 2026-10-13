@@ -18,15 +18,17 @@
 {
   pkgs,
   self,
+  seedNixpkgs,
 }: let
   lib = pkgs.lib;
-  # The seed must be a real 4.7.0 install. When nixpkgs moves past 4.7.0, pin
-  # it: pkgs.zipline.overrideAttrs to tag v4.7.0 with src hash
-  # sha256-/ISegKJ6NyyLYMoovqWLzJCP9JKsPW76Lm6hTU4NTmU= and pnpmDeps hash
-  # sha256-y6BZ7A/4jSMA2sSByDx3czwlc9WM6QUCcguLouNQouk=.
-  seed = assert lib.assertMsg (pkgs.zipline.version == "4.7.0")
-  "zipline-latest-migration-vm: nixpkgs zipline is ${pkgs.zipline.version}, not 4.7.0; pin the seed (see comment)";
-    pkgs.zipline;
+  seedZipline = seedNixpkgs.zipline;
+  seedChkFunc = seedPkg: let
+    ver = seedPkg.version;
+  in
+    assert lib.assertMsg (ver == "4.7.0")
+    "zipline-latest-migration-vm: zipline is ${ver}, not 4.7.0; migration test failed"; seedPkg;
+
+  seed = seedChkFunc seedZipline;
   secret = builtins.toFile "zipline.env" ''
     CORE_SECRET=DMlouex3W0QLRbVwkUafNnNws5jpgRDX
   '';
