@@ -263,7 +263,7 @@
     },
     "miniMove": {
         "cargoLock": null,
-        "date": "2026-07-07",
+        "date": "2026-10-13",
         "extract": null,
         "name": "miniMove",
         "passthru": null,
@@ -273,13 +273,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "48fcaac289a19b8eff2fd5fe203267d478a8abdc",
-            "sha256": "sha256-rPcX2Qql7UtPxNhMHW0W5ZDM5s1apw6AMI+orOW9dqc=",
+            "rev": "57435a0f6654c232405424a78424bb3edbedfa7c",
+            "sha256": "sha256-MML6JXqof91FDr2UsTydaxjYH7gTX17ZNUCmQsn+eZ8=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/echasnovski/mini.move"
         },
-        "version": "48fcaac289a19b8eff2fd5fe203267d478a8abdc"
+        "version": "57435a0f6654c232405424a78424bb3edbedfa7c"
     },
     "minty": {
         "cargoLock": null,
