@@ -300,6 +300,32 @@ in {
     services.zipline-latest.settings.DATABASE_URL = "pglite:///var/lib/zipline-latest/data";
   } "migrateToPglite writes to";
 
+  nixos-zipline-extras = evalNixos "zipline-extras" {
+    services.zipline.enable = true;
+    services.zipline-extras.enable = true;
+  };
+  nixos-zipline-extras-cutover = evalNixos "zipline-extras" {
+    services.zipline.enable = true;
+    services.zipline.database.createLocally = false;
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
+  };
+  nixos-zipline-extras-assert-zipline = expectAssertion "zipline-extras-zipline" "zipline-extras" {
+    services.zipline-extras.enable = true;
+  } "requires services.zipline.enable";
+  nixos-zipline-extras-assert-cutover-local = expectAssertion "zipline-extras-cutover-local" "zipline-extras" {
+    services.zipline.enable = true;
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
+  } "requires services.zipline.database.createLocally = false";
+  nixos-zipline-extras-assert-cutover-url = expectAssertion "zipline-extras-cutover-url" "zipline-extras" {
+    services.zipline.enable = true;
+    services.zipline.database.createLocally = false;
+    services.zipline.settings.DATABASE_URL = "pglite:///var/lib/zipline/data";
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
+  } "migrateToPglite writes to";
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }

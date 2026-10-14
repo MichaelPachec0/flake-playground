@@ -346,8 +346,9 @@
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
       arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
       zipline-latest = import ./nix/modules/nixos/zipline-latest inputs;
+      zipline-extras = import ./nix/modules/nixos/zipline-extras inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-latest;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-latest zipline-extras;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;
