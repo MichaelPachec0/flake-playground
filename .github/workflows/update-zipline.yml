@@ -19,7 +19,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    # pnpm build + five VMs across two tests; same budget as pingvin.
+    # pnpm build + four VMs across two tests; same budget as pingvin.
     timeout-minutes: 60
     permissions:
       contents: write
@@ -43,7 +43,7 @@ jobs:
             &&
             nix build -L
             .#packages.x86_64-linux.zipline-latest
-            .#checks.x86_64-linux.nixos-zipline-latest
+            .#checks.x86_64-linux.nixos-zipline-extras
             .#checks.x86_64-linux.zipline-latest-vm
             .#checks.x86_64-linux.zipline-latest-migration-vm
 
