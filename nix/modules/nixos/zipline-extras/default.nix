@@ -99,7 +99,9 @@ _inputs: {
       ${lib.optionalString cfg.backupBeforeAdoption ''
         install -d -m 0700 "$STATE_DIRECTORY/backups"
         out="$STATE_DIRECTORY/backups/pre-drizzle-$(date -u +%Y%m%dT%H%M%SZ).sql"
-        pg_dump "$pg_url" --file="$out"
+        # Dump to .partial and rename: a pg_dump killed by the start timeout must not look like a complete backup.
+        pg_dump "$pg_url" --file="$out.partial"
+        mv "$out.partial" "$out"
         echo "<5>${name}: backup written to $out"
       ''}
     '';
@@ -129,7 +131,9 @@ _inputs: {
 
       install -d -m 0700 "$STATE_DIRECTORY/backups"
       out="$STATE_DIRECTORY/backups/pre-pglite-$(date -u +%Y%m%dT%H%M%SZ).sql"
-      pg_dump "$pg_url" --file="$out"
+      # Dump to .partial and rename: a pg_dump killed by the start timeout must not look like a complete backup.
+      pg_dump "$pg_url" --file="$out.partial"
+      mv "$out.partial" "$out"
       echo "<5>${name}-pglite-cutover: backup written to $out"
 
       # Build in a scratch dir and rename: upstream's cleanup only runs on a thrown
@@ -157,7 +161,10 @@ in {
         first start adopts a 4.7.0 Prisma database. A dump failure fails the
         unit. The pre-check needs DATABASE_URL (settings or environmentFiles);
         with only DATABASE_USERNAME/DATABASE_HOST/... variables it is skipped
-        (a warning is logged) and no backup is taken.
+        (a warning is logged) and no backup is taken. With an external
+        database (local server disabled) pg_dump comes from pkgs.postgresql
+        and refuses a newer server major version; set
+        backupBeforeAdoption = false and back up by hand in that case.
       '';
     };
 
@@ -166,7 +173,8 @@ in {
         a one-shot PostgreSQL -> PGlite cutover with upstream
         `ziplinectl migrate-pglite`, before the first PGlite start. Sets
         services.zipline.settings.DATABASE_URL to ${pgliteUrl} and keeps the
-        source PostgreSQL server enabled. EXPERIMENTAL
+        local PostgreSQL server enabled when the source is the default local
+        URL. EXPERIMENTAL
       '';
       sourceDatabaseUrl = lib.mkOption {
         type = lib.types.str;
@@ -201,7 +209,7 @@ in {
       assertions = [
         {
           assertion = !zcfg.database.createLocally;
-          message = "services.zipline-extras: experimental.migrateToPglite requires services.zipline.database.createLocally = false (the source PostgreSQL server stays enabled through services.postgresql.enable).";
+          message = "services.zipline-extras: experimental.migrateToPglite requires services.zipline.database.createLocally = false (the local PostgreSQL server stays enabled when the source is the default local URL).";
         }
         {
           assertion = (zcfg.settings.DATABASE_URL or "") == pgliteUrl;
@@ -214,7 +222,7 @@ in {
       ];
 
       services.zipline.settings.DATABASE_URL = lib.mkDefault pgliteUrl;
-      services.postgresql.enable = lib.mkDefault true;
+      services.postgresql.enable = lib.mkIf (cut.sourceDatabaseUrl == localPgUrl) (lib.mkDefault true);
 
       systemd.services."${name}-pglite-cutover" = {
         description = "Zipline: one-shot PostgreSQL -> PGlite cutover";

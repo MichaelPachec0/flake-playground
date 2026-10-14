@@ -58,6 +58,8 @@ in
       # Fresh database: the pre-check exits before warning or dumping.
       pg.fail("journalctl -u zipline -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'")
       pg.fail("ls /var/lib/private/zipline/backups/pre-drizzle-*.sql")
+      # The hook is attached even though it was a no-op on this fresh database.
+      pg.succeed("systemctl show zipline -p ExecStartPre --value | grep -q zipline-adoption-check")
 
       setup_and_login(pglite)
       pglite.succeed("test -d /var/lib/zipline/db")
