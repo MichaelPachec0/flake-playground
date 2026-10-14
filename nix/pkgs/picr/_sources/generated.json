@@ -13,11 +13,11 @@
             "name": null,
             "owner": "isaacinsoll",
             "repo": "picr",
-            "rev": "1.6.2",
-            "sha256": "sha256-UrIA4oZ2INSWziy23HBSRmutceHjwcl3YZIaQaXi2Mw=",
+            "rev": "1.6.3",
+            "sha256": "sha256-wKKE7oBnKIELstQtzrq4fKDplyICCaUIZ+SCoJ9pyAw=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "1.6.2"
+        "version": "1.6.3"
     }
 }
