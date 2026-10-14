@@ -8,24 +8,24 @@
 {
   pingvin-share-x = {
     pname = "pingvin-share-x";
-    version = "v1.22.3";
+    version = "v2.0.0";
     src = fetchFromGitHub {
       owner = "smp46";
       repo = "pingvin-share-x";
-      rev = "v1.22.3";
+      rev = "v2.0.0";
       fetchSubmodules = false;
-      sha256 = "sha256-xtsI9Ow7K/9pXEZdvBICF5aWAa+Hh7VfNUTwejz4Xno=";
+      sha256 = "sha256-oHIKt/X2Bw0p6Rn6juCBUvniBi5flaZ+Z9Xibr4Pe68=";
     };
   };
   pingvin-share-x-beta = {
     pname = "pingvin-share-x-beta";
-    version = "v2.0.0-beta.2";
+    version = "v2.0.0-beta.4";
     src = fetchFromGitHub {
       owner = "smp46";
       repo = "pingvin-share-x";
-      rev = "v2.0.0-beta.2";
+      rev = "v2.0.0-beta.4";
       fetchSubmodules = false;
-      sha256 = "sha256-WfHk/WFSd5toObGmzgL2s0ir5Eg/3PTROa8NBxsF05M=";
+      sha256 = "sha256-3tllq+WCuG9rN4Nw/Ecz/Xe8FSkUAyw7vmJRa9HmkqI=";
     };
   };
 }
