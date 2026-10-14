@@ -60,6 +60,6 @@ in {
   pingvin-share-x-beta = pkgs.callPackage ./pingvin-share.nix {
     source = pingvinSources.pingvin-share-x-beta;
     backendNpmDepsHash = "sha256-OkFQuDnYuNotlmM+i5e1qIdeKNDucGzPcRZSkGl1q4g=";
-    frontendNpmDepsHash = "sha256-NjKtscW6RbVqt6LPfyR28aAiemBi1cmcE+Ihlh5eeA0=";
+    frontendNpmDepsHash = "sha256-olq3j0YdPB5vAnEtBeDmb8qNEujK/sETZWZEmcC5zI0=";
   };
 }
