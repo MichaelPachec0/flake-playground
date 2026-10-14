@@ -25,7 +25,7 @@
   # Defaults are the stable channel's npmDepsHash. Beta has different
   # package-lock files (different deps); callers building beta must
   # override both.
-  backendNpmDepsHash ? "sha256-waAY3mN5QZfJwqN3+ukjeaQhQDRLBwalwrsQacuIRcA=",
+  backendNpmDepsHash ? "sha256-Yi3npuWNog9/KIXRm5OhymJ4aCxYeJfVLW10JGQac/4=",
   frontendNpmDepsHash ? "sha256-S20834EftT5we8ugTW9P16G3s8JtaqcZdhvgPoReheQ=",
 }: let
   nodejs = nodejs_24;
