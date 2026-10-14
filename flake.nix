@@ -23,10 +23,13 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # this is used to test the 4.7.0 -> 4.8.0 migration, unstable pushed zipline to 4.8.0 recently
+    nixpkgs-zipline-seed.url = "github:NixOS/nixpkgs/a7868a727837f3c09cee2ce0ca671c76b1589fed";
   };
   outputs = {
     self,
     nixpkgs,
+    nixpkgs-zipline-seed,
     pyproject-nix,
     ...
   } @ inputs: let
@@ -41,6 +44,7 @@
         inherit system;
       };
     pkgs = prepNixpkgs nixpkgs system;
+    seedNixpkgs = prepNixpkgs nixpkgs-zipline-seed system;
     # The locally-defined packages, as a function of the pkgs they build against.
     # The overlay MUST build them from its own `final`, not from the `pkgs` bound
     # above: that one is pinned to x86_64-linux, so an aarch64 host consuming
@@ -59,6 +63,7 @@
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};
       nvchadPlugins = pkgs'.callPackage ./nix/pkgs/nvchad {};
       projectsend = import ./nix/pkgs/projectsend {pkgs = pkgs';};
+      zipline-latest = import ./nix/pkgs/zipline {pkgs = pkgs';};
     };
     inherit
       (mkLocalPkgs pkgs)
@@ -68,6 +73,7 @@
       ryzen-monitor-ng
       nvchadPlugins
       projectsend
+      zipline-latest
       ;
     # Windscribe carries its own overlay (ECH-patched openssl/curl, static spdlog with
     # external fmt, c-ares), so build it against a pkgs with that overlay applied. The
@@ -127,6 +133,7 @@
     playgroundPkgsAarch64 = import ./nix/pkgs/playground {pkgs = pkgsAarch64;};
     picrPkgsAarch64 = import ./nix/pkgs/picr {pkgs = pkgsAarch64;};
     projectsendAarch64 = import ./nix/pkgs/projectsend {pkgs = pkgsAarch64;};
+    ziplineLatestAarch64 = import ./nix/pkgs/zipline {pkgs = pkgsAarch64;};
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
@@ -163,12 +170,23 @@
     # NOT in the merge gate.
     #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
     pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
+    # zipline-latest VM test: fresh installs only (pg + pglite).
+    #   nix build .#checks.x86_64-linux.zipline-latest-vm -L
+    ziplineLatestVmTest = import ./nix/tests/zipline-latest-vm.nix {inherit pkgs self;};
+    # zipline-latest migration VM test, seeded from a real nixpkgs 4.7.0
+    # install. Covers the Prisma->Drizzle upgrade gate (upstream refusal plus
+    # our adoption warning and backup), the nixpkgs import (including the
+    # recovery path over a pre-existing state dir) and the PGlite cutover.
+    #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
+    ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self seedNixpkgs;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.
     vmChecks = {
       picr-vm = picrVmTest;
       pingvin-share-vm = pingvinShareVmTest;
+      zipline-latest-vm = ziplineLatestVmTest;
+      zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
     };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
@@ -179,6 +197,10 @@
       // {
         inherit windscribe;
         inherit projectsend;
+        # zipline-latest: heavy pnpm build; kept out of mainPackages (and so out
+        # of the CI gate). Built by update-zipline.yml and by the zipline VM
+        # tests in ci.vm.
+        inherit zipline-latest;
         inherit
           (playgroundPkgs)
           affine-server
@@ -209,6 +231,7 @@
         ;
       inherit (picrPkgsAarch64) picr picr-ping;
       projectsend = projectsendAarch64;
+      zipline-latest = ziplineLatestAarch64;
     };
 
     # Nested trees; build one with e.g.
@@ -249,6 +272,8 @@
         # `default` aggregate and the CI gate.
         picr-vm = picrVmTest;
         pingvin-share-vm = pingvinShareVmTest;
+        zipline-latest-vm = ziplineLatestVmTest;
+        zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
@@ -299,8 +324,12 @@
         # DEFERRED (spec section 8): top-level pkgs.picr vs pkgs.playground.picr.
         inherit (s) picr picr-ping;
       };
+      # Built from `final` so non-x86_64 hosts get their own build.
+      zipline-latest = final: prev: {
+        zipline-latest = import ./nix/pkgs/zipline {pkgs = final;};
+      };
     in {
-      inherit playground vimPlugins picr;
+      inherit playground vimPlugins picr zipline-latest;
       default = playground;
     };
     nixosModules = let
@@ -316,8 +345,9 @@
       projectsend = import ./nix/modules/nixos/projectsend inputs;
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
       arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
+      zipline-latest = import ./nix/modules/nixos/zipline-latest inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-latest;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;

@@ -1,0 +1,23 @@
+{
+    "zipline": {
+        "cargoLock": null,
+        "date": null,
+        "extract": null,
+        "name": "zipline",
+        "passthru": null,
+        "pinned": false,
+        "src": {
+            "deepClone": false,
+            "fetchSubmodules": false,
+            "leaveDotGit": false,
+            "name": null,
+            "owner": "diced",
+            "repo": "zipline",
+            "rev": "v4.8.0",
+            "sha256": "sha256-/La9Kl6gyuRNnEi523RqxtA+VMN3iyyzl+Y1JD8PZxk=",
+            "sparseCheckout": [],
+            "type": "github"
+        },
+        "version": "v4.8.0"
+    }
+}
