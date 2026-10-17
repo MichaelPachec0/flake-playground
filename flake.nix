@@ -170,13 +170,17 @@
     # NOT in the merge gate.
     #   nix build .#checks.x86_64-linux.pingvin-share-vm -L
     pingvinShareVmTest = import ./nix/tests/pingvin-share.nix {inherit pkgs self;};
-    # zipline-latest VM test: fresh installs only (pg + pglite).
+    # zipline-latest VM test: the official nixpkgs services.zipline running the
+    # zipline-latest package, fresh installs only. Node `pg` (PostgreSQL, with
+    # the zipline-extras pre-check as a no-op) and node `pglite` (plain
+    # settings, embedded PGlite).
     #   nix build .#checks.x86_64-linux.zipline-latest-vm -L
     ziplineLatestVmTest = import ./nix/tests/zipline-latest-vm.nix {inherit pkgs self;};
     # zipline-latest migration VM test, seeded from a real nixpkgs 4.7.0
-    # install. Covers the Prisma->Drizzle upgrade gate (upstream refusal plus
-    # our adoption warning and backup), the nixpkgs import (including the
-    # recovery path over a pre-existing state dir) and the PGlite cutover.
+    # install (pinned nixpkgs-zipline-seed input). Node `gate`: a corrupted
+    # 4.7.0 history is refused by upstream, with a zipline-extras warning and
+    # backup. Node `migration`: in-place 4.7.0 -> zipline-latest adoption, then
+    # the PGlite cutover.
     #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
     ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self seedNixpkgs;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
@@ -198,8 +202,8 @@
         inherit windscribe;
         inherit projectsend;
         # zipline-latest: heavy pnpm build; kept out of mainPackages (and so out
-        # of the CI gate). Built by update-zipline.yml and by the zipline VM
-        # tests in ci.vm.
+        # of the CI gate). Built by update-zipline.yml and by the two zipline
+        # VM tests (official services.zipline + this package) in ci.vm.
         inherit zipline-latest;
         inherit
           (playgroundPkgs)
@@ -345,9 +349,9 @@
       projectsend = import ./nix/modules/nixos/projectsend inputs;
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
       arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
-      zipline-latest = import ./nix/modules/nixos/zipline-latest inputs;
+      zipline-extras = import ./nix/modules/nixos/zipline-extras inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-latest;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-extras;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;

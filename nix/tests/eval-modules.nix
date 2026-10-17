@@ -228,76 +228,30 @@ in {
     programs.arduino-flasher-cli.group = "plugdev";
   };
 
-  nixos-zipline-latest = evalNixos "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.environmentFiles = ["/run/secrets/zipline.env"];
-    services.zipline-latest.trustedProxies = ["127.0.0.1" "10.0.0.0/8"];
+  nixos-zipline-extras = evalNixos "zipline-extras" {
+    services.zipline.enable = true;
+    services.zipline-extras.enable = true;
   };
-  nixos-zipline-latest-import = evalNixos "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-  };
-  nixos-zipline-latest-cutover = evalNixos "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.type = "pglite";
-    services.zipline-latest.experimental.migrateToPglite.enable = true;
-  };
-  nixos-zipline-latest-pglite = evalNixos "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.type = "pglite";
-  };
-  # Both services keep DATABASE_URL only in environmentFiles: nothing known to
-  # compare, so the shared-DB assertion must not fire.
-  nixos-zipline-latest-env-file-db = evalNixos "zipline-latest" {
+  nixos-zipline-extras-cutover = evalNixos "zipline-extras" {
     services.zipline.enable = true;
     services.zipline.database.createLocally = false;
-    services.zipline.environmentFiles = ["/run/secrets/zipline.env"];
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.createLocally = false;
-    services.zipline-latest.environmentFiles = ["/run/secrets/zipline-latest.env"];
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
   };
-  nixos-zipline-latest-assert-pglite-local = expectAssertion "zipline-latest-pglite-local" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.type = "pglite";
-    services.zipline-latest.database.createLocally = true;
-  } "needs no local PostgreSQL";
-  nixos-zipline-latest-assert-pglite-url = expectAssertion "zipline-latest-pglite-url" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.type = "pglite";
-    services.zipline-latest.settings.DATABASE_URL = "postgresql://x@localhost/x";
-  } "requires settings.DATABASE_URL";
-  nixos-zipline-latest-assert-shared-db = expectAssertion "zipline-latest-shared-db" "zipline-latest" {
+  nixos-zipline-extras-assert-zipline = expectAssertion "zipline-extras-zipline" "zipline-extras" {
+    services.zipline-extras.enable = true;
+  } "requires services.zipline.enable";
+  nixos-zipline-extras-assert-cutover-local = expectAssertion "zipline-extras-cutover-local" "zipline-extras" {
     services.zipline.enable = true;
-    # nixpkgs sets DATABASE_URL at normal priority when createLocally; turn it
-    # off or the explicit value below is a definition conflict, not an assertion.
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
+  } "requires services.zipline.database.createLocally = false";
+  nixos-zipline-extras-assert-cutover-url = expectAssertion "zipline-extras-cutover-url" "zipline-extras" {
+    services.zipline.enable = true;
     services.zipline.database.createLocally = false;
-    services.zipline.settings.DATABASE_URL = "postgresql://zipline-latest@localhost/zipline-latest?host=/run/postgresql";
-    services.zipline-latest.enable = true;
-  } "same DATABASE_URL";
-  nixos-zipline-latest-assert-import = expectAssertion "zipline-latest-import" "zipline-latest" {
-    services.zipline.enable = true;
-    services.zipline-latest.enable = true;
-    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-  } "importFromNixpkgs requires";
-  nixos-zipline-latest-assert-import-url = expectAssertion "zipline-latest-import-url" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-    services.zipline-latest.settings.DATABASE_URL = "postgresql://x@localhost/x";
-  } "importFromNixpkgs restores into";
-  nixos-zipline-latest-assert-import-dir = expectAssertion "zipline-latest-import-dir" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-    services.zipline-latest.settings.DATASOURCE_LOCAL_DIRECTORY = "/srv/uploads";
-  } "importFromNixpkgs restores into";
-  nixos-zipline-latest-assert-cutover = expectAssertion "zipline-latest-cutover" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.experimental.migrateToPglite.enable = true;
-  } "migrateToPglite requires";
-  nixos-zipline-latest-assert-cutover-url = expectAssertion "zipline-latest-cutover-url" "zipline-latest" {
-    services.zipline-latest.enable = true;
-    services.zipline-latest.database.type = "pglite";
-    services.zipline-latest.experimental.migrateToPglite.enable = true;
-    services.zipline-latest.settings.DATABASE_URL = "pglite:///var/lib/zipline-latest/data";
+    services.zipline.settings.DATABASE_URL = "pglite:///var/lib/zipline/data";
+    services.zipline-extras.enable = true;
+    services.zipline-extras.experimental.migrateToPglite.enable = true;
   } "migrateToPglite writes to";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};

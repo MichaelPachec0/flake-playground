@@ -1,20 +1,14 @@
-# E2E: zipline-latest migration paths, seeded from a real nixpkgs 4.7.0 install.
+# E2E: in-place upgrades of a real nixpkgs 4.7.0 install to zipline-latest,
+# on the same services.zipline unit and database, with zipline-extras.
 #
-# `gate`: nixpkgs services.zipline 4.7.0 creates the DB and a file, then one
-# Prisma migration row (the very first one) is deleted. zipline-latest is
-# pointed at that DB in place. Upstream must refuse ("cannot safely migrate"),
-# record no Drizzle history, and our pre-start must still have logged the
-# adoption warning and written the pre-drizzle backup. A second half re-runs
-# the import against a non-empty target and expects it to refuse.
+# `gate`: 4.7.0 creates the DB and a file, then one Prisma migration row (the
+# very first one) is deleted and the package is switched to zipline-latest.
+# Upstream must refuse ("cannot safely migrate"), record no Drizzle history,
+# and the zipline-extras pre-start must still have logged the adoption warning
+# and written the pre-drizzle backup.
 #
-# `migration`: real 4.7.0 install -> importFromNixpkgs -> 4.8 adoption, then
-# the adopted PostgreSQL database -> PGlite cutover (migrateToPglite).
-#
-# `recover`: the import over a state dir that zipline-latest already owns
-# (it ran fresh once, then its DB was dropped and recreated empty, the
-# documented recovery path). The import must hand the dir back to root so
-# systemd's recursive chown fixes the copied uploads and backups for the
-# dynamic user; the upload must be served afterwards.
+# `migration`: 4.7.0 -> zipline-latest in place (adoption, backup, file still
+# served), then the adopted PostgreSQL database -> PGlite (migrateToPglite).
 {
   pkgs,
   self,
@@ -32,8 +26,8 @@
   secret = builtins.toFile "zipline.env" ''
     CORE_SECRET=DMlouex3W0QLRbVwkUafNnNws5jpgRDX
   '';
-  base = {lib, ...}: {
-    imports = [self.nixosModules.zipline-latest];
+  base = {
+    imports = [self.nixosModules.zipline-extras];
     virtualisation.memorySize = 2048;
     virtualisation.diskSize = 6144;
     services.zipline = {
@@ -42,62 +36,25 @@
       settings.CORE_PORT = 8000;
       environmentFiles = [secret];
     };
+    services.zipline-extras.enable = true;
   };
   latest = {
-    services.zipline.enable = lib.mkForce false;
-    services.zipline-latest = {
-      enable = true;
-      settings.CORE_PORT = 8000;
-      environmentFiles = [secret];
-    };
+    services.zipline.package = lib.mkForce self.packages.${pkgs.stdenv.hostPlatform.system}.zipline-latest;
   };
 in
   pkgs.testers.runNixOSTest {
     name = "zipline-latest-migration";
     nodes.gate = {
       imports = [base];
-      specialisation.inplace.configuration = {
-        imports = [latest];
-        # Same DB as nixpkgs zipline, in place (no import). Disabling
-        # services.zipline also drops the PostgreSQL server it enabled, so keep
-        # it on explicitly.
-        services.postgresql.enable = true;
-        services.zipline-latest.database.createLocally = false;
-        services.zipline-latest.settings.DATABASE_URL = "postgresql://zipline@localhost/zipline?host=/run/postgresql";
-        # Peer auth maps the OS user to the role: run as `zipline` here.
-        systemd.services.zipline-latest.serviceConfig.User = lib.mkForce "zipline";
-        systemd.services.zipline-latest.serviceConfig.Group = lib.mkForce "zipline";
-        systemd.services.zipline-latest.after = ["postgresql.target"];
-        systemd.services.zipline-latest.requires = ["postgresql.target"];
-      };
-      specialisation.import.configuration = {
-        imports = [latest];
-        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-      };
+      specialisation.upgrade.configuration = {imports = [latest];};
     };
     nodes.migration = {
       imports = [base];
-      specialisation.import.configuration = {
-        imports = [latest];
-        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
-      };
+      specialisation.upgrade.configuration = {imports = [latest];};
       specialisation.pglite.configuration = {
         imports = [latest];
-        services.zipline-latest.database.type = "pglite";
-        services.zipline-latest.experimental.migrateToPglite.enable = true;
-      };
-    };
-    nodes.recover = {
-      imports = [base];
-      # Fresh zipline-latest run only, to leave its state dir owned by the
-      # dynamic UID. Disabled nixpkgs zipline stops, freeing port 8000.
-      specialisation.fresh.configuration = {
-        imports = [latest];
-        services.zipline-latest.database.createLocally = true;
-      };
-      specialisation.import.configuration = {
-        imports = [latest];
-        services.zipline-latest.experimental.importFromNixpkgs.enable = true;
+        services.zipline.database.createLocally = false;
+        services.zipline-extras.experimental.migrateToPglite.enable = true;
       };
     };
     testScript = ''
@@ -132,63 +89,31 @@ in
       seed_47(gate)
       gate.succeed("systemctl stop zipline.service")
       psql(gate, "zipline", "DELETE FROM _prisma_migrations WHERE migration_name = '20241228224006_init'")
-      switch(gate, "inplace")
-      gate.wait_until_fails("systemctl is-active zipline-latest.service", timeout=300)
-      gate.wait_until_succeeds("journalctl -u zipline-latest -b --no-pager | grep -q 'cannot safely migrate'", timeout=120)
-      gate.succeed("journalctl -u zipline-latest -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'")
-      gate.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
+      switch(gate, "upgrade")
+      gate.wait_until_fails("systemctl is-active zipline.service", timeout=300)
+      gate.wait_until_succeeds("journalctl -u zipline -b --no-pager | grep -q 'cannot safely migrate'", timeout=120)
+      gate.succeed("journalctl -u zipline -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'")
+      gate.succeed("ls /var/lib/private/zipline/backups/pre-drizzle-*.sql")
       assert psql(gate, "zipline", "SELECT to_regclass('drizzle.__drizzle_migrations') IS NULL") == "t"
 
-      # migration: real 4.7.0 install -> import -> 4.8 adoption
+      # migration: real 4.7.0 install -> zipline-latest in place (adoption)
       fname = seed_47(migration)
-      switch(migration, "import")
-      migration.wait_for_unit("zipline-latest.service")
+      switch(migration, "upgrade")
+      migration.wait_until_succeeds("journalctl -u zipline -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'", timeout=300)
+      migration.wait_for_unit("zipline.service")
       migration.wait_for_open_port(8000, timeout=300)
-      migration.succeed("systemctl is-active zipline-latest-import.service")
-      migration.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
-      migration.succeed("ls /var/lib/private/zipline-latest/backups/import-*.dump")
-      migration.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
-      migration.succeed("test -e /var/lib/private/zipline-latest/.imported-from-nixpkgs")
-      assert psql(migration, "zipline-latest", "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations") == "t"
-      # source left untouched (rollback path): still Prisma-only
-      assert psql(migration, "zipline", "SELECT to_regclass('drizzle.__drizzle_migrations') IS NULL") == "t"
+      migration.wait_until_succeeds(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
+      migration.succeed("ls /var/lib/private/zipline/backups/pre-drizzle-*.sql")
+      assert psql(migration, "zipline", "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations") == "t"
 
       # migration, step 2: adopted PostgreSQL -> PGlite cutover
       switch(migration, "pglite")
-      migration.wait_for_unit("zipline-latest.service")
+      migration.wait_for_unit("zipline.service")
       migration.wait_for_open_port(8000, timeout=300)
-      migration.succeed("systemctl is-active zipline-latest-pglite-cutover.service")
-      migration.succeed("test -d /var/lib/private/zipline-latest/db")
-      migration.succeed("ls /var/lib/private/zipline-latest/backups/pre-pglite-*.sql")
-      migration.succeed("systemctl show zipline-latest -p Environment --value | grep -q 'DATABASE_URL=pglite:///var/lib/zipline-latest/db'")
-      migration.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
-
-      # recover: zipline-latest ran fresh first (state dir owned by its dynamic
-      # UID), its DB was then dropped, and a 4.7.0 install is imported over it.
-      recover.wait_for_unit("zipline.service")
-      switch(recover, "fresh")
-      recover.wait_for_unit("zipline-latest.service")
-      recover.wait_for_open_port(8000, timeout=300)
-      recover.succeed("systemctl stop zipline-latest.service")
-      # Back to the nixpkgs config (zipline-latest unit removed, so it is stopped).
-      recover.succeed("/run/booted-system/bin/switch-to-configuration test")
-      recover.wait_for_unit("zipline.service")
-      # Drop the empty 4.8 DB; the switch to `import` re-runs ensureDatabases.
-      recover.succeed("sudo -u postgres dropdb zipline-latest")
-      rfname = seed_47(recover)
-      recover.succeed("systemctl stop zipline.service")
-      switch(recover, "import")
-      recover.wait_for_unit("zipline-latest.service")
-      recover.wait_for_open_port(8000, timeout=300)
-      recover.succeed("systemctl is-active zipline-latest-import.service")
-      recover.succeed(f"curl -fs 127.0.0.1:8000/raw/{rfname} | grep -q hello-zipline")
-      recover.succeed("ls /var/lib/private/zipline-latest/backups/pre-drizzle-*.sql")
-
-      # gate, second half: re-run the import against a now non-empty target
-      switch(gate, "import")
-      gate.wait_until_fails("systemctl is-active zipline-latest.service", timeout=300)
-      gate.succeed("rm -f /var/lib/private/zipline-latest/.imported-from-nixpkgs")
-      gate.fail("systemctl restart zipline-latest-import.service")
-      gate.succeed("journalctl -u zipline-latest-import -b --no-pager | grep -q 'is not empty'")
+      migration.succeed("systemctl is-active zipline-pglite-cutover.service")
+      migration.succeed("test -d /var/lib/private/zipline/db")
+      migration.succeed("ls /var/lib/private/zipline/backups/pre-pglite-*.sql")
+      migration.succeed("systemctl show zipline -p Environment --value | grep -q 'DATABASE_URL=pglite:///var/lib/zipline/db'")
+      migration.wait_until_succeeds(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
     '';
   }
