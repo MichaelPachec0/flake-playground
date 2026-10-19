@@ -8,15 +8,15 @@
 {
   base46 = {
     pname = "base46";
-    version = "7df2bd89295db00b649cbc49bdf6fe5a1cc5df3b";
+    version = "19023074b28ef5554909d27d934353603df256f0";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "base46";
-      rev = "7df2bd89295db00b649cbc49bdf6fe5a1cc5df3b";
+      rev = "19023074b28ef5554909d27d934353603df256f0";
       fetchSubmodules = false;
-      sha256 = "sha256-LIYAurLRSHnGtDUvxUvIE0PJ1cZ6L0M4nQ+a1H2SgJg=";
+      sha256 = "sha256-1hWdr4UNnRo4Jfi5tPjJEQE8Ft6WFOxMeoHTHhTnvac=";
     };
-    date = "2026-09-25";
+    date = "2026-10-18";
   };
   blockNvim = {
     pname = "blockNvim";
@@ -268,27 +268,27 @@
   };
   nvchad = {
     pname = "nvchad";
-    version = "add44b952d631981614bbb8cfc6f7002f296dfe6";
+    version = "262f103d3cbe22da7f352c9e01306cf5a34fd8a1";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "NvChad";
-      rev = "add44b952d631981614bbb8cfc6f7002f296dfe6";
+      rev = "262f103d3cbe22da7f352c9e01306cf5a34fd8a1";
       fetchSubmodules = false;
-      sha256 = "sha256-EuP+/HWJgqwG5LR2rNvtq7mhFkUDs0oyeG6xbbPogC4=";
+      sha256 = "sha256-HVnS+W4laBFrQV8w99FQx50V1l6NwE9XXuggq6JPo6U=";
     };
-    date = "2026-07-03";
+    date = "2026-10-19";
   };
   nvchadUi = {
     pname = "nvchadUi";
-    version = "6ced1135d2d1f87ae01fe0995977372eef42cd03";
+    version = "78c96eee08ad8eb73e39f7aeff8d978be40b3f91";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "ui";
-      rev = "6ced1135d2d1f87ae01fe0995977372eef42cd03";
+      rev = "78c96eee08ad8eb73e39f7aeff8d978be40b3f91";
       fetchSubmodules = false;
-      sha256 = "sha256-9i4j/4M+B2foHpoVICjaSIh4mg4nzsfGJO4mOHi5e6g=";
+      sha256 = "sha256-YvvgTue7q2+nHLfrBsYXWFZWhcQ16z3OYGnZ8Oq0H9U=";
     };
-    date = "2026-08-31";
+    date = "2026-10-18";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";
