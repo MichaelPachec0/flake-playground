@@ -506,7 +506,7 @@
     },
     "pioNvim": {
         "cargoLock": null,
-        "date": "2026-08-11",
+        "date": "2026-10-20",
         "extract": null,
         "name": "pioNvim",
         "passthru": null,
@@ -516,13 +516,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "c3753815dd94d080ed2d20580ede1c11dac3442c",
-            "sha256": "sha256-/dvV22Z+FdcEZV1lBxM2KIYKSEkCzy86nORL/GvuP9Y=",
+            "rev": "081ae37d3bed35fb3ed682f82769c3d7536d252c",
+            "sha256": "sha256-B3lFuAxK01XUJ4MPhMfETnBWWNH9GjECl4ibcaEVBf8=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/batoaqaa/nvim-pio"
         },
-        "version": "c3753815dd94d080ed2d20580ede1c11dac3442c"
+        "version": "081ae37d3bed35fb3ed682f82769c3d7536d252c"
     },
     "platformio": {
         "cargoLock": null,
