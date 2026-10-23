@@ -13,6 +13,9 @@ from nix_cache.nixcli import NixError
 
 R1, R2, R3 = store_path(1, "r1"), store_path(2, "r2"), store_path(3, "r3")
 D_UP, D_OWN, D_NEW = store_path(4, "glibc"), store_path(5, "lib"), store_path(6, "new")
+# Pseudo statuses for the fake cache: a malformed status line, a body cut short.
+BAD_STATUS_LINE, TRUNCATED = -1, -2
+SECRET = "s3cr3t-T0KEN-do-not-log"
 
 
 @pytest.fixture
@@ -26,8 +29,15 @@ def server():
             seen_auth.append(self.headers.get("Authorization"))
             h = self.path.strip("/").removesuffix(".narinfo")
             if busy.get(h):
-                self.send_response(busy[h].pop(0))
-                self.end_headers()
+                status = busy[h].pop(0)
+                self.close_connection = True
+                if status == BAD_STATUS_LINE:
+                    self.wfile.write(b"garbage\r\n\r\n")
+                elif status == TRUNCATED:
+                    self.wfile.write(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort")
+                else:
+                    self.send_response(status)
+                    self.end_headers()
                 return
             body = f"StorePath: /nix/store/{h}-x\n".encode()
             self.send_response(200 if h in present else 404)
@@ -80,6 +90,21 @@ def test_present_on_raises_when_cache_stays_busy(server, no_retry_wait):
     present.add(store_hash(R1))
     busy[store_hash(R1)] = [503] * 4
     with pytest.raises(bundle.ProbeError, match="HTTP 503"):
+        bundle.present_on(bundle.own_opener(None, url), url, [R1], jobs=1)
+
+
+def test_present_on_retries_broken_http_responses(server, no_retry_wait):
+    url, present, _, busy = server
+    present.add(store_hash(R1))
+    busy[store_hash(R1)] = [BAD_STATUS_LINE, TRUNCATED]
+    busy[store_hash(R2)] = [TRUNCATED]
+    assert bundle.present_on(bundle.own_opener(None, url), url, [R1, R2], jobs=2) == {R1}
+
+
+def test_present_on_raises_when_responses_stay_broken(server, no_retry_wait):
+    url, _, _, busy = server
+    busy[store_hash(R1)] = [BAD_STATUS_LINE] * 4
+    with pytest.raises(bundle.ProbeError, match="after 4 attempts"):
         bundle.present_on(bundle.own_opener(None, url), url, [R1], jobs=1)
 
 
@@ -211,3 +236,63 @@ def test_main_probe_failure_exits_1(tmp_path, fakes, monkeypatch, capsys):
                       "--out", str(tmp_path / "bundle"), "--own-cache", "own"])
     assert rc == 1
     assert "HTTP 503" in capsys.readouterr().err
+
+
+def run_main(tmp_path, roots, *extra):
+    roots_file = tmp_path / "roots.json"
+    roots_file.write_text(roots if isinstance(roots, str) else json.dumps(roots))
+    return bundle.main(["--roots-json", str(roots_file), "--set", "gate", "--arch", "x86_64-linux",
+                        "--out", str(tmp_path / "bundle"), "--no-upstream", *extra])
+
+
+@pytest.mark.parametrize("text", [
+    f"machine 127.0.0.1 login ci-g1 password {SECRET} bogus\n",
+    f"{SECRET} machine 127.0.0.1 login ci-g1\n",
+])
+def test_malformed_netrc_never_leaks_its_contents(tmp_path, fakes, capsys, text):
+    netrc_file = tmp_path / "netrc"
+    netrc_file.write_text(text)
+    rc = run_main(tmp_path, [R1], "--own-cache", "http://127.0.0.1:9", "--netrc", str(netrc_file))
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "netrc" in err and SECRET not in err and "Traceback" not in err
+
+
+def test_missing_netrc_exits_1(tmp_path, fakes, capsys):
+    rc = run_main(tmp_path, [R1], "--own-cache", "own", "--netrc", str(tmp_path / "absent"))
+    assert rc == 1
+    assert "netrc" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("jobs", ["0", "-1", "x"])
+def test_jobs_must_be_positive(tmp_path, fakes, jobs):
+    with pytest.raises(SystemExit) as exc:
+        run_main(tmp_path, [R1], "--own-cache", "own", "--jobs", jobs)
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("roots", [
+    "not json",
+    {"roots": [R1]},
+    [R1, 7],
+    [R1, "/nix/store/a"],
+    [R1, R2 + "\n"],
+    [R1, "--option"],
+])
+def test_bad_roots_json_exits_2(tmp_path, fakes, capsys, roots):
+    rc = run_main(tmp_path, roots, "--own-cache", "own")
+    assert rc == 2
+    assert "roots" in capsys.readouterr().err
+    assert not (tmp_path / "bundle").exists()
+
+
+def test_missing_roots_json_exits_2(tmp_path, fakes, capsys):
+    rc = bundle.main(["--roots-json", str(tmp_path / "absent.json"), "--set", "gate", "--arch", "x86_64-linux",
+                      "--out", str(tmp_path / "bundle"), "--no-upstream"])
+    assert rc == 2
+    assert "roots" in capsys.readouterr().err
+
+
+def test_make_bundle_rejects_non_store_root(tmp_path, fakes):
+    with pytest.raises(bundle.BundleToolError, match="roots"):
+        make(tmp_path, [R1, "/nix/store/a"])

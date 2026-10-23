@@ -8,6 +8,7 @@ streams it to the cache host.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import netrc
 import sys
@@ -26,7 +27,7 @@ from urllib.request import (
 
 from . import nixcli
 from .graph import store_hash
-from .manifest import Manifest, render_manifest
+from .manifest import STORE_PATH_RE, Manifest, render_manifest
 from .nixcli import NixError
 
 DEFAULT_UPSTREAMS = ("https://cache.nixos.org",)
@@ -43,10 +44,28 @@ class ProbeError(Exception):
     """A cache answered a narinfo probe with neither 200 nor 404, even after retries."""
 
 
+class CredentialsError(Exception):
+    """The --netrc file is missing, unreadable or malformed."""
+
+
+def _netrc_auth(netrc_file: Path, host: str) -> tuple[str, str, str] | None:
+    """Look up host in netrc_file; errors never carry the file's contents.
+
+    NetrcParseError quotes the offending token, which may be the password,
+    so only its line number survives into the message (and CI logs).
+    """
+    try:
+        return netrc.netrc(str(netrc_file)).authenticators(host)
+    except netrc.NetrcParseError as e:
+        raise CredentialsError(f"netrc {netrc_file} is malformed near line {e.lineno}") from None
+    except OSError as e:
+        raise CredentialsError(f"cannot read netrc {netrc_file}: {e.strerror or type(e).__name__}") from None
+
+
 def own_opener(netrc_file: Path | None, base_url: str) -> OpenerDirector:
     if netrc_file is None:
         return build_opener()
-    auth = netrc.netrc(str(netrc_file)).authenticators(urlparse(base_url).hostname or "")
+    auth = _netrc_auth(netrc_file, urlparse(base_url).hostname or "")
     if auth is None:
         return build_opener()
     login, _, password = auth
@@ -77,8 +96,10 @@ def fetch_narinfo(opener: OpenerDirector, base_url: str, h: str, timeout: float 
             if e.code not in RETRY_STATUS:
                 raise ProbeError(f"{url}: HTTP {e.code}") from e
             last = f"HTTP {e.code}"
-        except (URLError, TimeoutError, OSError) as e:
-            last = str(e)
+        except (URLError, TimeoutError, OSError, http.client.HTTPException) as e:
+            # HTTPException: a malformed status line or a body cut short
+            # (BadStatusLine, IncompleteRead), which urllib does not wrap.
+            last = f"{type(e).__name__}: {e}"
     raise ProbeError(f"{url}: {last} after {len(RETRY_DELAYS) + 1} attempts")
 
 
@@ -144,6 +165,23 @@ def copy_missing(out: Path, missing: list[str], closure: dict[str, dict], served
             seed.unlink(missing_ok=True)
 
 
+def check_roots(roots: object) -> list[str]:
+    """Roots must be a JSON list of plain store paths (no options, no newlines)."""
+    if not isinstance(roots, list) or not all(isinstance(r, str) and STORE_PATH_RE.fullmatch(r) for r in roots):
+        raise BundleToolError("roots must be a JSON list of store paths")
+    return roots
+
+
+def load_roots(path: Path) -> list[str]:
+    try:
+        data = json.loads(path.read_text())
+    except OSError as e:
+        raise BundleToolError(f"cannot read roots file {path}: {e.strerror or type(e).__name__}") from None
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise BundleToolError(f"roots file {path} is not valid JSON: {e}") from None
+    return check_roots(data)
+
+
 def make_bundle(
     *,
     roots,
@@ -157,6 +195,9 @@ def make_bundle(
     commit: str,
     jobs: int = 8,
 ) -> Manifest:
+    roots = check_roots(list(roots) if isinstance(roots, (tuple, set, frozenset)) else roots)
+    if jobs < 1:
+        raise BundleToolError(f"jobs must be at least 1, not {jobs}")
     if out.exists() and any(out.iterdir()):
         raise BundleToolError(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)
@@ -203,6 +244,16 @@ def make_bundle(
     return manifest
 
 
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not an integer") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, not {value}")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nix-cache-bundle", description="Bundle built outputs for the nix cache.")
     parser.add_argument("--roots-json", type=Path, required=True, help="JSON list of output paths (nix eval --json)")
@@ -217,12 +268,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commit", default="")
     # 8 per process: parallel CI jobs share one read-token user, and nginx
     # allows 32 connections per user (excess ones get 503).
-    parser.add_argument("--jobs", type=int, default=8)
+    parser.add_argument("--jobs", type=_positive_int, default=8)
     args = parser.parse_args(argv)
     upstreams = [] if args.no_upstream else (args.upstream or list(DEFAULT_UPSTREAMS))
     try:
         make_bundle(
-            roots=json.loads(args.roots_json.read_text()),
+            roots=load_roots(args.roots_json),
             set_=args.set,
             arch=args.arch,
             out=args.out,
@@ -236,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     except BundleToolError as e:
         print(f"nix-cache-bundle: {e}", file=sys.stderr)
         return 2
-    except (NixError, ProbeError) as e:
+    except (NixError, ProbeError, CredentialsError) as e:
         print(f"nix-cache-bundle: {e}", file=sys.stderr)
         return 1
     return 0
