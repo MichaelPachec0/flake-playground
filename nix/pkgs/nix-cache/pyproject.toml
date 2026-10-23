@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 [project.scripts]
 nix-cache-htpasswd-entry = "nix_cache.htpasswd:main"
 nix-cache-alert = "nix_cache.alert:main"
+cache-importer = "nix_cache.importer:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
