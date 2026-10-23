@@ -34,9 +34,13 @@ inputs:
     required: false
     default: "optional"
   tools-flake:
-    description: "Flake that provides the nix-cache package."
-    required: false
-    default: "github:MichaelPachec0/flake-playground"
+    description: >-
+      Pinned flake ref that provides the nix-cache package. No default (a
+      branch ref is mutable): in-repo callers pass "." or
+      github:<github.repository>/<github.sha>; callers in other repos pass a
+      fixed rev of flake-playground, bumped together with the SHA they use
+      this action at.
+    required: true
 
 outputs:
   ok:
@@ -70,6 +74,7 @@ runs:
         }
         [ -n "$TOKEN" ] && [ -n "$READ_USER" ] && [ -n "$URL" ] \
           || give_up "no cache URL or read token, cannot tell what the cache already has"
+        if [ -z "$TOOLS_FLAKE" ]; then echo "::error::tools-flake is required (a pinned flake ref)"; exit 1; fi
         # Secrets are masked by the runner already; this also covers a token
         # passed in some other way. printf is a builtin, so the token never
         # lands in any process's argv.

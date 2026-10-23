@@ -6,6 +6,17 @@ name: "Push to the nix cache"
 # cache-push (main only), so build steps never share a VM with the signing or
 # upload keys. Callers must not call it from pull_request runs: forks get no
 # secrets, and the job refuses to run there anyway.
+#
+# Before first use, create environment cache-push with a deployment-branch
+# rule that allows main only, and put NIX_CACHE_SIGNING_KEY,
+# NIX_CACHE_PUSH_SSH_KEY, NIX_CACHE_SSH_HOST and NIX_CACHE_SSH_KNOWN_HOSTS
+# there (never as repo secrets). That branch rule is what keeps the keys
+# away from non-PR events on other branches (workflow_dispatch, pushes to
+# feature branches); the event check below only covers pull requests.
+# Those four are deliberately not listed under workflow_call.secrets: a
+# declared secret would let a caller-passed repo secret stand in for a
+# missing environment secret. .github/actionlint.yaml silences the lint for
+# them.
 on:
   workflow_call:
     inputs:
@@ -35,9 +46,15 @@ on:
         type: number
         default: 600
       tools-flake:
-        description: "Flake that provides the nix-cache package (nix-cache-push-bundle)."
+        description: >-
+          Pinned flake ref that provides the nix-cache package
+          (nix-cache-push-bundle). No default: a branch ref would run whatever
+          that branch holds with the upload key. In-repo callers pass
+          github:<github.repository>/<github.sha>; callers in other
+          repos pass a fixed rev of flake-playground and bump it together with
+          the SHA they call this workflow at.
         type: string
-        default: "github:MichaelPachec0/flake-playground"
+        required: true
     secrets:
       NIX_CACHE_URL:
         description: "Cache URL (repo secret), for the verify step."
@@ -45,24 +62,6 @@ on:
       NIX_CACHE_READ_TOKEN:
         description: "Read token of read-user (repo secret), for the verify step."
         required: true
-      # The four below are secrets of environment cache-push, which the push
-      # job declares, so GitHub reads them from there: a caller cannot pass
-      # environment secrets, and for a job with an environment the
-      # environment's value wins over anything passed. They are declared
-      # (optional) only so the interface lists them and linters accept the
-      # references. Callers must not pass them.
-      NIX_CACHE_SIGNING_KEY:
-        description: "Environment cache-push: nix signing secret key (name:base64)."
-        required: false
-      NIX_CACHE_PUSH_SSH_KEY:
-        description: "Environment cache-push: private SSH key of cache-drop-<repo>."
-        required: false
-      NIX_CACHE_SSH_HOST:
-        description: "Environment cache-push: SSH host name of the cache host."
-        required: false
-      NIX_CACHE_SSH_KNOWN_HOSTS:
-        description: "Environment cache-push: known_hosts line(s) pinning the host key."
-        required: false
 
 # Downloading an artifact of the same run needs no token scope.
 permissions: {}
@@ -84,6 +83,7 @@ jobs:
           POLICY: ${{ inputs.policy }}
           REPO: ${{ inputs.repo }}
           READ_USER: ${{ inputs.read-user }}
+          TOOLS_FLAKE: ${{ inputs.tools-flake }}
           NIX_CACHE_URL: ${{ secrets.NIX_CACHE_URL }}
           NIX_CACHE_READ_TOKEN: ${{ secrets.NIX_CACHE_READ_TOKEN }}
           NIX_CACHE_SIGNING_KEY: ${{ secrets.NIX_CACHE_SIGNING_KEY }}
@@ -92,6 +92,8 @@ jobs:
           NIX_CACHE_SSH_KNOWN_HOSTS: ${{ secrets.NIX_CACHE_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
+          # Only pull requests are refused here; other branches are kept out
+          # by the cache-push environment's main-only deployment-branch rule.
           case "$EVENT" in
             pull_request|pull_request_target)
               echo "::error::the nix cache push job must not run for $EVENT events"
@@ -105,7 +107,7 @@ jobs:
           fi
           missing=""
           for name in NIX_CACHE_URL NIX_CACHE_READ_TOKEN NIX_CACHE_SIGNING_KEY \
-            NIX_CACHE_PUSH_SSH_KEY NIX_CACHE_SSH_HOST NIX_CACHE_SSH_KNOWN_HOSTS READ_USER; do
+            NIX_CACHE_PUSH_SSH_KEY NIX_CACHE_SSH_HOST NIX_CACHE_SSH_KNOWN_HOSTS READ_USER TOOLS_FLAKE; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
@@ -116,11 +118,30 @@ jobs:
             https://*) ;;
             *) echo "::error::NIX_CACHE_URL must use https://"; exit 1 ;;
           esac
+          # The verify step writes the URL into a quoted curl config line.
+          case "$NIX_CACHE_URL" in
+            *'"'*|*\\*) echo "::error::NIX_CACHE_URL must not contain quotes or backslashes"; exit 1 ;;
+          esac
           nl=$'\n'
           cr=$'\r'
           case "$NIX_CACHE_URL$NIX_CACHE_READ_TOKEN$READ_USER$NIX_CACHE_SSH_HOST" in
             *"$nl"*|*"$cr"*|*[[:space:]]*) echo "::error::nix cache URL, host, user or token contains whitespace"; exit 1 ;;
           esac
+
+      # Key files go to tmpfs (/dev/shm) so they never touch the runner's
+      # disk; $RUNNER_TEMP only if the runner has no /dev/shm. The directory
+      # is 0700 and the last step removes it whatever happened before.
+      - name: Create the key directory
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -d /dev/shm ] && [ -w /dev/shm ]; then
+            d=$(mktemp -d -p /dev/shm nix-cache-push.XXXXXXXX)
+          else
+            echo "::warning::no writable /dev/shm; key files go to RUNNER_TEMP"
+            d=$(mktemp -d -p "$RUNNER_TEMP" nix-cache-push.XXXXXXXX)
+          fi
+          echo "KEYS_DIR=$d" >> "$GITHUB_ENV"
 
       - name: Download the bundle
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -151,10 +172,9 @@ jobs:
           count=$(jq '.paths | length' bundle/manifest.json)
           echo "$count paths to sign"
           [ "$count" -gt 0 ] || exit 0
-          # Private key files live in KEYS_DIR (umask 077); the last step
-          # deletes it whatever happened before.
-          KEYS_DIR="$RUNNER_TEMP/nix-cache-push-keys"
-          ( umask 077; mkdir -p "$KEYS_DIR"; printf '%s\n' "$SIGNING_KEY" > "$KEYS_DIR/signing-key" )
+          ( umask 077; printf '%s\n' "$SIGNING_KEY" > "$KEYS_DIR/signing-key" )
+          # Keep the key out of the environment of every child process.
+          unset SIGNING_KEY
           jq -r '.paths[]' bundle/manifest.json \
             | nix store sign --store "file://$PWD/bundle" --key-file "$KEYS_DIR/signing-key" --stdin
           rm -f "$KEYS_DIR/signing-key"
@@ -169,14 +189,19 @@ jobs:
         run: |
           set -euo pipefail
           echo "::add-mask::$SSH_HOST"
-          KEYS_DIR="$RUNNER_TEMP/nix-cache-push-keys"
-          ( umask 077; mkdir -p "$KEYS_DIR"
-            printf '%s\n' "$SSH_KEY" > "$KEYS_DIR/ssh-key"
-            printf '%s\n' "$KNOWN_HOSTS" > "$KEYS_DIR/known_hosts" )
-          # Build the tool before the upload so a build failure is not
-          # reported as an upload failure. This job has no read access to
-          # the self-hosted cache, so it comes from source + cache.nixos.org.
+          # Build the tool first, with no key on disk yet and none in nix's
+          # environment, so the keys exist only for the ssh call and a build
+          # failure is not reported as an upload failure. This job has no
+          # read access to the self-hosted cache, so the tool comes from
+          # source + cache.nixos.org.
+          key_text=$SSH_KEY
+          hosts_text=$KNOWN_HOSTS
+          unset SSH_KEY KNOWN_HOSTS
           tools=$(nix build --no-link --print-out-paths "$TOOLS_FLAKE#nix-cache")
+          ( umask 077
+            printf '%s\n' "$key_text" > "$KEYS_DIR/ssh-key"
+            printf '%s\n' "$hosts_text" > "$KEYS_DIR/known_hosts" )
+          unset key_text hosts_text
           # nix-cache-push-bundle tars exactly the members the receiver
           # accepts, zstd-compresses them and pipes them to the ssh command.
           # The host key is pinned: no trust on first use.
@@ -220,20 +245,31 @@ jobs:
           fi
           # The netrc and the curl config (which holds the URL) stay private.
           umask 077
-          KEYS_DIR="$RUNNER_TEMP/nix-cache-push-keys"
-          mkdir -p "$KEYS_DIR"
           host=$(printf %s "$URL" | sed -E 's#^https://([^/:]+).*#\1#')
           printf 'machine %s\nlogin %s\npassword %s\n' "$host" "$READ_USER" "$TOKEN" > "$KEYS_DIR/netrc"
           jq -r '.paths[]' bundle/manifest.json | sed -E 's#^/nix/store/(.{32}).*#\1#' > "$KEYS_DIR/pending"
+          unset TOKEN
           deadline=$((SECONDS + TIMEOUT))
+          timed_out() {
+            echo "::error::$1 of $total bundled paths not served by the cache after ${TIMEOUT}s"
+            exit 1
+          }
+          left=$total
           while :; do
+            # The deadline bounds every request, not only the rounds: each
+            # transfer gets at most min(30 s, time left) and the whole curl
+            # run is killed when the time is up.
+            remaining=$((deadline - SECONDS))
+            [ "$remaining" -gt 0 ] || timed_out "$left"
+            per=$(( remaining < 30 ? remaining : 30 ))
             # One curl per round, one connection for all pending narinfos.
             # The URL goes through a config file, not argv.
             while read -r h; do
               printf 'url = "%s/%s.narinfo"\noutput = "/dev/null"\n' "${URL%/}" "$h"
             done < "$KEYS_DIR/pending" > "$KEYS_DIR/curl.conf"
-            curl -s --proto =https --connect-timeout 10 --max-time 30 --netrc-file "$KEYS_DIR/netrc" \
-              -w '%{http_code} %{url}\n' --config "$KEYS_DIR/curl.conf" > "$KEYS_DIR/codes" || true
+            timeout "$remaining" curl -s --proto =https --connect-timeout "$per" --max-time "$per" \
+              --netrc-file "$KEYS_DIR/netrc" -w '%{http_code} %{url}\n' --config "$KEYS_DIR/curl.conf" \
+              > "$KEYS_DIR/codes" || true
             # Keep every hash that did not answer 200.
             awk '$1 == 200 { n = split($2, a, "/"); sub(/\.narinfo$/, "", a[n]); ok[a[n]] = 1 }
                  END { while ((getline h < pending) > 0) if (!(h in ok)) print h }' \
@@ -242,14 +278,13 @@ jobs:
             left=$(wc -l < "$KEYS_DIR/pending")
             echo "$((total - left)) of $total bundled paths served"
             [ "$left" -gt 0 ] || break
-            if [ "$SECONDS" -ge "$deadline" ]; then
-              echo "::error::$left of $total bundled paths not served by the cache after ${TIMEOUT}s"
-              exit 1
-            fi
-            sleep 10
+            remaining=$((deadline - SECONDS))
+            [ "$remaining" -gt 0 ] || timed_out "$left"
+            sleep $(( remaining < 10 ? remaining : 10 ))
           done
           echo "all $total bundled paths served"
 
       - name: Remove the keys
         if: ${{ always() }}
-        run: rm -rf "$RUNNER_TEMP/nix-cache-push-keys"
+        run: |
+          if [ -n "${KEYS_DIR:-}" ]; then rm -rf -- "$KEYS_DIR"; fi

@@ -1,0 +1,9 @@
+# nix-cache-push.yml reads four secrets of environment cache-push, which the
+# push job declares. They are deliberately not listed under
+# on.workflow_call.secrets (a declared secret would let a caller-passed repo
+# secret stand in for a missing environment secret), and actionlint cannot
+# see environment secrets, so it reports them as undefined.
+paths:
+  .github/workflows/nix-cache-push.yml:
+    ignore:
+      - 'property "nix_cache_(signing_key|push_ssh_key|ssh_host|ssh_known_hosts)" is not defined'
