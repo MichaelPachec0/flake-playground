@@ -1,0 +1,75 @@
+name: "Nix cache setup"
+description: >-
+  Point the runner's nix-daemon at the self-hosted binary cache: extra
+  substituter, trusted key, root-only netrc with the read token, short
+  connect timeout and fallback. Policy optional skips the cache when the
+  token is missing or the probe fails; required fails the job instead.
+
+inputs:
+  url:
+    description: "Cache URL, e.g. https://cache.example.org (pass from a secret)."
+    required: true
+  read-token:
+    description: "Read token (secret). Empty on fork PRs."
+    required: false
+    default: ""
+  read-user:
+    description: "htpasswd user the token belongs to, e.g. ci-flake-playground-g1."
+    required: false
+    default: ""
+  public-keys:
+    description: "Space-separated signing public keys to trust."
+    required: true
+  policy:
+    description: "optional (fail-open) or required (fail the job)."
+    required: false
+    default: "optional"
+
+runs:
+  using: composite
+  steps:
+    - name: Configure the self-hosted nix cache
+      shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        TOKEN: ${{ inputs.read-token }}
+        READ_USER: ${{ inputs.read-user }}
+        KEYS: ${{ inputs.public-keys }}
+        POLICY: ${{ inputs.policy }}
+      run: |
+        set -euo pipefail
+        case "$POLICY" in optional|required) ;; *) echo "::error::policy must be optional or required"; exit 1 ;; esac
+        skip() {
+          if [ "$POLICY" = required ]; then echo "::error::$1"; exit 1; fi
+          echo "::warning::$1; building without the self-hosted cache"
+          exit 0
+        }
+        if [ -z "$TOKEN" ] || [ -z "$URL" ] || [ -z "$READ_USER" ]; then
+          if [ "$POLICY" = optional ]; then
+            echo "::notice::no nix cache credentials (fork PR?); building without the self-hosted cache"
+            exit 0
+          fi
+          skip "nix cache credentials missing"
+        fi
+        # Secrets are masked by the runner already; this also covers a token
+        # passed in some other way. echo and printf are bash builtins, so the
+        # token never appears in any process's argv.
+        echo "::add-mask::$TOKEN"
+        # netrc matches on the bare host name, so drop any :port as well.
+        host=$(printf %s "$URL" | sed -E 's#^https?://([^/:]+).*#\1#')
+        # Substitution runs in the root daemon, so the netrc is root-only.
+        printf 'machine %s\nlogin %s\npassword %s\n' "$host" "$READ_USER" "$TOKEN" \
+          | sudo install -m 0600 -o root -g root /dev/stdin /etc/nix/nix-cache-netrc
+        if ! sudo curl -fsS --max-time 10 --netrc-file /etc/nix/nix-cache-netrc "$URL/nix-cache-info" >/dev/null; then
+          sudo rm -f /etc/nix/nix-cache-netrc
+          skip "nix cache probe failed"
+        fi
+        sudo tee -a /etc/nix/nix.conf >/dev/null <<EOF
+        extra-substituters = $URL
+        extra-trusted-public-keys = $KEYS
+        netrc-file = /etc/nix/nix-cache-netrc
+        connect-timeout = 5
+        fallback = true
+        EOF
+        sudo systemctl restart nix-daemon.service
+        echo "nix cache enabled: $host"

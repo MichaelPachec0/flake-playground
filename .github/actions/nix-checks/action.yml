@@ -21,12 +21,60 @@ inputs:
       the same cache entry.
     required: false
     default: "nix"
+  cache-backend:
+    description: >-
+      Where the nix store comes from between runs: `snapshot` (the
+      cache-nix-action GHA snapshot) or `selene` (the self-hosted binary
+      cache). Lets jobs migrate one at a time.
+    required: false
+    default: "snapshot"
+  cache-url:
+    description: "Self-hosted cache URL (secret NIX_CACHE_URL)."
+    required: false
+    default: ""
+  cache-read-token:
+    description: "Read token (secret NIX_CACHE_READ_TOKEN)."
+    required: false
+    default: ""
+  cache-read-user:
+    description: "htpasswd user of the read token (variable NIX_CACHE_READ_USER)."
+    required: false
+    default: ""
+  cache-public-keys:
+    description: "Signing public keys to trust (variable NIX_CACHE_PUBLIC_KEYS)."
+    required: false
+    default: ""
+  cache-policy:
+    description: "optional (fail-open) or required."
+    required: false
+    default: "optional"
+  cache-bundle-set:
+    description: "If set (and backend is selene, not a PR), bundle this set's outputs for the push job."
+    required: false
+    default: ""
+  cache-bundle-roots:
+    description: "Flake attribute with the set's output paths, e.g. .#legacyPackages.x86_64-linux.ci.cacheRoots.gate."
+    required: false
+    default: ""
+  cache-bundle-arch:
+    description: "Architecture of the bundle."
+    required: false
+    default: "x86_64-linux"
+  cache-bundle-artifact:
+    description: "Artifact name for the bundle."
+    required: false
+    default: ""
+
+outputs:
+  bundle-ok:
+    description: "true when a bundle artifact was uploaded for the push job."
+    value: ${{ steps.bundle.outputs.ok }}
 
 runs:
   using: composite
   steps:
     - name: Free disk space
-      uses: jlumbroso/free-disk-space@main
+      uses: jlumbroso/free-disk-space@36e9a5af4eddb91fc11aec4c6f6f79b3cc0cb523 # main as of 2026-10-22
       with:
         tool-cache: false
         # Skip the apt purge of large misc. packages (llvm, php, mongodb, ...):
@@ -48,7 +96,7 @@ runs:
         free -h
 
     - name: Install nix
-      uses: cachix/install-nix-action@v31
+      uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       with:
         nix_path: nixpkgs=channel:nixos-unstable
         # Pinned to 2.34.8 to dodge NixOS/nix#16005: a 2.35 scheduler regression
@@ -101,8 +149,22 @@ runs:
         # Evidence that the override actually took (shows up in the job log).
         systemctl show nix-daemon.service -p OOMPolicy -p ActiveState
 
+    - name: Use the self-hosted nix cache
+      if: ${{ inputs.cache-backend == 'selene' }}
+      uses: ./.github/actions/nix-cache-setup
+      with:
+        url: ${{ inputs.cache-url }}
+        read-token: ${{ inputs.cache-read-token }}
+        read-user: ${{ inputs.cache-read-user }}
+        public-keys: ${{ inputs.cache-public-keys }}
+        policy: ${{ inputs.cache-policy }}
+
+    # Gated on "not selene" rather than "== snapshot": any value other than
+    # selene (a typo, an empty variable) keeps today's snapshot path instead of
+    # silently running with no cache at all.
     - name: Cache nix store
-      uses: nix-community/cache-nix-action@v7
+      if: ${{ inputs.cache-backend != 'selene' }}
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
         primary-key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
         restore-prefixes-first-match: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
@@ -255,6 +317,21 @@ runs:
 
         exit "$status"
 
+    - name: Bundle outputs for the nix cache
+      id: bundle
+      if: ${{ success() && inputs.cache-backend == 'selene' && inputs.cache-bundle-set != '' && github.event_name != 'pull_request' }}
+      uses: ./.github/actions/nix-cache-bundle
+      with:
+        roots-attr: ${{ inputs.cache-bundle-roots }}
+        set: ${{ inputs.cache-bundle-set }}
+        arch: ${{ inputs.cache-bundle-arch }}
+        artifact-name: ${{ inputs.cache-bundle-artifact }}
+        cache-url: ${{ inputs.cache-url }}
+        read-token: ${{ inputs.cache-read-token }}
+        read-user: ${{ inputs.cache-read-user }}
+        policy: ${{ inputs.cache-policy }}
+        tools-flake: "."
+
     # Everything below only runs when the build step failed. `dmesg` needs sudo
     # on GitHub runners (kernel.dmesg_restrict=1) -- without it the OOM evidence
     # is silently unreadable, which is why earlier diagnostics came back empty.
@@ -294,7 +371,7 @@ runs:
 
     - name: Upload diagnostics (on failure)
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: nix-checks-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
         path: |
