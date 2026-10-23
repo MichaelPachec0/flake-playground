@@ -202,6 +202,15 @@
       zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
       nix-cache-vm = nixCacheVmTest;
     };
+    # What each CI job pushes to the self-hosted cache: every output (dev,
+    # man, ... included) of the derivations that job builds. A list of paths,
+    # not a linkFarm: building a farm would force CI to download every
+    # already-cached input just to link it. See .github/actions/nix-cache-bundle.
+    outPathsOf = drvs: nixpkgs.lib.concatMap (d: map (o: d.${o}.outPath) (d.outputs or ["out"])) drvs;
+    ciGate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+    # Everything packages.aarch64-linux offers that actually builds there; CI
+    # builds it on ubuntu-24.04-arm so aarch64 hosts (selene) substitute it.
+    aarch64CiPackages = nixpkgs.lib.filterAttrs (_: d: nixpkgs.lib.meta.availableOn pkgsAarch64.stdenv.hostPlatform d) self.packages.aarch64-linux;
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -262,12 +271,33 @@
       #   ci.gate - every check except the VM tests: the merge gate, and what the
       #             daily bump workflows gate their commits on.
       #   ci.vm   - the VM tests, built by a separate CI job with its own timeout.
+      #   cacheRoots.<set> - output paths the cache push of that job uploads.
       # nix-fast-build over all of checks.x86_64-linux used to build the VM tests
       # inside the gate, which pushed CI past its 30-minute timeout.
       ci = {
-        gate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+        gate = ciGate;
         vm = vmChecks;
+        # Per CI set, the outputs nix-cache-bundle pushes (set name = cache
+        # namespace). Bump sets add what their workflow builds beyond the gate.
+        cacheRoots = let
+          gate = builtins.attrValues ciGate;
+        in {
+          gate = outPathsOf gate;
+          bump-vimplugins = outPathsOf gate;
+          bump-playground = outPathsOf gate;
+          bump-projectsend = outPathsOf gate;
+          bump-flake-lock = outPathsOf gate;
+          bump-picr = outPathsOf (gate ++ [picrPkgs.picr picrPkgs.picr-ping]);
+          bump-pingvin = outPathsOf (gate ++ [playgroundPkgs.pingvin-share-x playgroundPkgs.pingvin-share-x-beta]);
+          bump-windscribe = outPathsOf (gate ++ [windscribe]);
+          bump-zipline = outPathsOf (gate ++ [zipline-latest]);
+        };
       };
+    };
+
+    legacyPackages.aarch64-linux.ci = {
+      packages = aarch64CiPackages;
+      cacheRoots.gate = outPathsOf (builtins.attrValues aarch64CiPackages);
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
