@@ -150,6 +150,7 @@ runs:
         systemctl show nix-daemon.service -p OOMPolicy -p ActiveState
 
     - name: Use the self-hosted nix cache
+      id: selene-cache
       if: ${{ inputs.cache-backend == 'selene' }}
       uses: ./.github/actions/nix-cache-setup
       with:
@@ -159,11 +160,12 @@ runs:
         public-keys: ${{ inputs.cache-public-keys }}
         policy: ${{ inputs.cache-policy }}
 
-    # Gated on "not selene" rather than "== snapshot": any value other than
-    # selene (a typo, an empty variable) keeps today's snapshot path instead of
-    # silently running with no cache at all.
+    # Runs for every backend other than selene (a typo or an empty variable
+    # keeps today's snapshot path rather than running with no cache at all),
+    # and also when the selene setup did not enable the cache, e.g. a fork PR
+    # without secrets under the optional policy. Skipped setup = empty output.
     - name: Cache nix store
-      if: ${{ inputs.cache-backend != 'selene' }}
+      if: ${{ inputs.cache-backend != 'selene' || steps.selene-cache.outputs.enabled != 'true' }}
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
         primary-key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
