@@ -204,8 +204,8 @@
     };
     # What each CI job pushes to the self-hosted cache: every output (dev,
     # man, ... included) of the derivations that job builds. A list of paths,
-    # not a linkFarm: building a farm would force CI to download every
-    # already-cached input just to link it. See .github/actions/nix-cache-bundle.
+    # not a linkFarm built just for pinning: building a farm would force CI to
+    # download every already-cached input just to link it. See .github/actions/nix-cache-bundle.
     outPathsOf = drvs: nixpkgs.lib.concatMap (d: map (o: d.${o}.outPath) (d.outputs or ["out"])) drvs;
     ciGate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
     # Everything packages.aarch64-linux offers that actually builds there; CI
@@ -288,9 +288,9 @@
           bump-projectsend = outPathsOf gate;
           bump-flake-lock = outPathsOf gate;
           bump-picr = outPathsOf (gate ++ [picrPkgs.picr picrPkgs.picr-ping]);
-          bump-pingvin = outPathsOf (gate ++ [playgroundPkgs.pingvin-share-x playgroundPkgs.pingvin-share-x-beta]);
+          bump-pingvin = outPathsOf (gate ++ [playgroundPkgs.pingvin-share-x playgroundPkgs.pingvin-share-x-beta vmChecks.pingvin-share-vm]);
           bump-windscribe = outPathsOf (gate ++ [windscribe]);
-          bump-zipline = outPathsOf (gate ++ [zipline-latest]);
+          bump-zipline = outPathsOf (gate ++ [zipline-latest vmChecks.zipline-latest-vm vmChecks.zipline-latest-migration-vm]);
         };
       };
     };
