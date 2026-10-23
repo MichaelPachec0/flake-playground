@@ -254,6 +254,50 @@ in {
     services.zipline-extras.experimental.migrateToPglite.enable = true;
   } "migrateToPglite writes to";
 
+  nixos-nix-cache-host = let
+    cacheCfg = {
+      services.nix-cache-host = {
+        enable = true;
+        hostName = "cache.example";
+        # path literals; eval never reads them
+        htpasswdFile = "/run/secrets/nix-cache-htpasswd";
+        nginx.sslCertificate = "/run/secrets/cert.pem";
+        nginx.sslCertificateKey = "/run/secrets/key.pem";
+        repos.flake-playground = {
+          uid = 2001;
+          signingPublicKeys = ["flake-playground-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="];
+          uploadKeys = [
+            {
+              key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVtZXN0IGtleSBmb3IgZXZhbCBjaGVja3Mgb25seQ ci";
+              expires = "20991231";
+            }
+          ];
+        };
+      };
+    };
+  in
+    evalNixosAssert "nixos-nix-cache-host" "nix-cache-host" cacheCfg {
+      check = c: let
+        keys = c.users.users.cache-drop-flake-playground.openssh.authorizedKeys.keys;
+      in
+        lib.hasInfix "ForceCommand" c.services.openssh.extraConfig
+        && lib.hasSuffix "Match all\n" c.services.openssh.extraConfig
+        && lib.all (k: lib.hasPrefix "restrict,command=" k && lib.hasInfix "expiry-time=\"20991231\"" k) keys
+        && c.users.users.cache-drop-flake-playground.uid == 2001
+        && lib.elem "nix-cache" c.nix.settings.extra-allowed-users
+        && lib.elem "harmonia" c.nix.settings.extra-allowed-users
+        && lib.any (lib.hasInfix "A+ /srv/cache-drop/flake-playground/incoming") c.systemd.tmpfiles.rules
+        && c.environment.etc ? "nix-cache/config.json";
+      message = "upload user, sshd Match block, daemon access and drop dirs must be configured";
+    };
+  nixos-nix-cache-host-needs-tls = expectAssertion "nixos-nix-cache-host-needs-tls" "nix-cache-host" {
+    services.nix-cache-host = {
+      enable = true;
+      hostName = "cache.example";
+      htpasswdFile = "/run/secrets/nix-cache-htpasswd";
+    };
+  } "needs either nginx.useACMEHost";
+
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
 }
