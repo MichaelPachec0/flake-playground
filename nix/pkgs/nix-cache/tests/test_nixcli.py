@@ -134,9 +134,13 @@ def test_fetch_estimate_units_round_up(fake_bin, tmp_path, size, expected):
     assert nixcli.fetch_estimate([P1]) == expected
 
 
-def test_fetch_estimate_nothing_to_fetch(fake_bin, tmp_path):
-    _dry_run(tmp_path, "")
-    assert nixcli.fetch_estimate([P1]) == 0
+@pytest.mark.parametrize("text", ["", "warning: something\n", f"  {P1}\n"])
+def test_fetch_estimate_silent_chunk_fails_closed(fake_bin, tmp_path, text):
+    # Only invalid paths are passed in: each is either fetched or reported, so
+    # a chunk with no summary means the report went missing.
+    _dry_run(tmp_path, text)
+    with pytest.raises(nixcli.NixError, match="no fetch summary"):
+        nixcli.fetch_estimate([P1])
 
 
 def test_fetch_estimate_tolerates_warnings(fake_bin, tmp_path):

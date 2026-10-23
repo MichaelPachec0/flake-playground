@@ -97,6 +97,7 @@ def _size_up(whole: str, tenth: str, unit: str) -> int:
 
 def _parse_dry_run(report: str) -> int:
     total = 0
+    summaries = 0
     for line in report.splitlines():
         if not line.strip() or _HARMLESS_RE.fullmatch(line):
             continue
@@ -107,11 +108,19 @@ def _parse_dry_run(report: str) -> int:
             # Builds, unknown paths and anything unexpected: fail closed.
             raise NixError(f"unexpected nix-store --dry-run output: {line[:300]!r}")
         total += _size_up(*m.group(4, 5, 6))
+        summaries += 1
+    if summaries == 0:
+        # Callers pass only invalid paths: each one is fetched, built or
+        # unknown, so a report without a summary went missing. Fail closed.
+        raise NixError("nix-store --dry-run printed no fetch summary for paths that are not on this host")
     return total
 
 
 def fetch_estimate(paths: Iterable[str]) -> int:
     """Bytes (NAR size, rounded up) the store would grow by if paths were realised.
+
+    paths must all be invalid on the host (the importer's missing set): a
+    chunk whose report has no "will be fetched" summary raises NixError.
 
     Goes through the daemon like realise, so it works without network access
     in this process. print-missing is forced on: with it off, nix-store
