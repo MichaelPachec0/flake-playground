@@ -188,6 +188,10 @@
     # the PGlite cutover.
     #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
     ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self seedNixpkgs;};
+    # VM test for the self-hosted binary cache (services.nix-cache-host):
+    # selene + ci + consumer nodes, upload/import/serve/prune end to end.
+    #   nix build .#checks.x86_64-linux.nix-cache-vm -L
+    nixCacheVmTest = import ./nix/tests/nix-cache-vm.nix {inherit pkgs self;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.
@@ -196,6 +200,7 @@
       pingvin-share-vm = pingvinShareVmTest;
       zipline-latest-vm = ziplineLatestVmTest;
       zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
+      nix-cache-vm = nixCacheVmTest;
     };
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
@@ -284,6 +289,7 @@
         pingvin-share-vm = pingvinShareVmTest;
         zipline-latest-vm = ziplineLatestVmTest;
         zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
+        nix-cache-vm = nixCacheVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
