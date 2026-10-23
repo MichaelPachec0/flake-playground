@@ -89,6 +89,10 @@
       pkgs = windscribePkgs;
       devMode = false;
     };
+    # Tooling for the self-hosted binary cache on selene (nix/pkgs/nix-cache).
+    # In mainPackages so the gate builds it, which runs its test suite.
+    nixCache = pkgs.callPackage ./nix/pkgs/nix-cache {};
+    nixCacheAarch64 = pkgsAarch64.callPackage ./nix/pkgs/nix-cache {};
     # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
     customVimPlugins = import ./nix/pkgs/vimPlugins {inherit pkgs;};
     nvimLoads = import ./nix/tests/nvim-loads.nix {inherit pkgs;};
@@ -137,6 +141,7 @@
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
+      nix-cache = nixCache;
       inherit
         linux-show-player
         cynthion
@@ -226,6 +231,7 @@
     # hosts; like affine-server above, this needs an aarch64 builder to actually
     # build.
     packages.aarch64-linux = {
+      nix-cache = nixCacheAarch64;
       inherit
         (playgroundPkgsAarch64)
         affine-server
