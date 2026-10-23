@@ -46,7 +46,10 @@ inputs: {
         '';
       };
       signingPublicKeys = mkOption {
-        type = types.listOf types.str;
+        # Same shape cache-importer's config loader demands (name:base64):
+        # caught here, a bad key fails the deploy instead of every repo's
+        # importer and the pruner at runtime.
+        type = types.nonEmptyListOf (types.strMatching "[A-Za-z0-9._-]+:[A-Za-z0-9+/]+={0,2}");
         description = ''
           Nix signing public keys (name:base64) this repo's CI signs with.
           Every path in a bundle from this repo must carry a valid signature
@@ -105,6 +108,16 @@ inputs: {
       };
     };
   };
+
+  # YYYYMMDD with a real month and day. The type only checks 8 digits; an
+  # impossible date (20991399) would make sshd's expiry-time and the
+  # pruner's expiry notice fail at runtime, stalling pruning. Feb 29 is
+  # accepted in every year (close enough for an expiry date).
+  validDate = s: let
+    month = lib.toIntBase10 (builtins.substring 4 2 s);
+    day = lib.toIntBase10 (builtins.substring 6 2 s);
+  in
+    month >= 1 && month <= 12 && day >= 1 && day <= builtins.elemAt [31 29 31 30 31 30 31 31 30 31 30 31] (month - 1);
 
   defaultAlert = pkgs.writeShellScript "nix-cache-log-alert" ''
     # Default alert sink: the journal (tag nix-cache-alert). Set
@@ -290,7 +303,14 @@ in {
         assertion = builtins.match "[a-z0-9][a-z0-9-]*" name != null && builtins.stringLength "cache-drop-${name}" <= 32;
         message = "services.nix-cache-host.repos.${name}: name must match [a-z0-9][a-z0-9-]* and cache-drop-<name> must fit in 32 characters";
       })
-      cfg.repos;
+      cfg.repos
+      ++ lib.concatLists (lib.mapAttrsToList (name: r:
+        map (k: {
+          assertion = validDate k.expires;
+          message = "services.nix-cache-host.repos.${name}.uploadKeys: expires \"${k.expires}\" is not a real date (YYYYMMDD)";
+        })
+        r.uploadKeys)
+      cfg.repos);
 
     users.users.nix-cache = {
       isSystemUser = true;

@@ -413,6 +413,7 @@ in {
         // {repos.flake-playground = removeAttrs nixCacheHostCfg.services.nix-cache-host.repos.flake-playground ["sets"];};
     };
     sets = h: h.repos.flake-playground.sets;
+    signing = h: h.repos.flake-playground.signingPublicKeys;
     badSets = v: {services.nix-cache-host.repos.flake-playground.sets = lib.mkForce v;};
     badKey = key: {
       services.nix-cache-host.repos.flake-playground.uploadKeys = [
@@ -438,15 +439,40 @@ in {
       && rejects {services.nix-cache-host.alerts.command = "/bin/a;b";} (h: h.alerts.command)
       && rejects {services.nix-cache-host.alerts.command = "notify";} (h: h.alerts.command)
       && !(rejects {services.nix-cache-host.alerts.command = "/run/current-system/sw/bin/ntfy-alert";} (h: h.alerts.command))
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce [];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["nocolon"];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["k-1:AA AA"];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["k-1:AAAA\n"];} signing
       && rejectsIn withoutSets {} sets
       && rejects (badSets []) sets
       && rejects (badSets ["Gate"]) sets
       && rejects (badSets ["a/b"]) sets
       && rejects (badSets ["-gate"]) sets
       && rejects {services.nix-cache-host.repos.flake-playground.maxRoots = 0;} (h: h.repos.flake-playground.maxRoots)
-      && !(rejects {} (h: [(keys h) (sets h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
-    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, alert commands that are not one absolute path, and missing, empty or malformed repo set lists must be rejected";
+      && !(rejects {} (h: [(keys h) (sets h) (signing h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
+    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, alert commands that are not one absolute path, empty or malformed signing keys, and missing, empty or malformed repo set lists must be rejected";
       pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-unsafe-input" {} "touch $out";
+
+  # uploadKeys.*.expires must be a real calendar date, not just 8 digits.
+  nixos-nix-cache-host-rejects-bad-expiry = let
+    failing = expires: let
+      sys = lib.nixosSystem {
+        inherit system;
+        modules = [
+          nixosModules.nix-cache-host
+          nixosStub
+          nixCacheHostCfg
+          {services.nix-cache-host.repos.flake-playground.uploadKeys = lib.mkForce [(builtins.head nixCacheHostCfg.services.nix-cache-host.repos.flake-playground.uploadKeys // {inherit expires;})];}
+        ];
+      };
+    in
+      lib.any (a: !a.assertion && lib.hasInfix "expires \"${expires}\" is not a real date" a.message) sys.config.assertions;
+  in
+    assert lib.assertMsg (
+      lib.all failing ["20991399" "20990001" "20990100" "20990230" "20990431" "20991132"]
+      && !(lib.any failing ["20991231" "20280229" "20990131" "20990430"])
+    ) "nix-cache-host: an uploadKeys expiry with an impossible month or day must fail an assertion, real dates must not";
+      pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-bad-expiry" {} "touch $out";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};
