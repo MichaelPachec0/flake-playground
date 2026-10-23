@@ -138,8 +138,57 @@ def test_user_success_and_failures(tmp_path):
                    + line("/nix-cache-info", status=401, user="") + line("/nix-cache-info", status=401, user="nobody-g1"))
     ingest(conn, log)
     rows = dict(conn.execute("SELECT name, recent_fails FROM users").fetchall())
-    assert rows == {"nyx-g1": 3, "nobody-g1": 1}
-    assert conn.execute("SELECT last_ok FROM users WHERE name='nobody-g1'").fetchone()[0] is None
+    assert rows == {"nyx-g1": 3}  # unknown nobody-g1 gets no row
+
+
+def test_success_resets_fails(tmp_path):
+    log = tmp_path / "access.log"
+    conn = open_db(tmp_path / "db.sqlite")
+    log.write_text(line("/x") + line("/x", status=401) * 2 + line("/x"))
+    ingest(conn, log)
+    assert conn.execute("SELECT recent_fails FROM users WHERE name='nyx-g1'").fetchone()[0] == 0
+
+
+def test_401_flood_does_not_grow_users(tmp_path):
+    log = tmp_path / "access.log"
+    conn = open_db(tmp_path / "db.sqlite")
+    log.write_text(line("/x", user="nyx-g1") + "".join(line("/x", status=401, user=f"rand{i}") for i in range(500)))
+    ingest(conn, log)
+    assert conn.execute("SELECT count(*) FROM users").fetchone()[0] == 1
+
+
+def test_failed_ingest_rolls_back(tmp_path, monkeypatch):
+    from nix_cache import accesslog
+
+    log = tmp_path / "access.log"
+    conn = open_db(tmp_path / "db.sqlite")
+    log.write_text(line(f"/{H1}.narinfo"))
+    ingest(conn, log)
+    with open(log, "a") as f:
+        f.write(line(f"/{H2}.narinfo"))
+    os.rename(log, tmp_path / "access.log.1")
+    log.write_text(line(f"/{H1}.narinfo"))
+    real, calls = accesslog._read_file, []
+
+    def flaky(c, f, off):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("boom")
+        return real(c, f, off)
+
+    monkeypatch.setattr(accesslog, "_read_file", flaky)
+    try:
+        ingest(conn, log)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected failure")
+    conn.commit()  # a caller committing afterwards must not persist partial counts
+    assert set(load_hits(conn)) == {H1}
+    monkeypatch.setattr(accesslog, "_read_file", real)
+    ingest(conn, log)
+    assert set(load_hits(conn)) == {H1, H2}
+    assert conn.execute("SELECT narinfo_hits FROM paths WHERE hash=?", (H1,)).fetchone()[0] == 2
 
 
 def test_notices(tmp_path):

@@ -8,6 +8,7 @@ to a safe charset and length before they reach the DB.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -77,67 +78,77 @@ def apply(conn: sqlite3.Connection, e: Entry) -> None:
                 (e.user, e.t),
             )
     elif e.status == 401 and e.user:
-        conn.execute(
-            "INSERT INTO users(name, recent_fails) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET "
-            "recent_fails = recent_fails + 1",
-            (e.user,),
-        )
+        # UPDATE only: rows are created by successful requests, so anonymous
+        # 401s with random user names cannot grow the table.
+        conn.execute("UPDATE users SET recent_fails = recent_fails + 1 WHERE name = ?", (e.user,))
 
 
 def _read(conn: sqlite3.Connection, path: Path, offset: int) -> int:
+    with open(path, "rb") as f:
+        return _read_file(conn, f, offset)
+
+
+def _read_file(conn: sqlite3.Connection, f, offset: int) -> int:
     """Consume complete lines from offset; return the new offset.
 
     Lines longer than MAX_LINE are skipped without being held in memory.
     An incomplete trailing line is left for the next run.
     """
-    with open(path, "rb") as f:
-        f.seek(offset)
-        while True:
-            start = offset
-            line = f.readline(MAX_LINE)
-            if not line:
-                break
-            size = len(line)
-            oversize = False
-            while not line.endswith(b"\n"):
-                if size < MAX_LINE and not oversize:
-                    return start  # incomplete line at EOF
-                oversize = True
-                chunk = f.readline(MAX_LINE)
-                if not chunk:
-                    return start  # oversize and unterminated: retry later
-                size += len(chunk)
-                line = chunk
-            offset = start + size
-            if not oversize:
-                entry = parse_line(line)
-                if entry is not None:
-                    apply(conn, entry)
+    f.seek(offset)
+    while True:
+        start = offset
+        line = f.readline(MAX_LINE)
+        if not line:
+            break
+        size = len(line)
+        oversize = False
+        while not line.endswith(b"\n"):
+            if size < MAX_LINE and not oversize:
+                return start  # incomplete line at EOF
+            oversize = True
+            chunk = f.readline(MAX_LINE)
+            if not chunk:
+                return start  # oversize and unterminated: retry later
+            size += len(chunk)
+            line = chunk
+        offset = start + size
+        if not oversize:
+            entry = parse_line(line)
+            if entry is not None:
+                apply(conn, entry)
     return offset
 
 
 def ingest(conn: sqlite3.Connection, log: Path) -> None:
     try:
-        st = log.stat()
+        f = open(log, "rb")
     except FileNotFoundError:
         return
-    row = conn.execute("SELECT inode, offset FROM ingest WHERE log = ?", (str(log),)).fetchone()
-    offset = 0
-    if row is not None:
-        inode, saved = row
-        if inode == st.st_ino:
-            offset = saved if saved <= st.st_size else 0
-        else:
-            rotated = log.with_name(log.name + ".1")
-            try:
-                if rotated.stat().st_ino == inode:
-                    _read(conn, rotated, saved)
-            except FileNotFoundError:
-                pass
-    new_offset = _read(conn, log, offset)
-    conn.execute(
-        "INSERT INTO ingest(log, inode, offset) VALUES (?, ?, ?) ON CONFLICT(log) DO UPDATE SET "
-        "inode = excluded.inode, offset = excluded.offset",
-        (str(log), st.st_ino, new_offset),
-    )
-    conn.commit()
+    # Inode and size come from the open descriptor, so a rotation between a
+    # stat and the open cannot pair the old inode with the new file.
+    with f:
+        st = os.fstat(f.fileno())
+        try:
+            row = conn.execute("SELECT inode, offset FROM ingest WHERE log = ?", (str(log),)).fetchone()
+            offset = 0
+            if row is not None:
+                inode, saved = row
+                if inode == st.st_ino:
+                    offset = saved if saved <= st.st_size else 0
+                else:
+                    rotated = log.with_name(log.name + ".1")
+                    try:
+                        if rotated.stat().st_ino == inode:
+                            _read(conn, rotated, saved)
+                    except FileNotFoundError:
+                        pass
+            new_offset = _read_file(conn, f, offset)
+            conn.execute(
+                "INSERT INTO ingest(log, inode, offset) VALUES (?, ?, ?) ON CONFLICT(log) DO UPDATE SET "
+                "inode = excluded.inode, offset = excluded.offset",
+                (str(log), st.st_ino, new_offset),
+            )
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
