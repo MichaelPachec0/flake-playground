@@ -10,7 +10,8 @@
   pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.nix-cache;
   sshKeys = import "${pkgs.path}/nixos/tests/ssh-keys.nix" pkgs;
 
-  # Test-only keys and tokens, generated for this file and used nowhere else.
+  # Test-only keys and tokens, never used for a real cache. The repo key pair
+  # is shared with the nix-cache unit tests and the module eval checks.
   repoSecret = "vmtest-repo-1:2wdF90NG+3puU8r9BYw+NfAcq9P7SWmZYimsNE7UtcM8o5SsQTTr8uDTBsO4auMduF6R9+TWRGUE9phcMD+Fzg==";
   repoPublic = "vmtest-repo-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4=";
   wrongSecret = "vmtest-wrong-1:1xFY9lhfADfc/NSHxGrqe2Un25GwSycxI9adnA9Q6rHEZtQKS9P0NTD1E/+lZzfXxnZaFxeBVpiifZ7KEuJQuA==";
@@ -235,7 +236,7 @@ in
 
 
       def banned(ip):
-          return selene.execute(f"fail2ban-client status nix-cache-guess | grep '{ip}' >/dev/null")[0] == 0
+          return selene.execute(f"fail2ban-client status nix-cache-guess | grep -wF '{ip}' >/dev/null")[0] == 0
 
 
       start_all()
@@ -354,6 +355,11 @@ in
           assert selene.succeed(f"readlink {PINS}/gate/x86_64-linux/latest") == before
 
       with subtest("bursts of uploads and alerts do not trip systemd start limits"):
+          # Deterministic part: the finite, generous limit is what the units got.
+          for unit in ["cache-importer-vmtest.service", "nix-cache-alert.service"]:
+              shown = selene.succeed(f"systemctl show -p StartLimitBurst -p StartLimitIntervalUSec {unit}").split()
+              assert sorted(shown) == ["StartLimitBurst=100", "StartLimitIntervalUSec=1min"], (unit, shown)
+          # Smoke part (timing-dependent, so not proof on its own):
           # Seven quick rejected uploads: seven importer runs and seven alert
           # deliveries within a few seconds (the default limit is 5 per 10 s).
           before_reasons = reasons()
@@ -376,11 +382,19 @@ in
       with subtest("401 from the cache is skipped, not fatal"):
           consumer.succeed("nix copy --to file:///var/local-cache ${payloadC}")
           consumer.succeed("nix-store --delete ${payloadC} ${payloadA}")
+          # First contact: without the narinfo cache from earlier subtests, the
+          # nix-cache-info and narinfo lookups themselves get the 401.
+          consumer.succeed("rm -f /root/.cache/nix/binary-cache-v*.sqlite*")
+          offset = int(selene.succeed(f"stat -c %s {ACCESS_LOG}"))
           consumer.succeed(
               "nix-store --realise ${payloadC} --option netrc-file /etc/nix-cache-vm/bad-netrc"
               " --option substituters 'https://${host} file:///var/local-cache?priority=90'"
           )
           assert valid(consumer, "${payloadC}")
+          lines = selene.succeed(f"tail -c +{offset + 1} {ACCESS_LOG}").splitlines()
+          entries = [json.loads(line) for line in lines if line.strip()]
+          print(entries)
+          assert entries and all(e["s"] == 401 and e["u"] == "consumer-g1" for e in entries), entries
 
       with subtest("retired token generation: stale-token alert from the sandboxed pruner"):
           # ci-vmtest-g1 has succeeded before (the bundler's probes), so it has
@@ -397,8 +411,12 @@ in
           selene.succeed("grep -q 'user \"ci-vmtest-g1\": password mismatch' /var/log/nginx/nix-cache.error.log")
           # The real, sandboxed unit (PrivateNetwork, ProtectSystem=strict): it
           # reaches the daemon socket and rewrites its keep roots.
+          # No pruner has run yet (its timer is off), so keep roots prove this run.
+          selene.succeed("test -z \"$(ls -d /nix/var/nix/gcroots/cache/keep.* 2>/dev/null)\"")
           selene.succeed("systemctl start cache-pruner.service")
-          selene.succeed("test -d \"$(ls -d /nix/var/nix/gcroots/cache/keep.* | head -n1)\"")
+          keeps = selene.succeed("ls -d /nix/var/nix/gcroots/cache/keep.*").split()
+          assert len(keeps) == 1, keeps
+          selene.succeed(f"test -d {keeps[0]} && test -n \"$(ls -A {keeps[0]})\"")
           selene.wait_until_succeeds("journalctl -t nix-cache-alert | grep >/dev/null 'stale read token'")
           selene.succeed("journalctl -t nix-cache-alert | grep >/dev/null 'ci-vmtest-g1: 25 rejected requests'")
           selene.wait_until_succeeds(
@@ -410,9 +428,12 @@ in
           print(pruner(f"--now {future} --protect-hours 0 --budget-bytes 1"))
           # Over budget: only the active namespaces' latest closures survive.
           assert selene.succeed(f"ls {PINS}/gate/x86_64-linux | grep -v latest | wc -l").strip() == "1"
+          for ns in ["gate", "many", "forged"]:
+              selene.succeed(f"test -d {PINS}/{ns}/x86_64-linux/$(readlink {PINS}/{ns}/x86_64-linux/latest)")
           selene.succeed("systemctl start cache-gc.service")
           assert valid(selene, "${payloadC}") and valid(selene, "${payloadA}")
           assert not valid(selene, "${payloadA.dev}")
+          assert all(valid(selene, p) for p in MANY) and valid(selene, "${payloadR}")
 
       with subtest("expired namespaces lose protection"):
           future = int(selene.succeed("date +%s")) + 120
@@ -429,7 +450,7 @@ in
           assert not banned("${ciIP}")
           for _ in range(6):
               consumer.execute(f"curl -s -o /dev/null -u nobody-g1:${tokens.consumer1} {URL}/nix-cache-info")
-          selene.wait_until_succeeds("fail2ban-client status nix-cache-guess | grep '${consumerIP}' >/dev/null", timeout=60)
+          selene.wait_until_succeeds("fail2ban-client status nix-cache-guess | grep -wF '${consumerIP}' >/dev/null", timeout=60)
           assert not banned("${ciIP}")
           assert code(ci, f"-u consumer-g2:${tokens.consumer2} {URL}/nix-cache-info") == "200"
     '';

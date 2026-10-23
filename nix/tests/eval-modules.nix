@@ -41,7 +41,7 @@
       nginx.sslCertificateKey = "/run/secrets/key.pem";
       repos.flake-playground = {
         uid = 2001;
-        signingPublicKeys = ["flake-playground-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="];
+        signingPublicKeys = ["vmtest-repo-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="];
         uploadKeys = [
           {
             key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVtZXN0IGtleSBmb3IgZXZhbCBjaGVja3Mgb25seQ ci";
