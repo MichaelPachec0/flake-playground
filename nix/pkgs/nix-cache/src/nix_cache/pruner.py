@@ -31,6 +31,7 @@ from .retention import Policy, RetentionPlan, plan_retention
 STALE_THRESHOLD = 20
 STALE_REALERT_SECONDS = 3600
 EXPIRY_WARN_SECONDS = 14 * 86400
+STORE_FS = "/nix/store"
 
 
 class PrunerError(Exception):
@@ -70,6 +71,19 @@ def _once(conn: sqlite3.Connection, cfg: Config, key: str, now: int, title: str,
         mark_notice(conn, key, now)
 
 
+def disk_notice(conn: sqlite3.Connection, cfg: Config, now: int) -> None:
+    # Protected paths and failed/ bundles are not bounded by the budget, and
+    # other users share the disk: warn before the importer's floor bites.
+    st = os.statvfs(STORE_FS)
+    if st.f_blocks == 0:
+        return
+    used_pct = 100 * (1 - st.f_bavail / st.f_blocks)
+    if used_pct >= cfg.disk_alert_percent:
+        _once(conn, cfg, f"disk:{now // 86400}", now, "nix-cache: disk filling",
+              f"{STORE_FS} is {used_pct:.0f}% full (alert at {cfg.disk_alert_percent}%)."
+              " Check the pruner's over-budget notices, failed/ bundles, and other users of the disk.")
+
+
 def emit_notices(conn: sqlite3.Connection, cfg: Config, plan: RetentionPlan, now: int) -> None:
     newest: dict = {}
     for p in list_pins(cfg.pins_dir):
@@ -89,6 +103,7 @@ def emit_notices(conn: sqlite3.Connection, cfg: Config, plan: RetentionPlan, now
                 _once(conn, cfg, f"key-expiry:{repo.name}:{day}", now, "nix-cache: upload key expiring",
                       f"The {repo.name} upload key expires on {day}. Rotate it: generate a new key, add it"
                       " next to the old one, update the GitHub secret, confirm a push, remove the old key.")
+    disk_notice(conn, cfg, now)
     rows = conn.execute(
         "SELECT name, recent_fails FROM users WHERE last_ok IS NOT NULL AND recent_fails >= ? "
         "AND (last_alert IS NULL OR last_alert <= ?)",

@@ -278,6 +278,11 @@ in {
         default = [];
         description = "LoadCredential entries the alert command needs (for example an ntfy token).";
       };
+      diskUsagePercent = mkOption {
+        type = types.ints.between 1 99;
+        default = 85;
+        description = "The hourly pruner alerts once a day while /nix/store's filesystem is at least this full.";
+      };
     };
 
     configFile = mkOption {
@@ -359,6 +364,7 @@ in {
       active_days = cfg.retention.activeDays;
       protect_hours = cfg.retention.protectHours;
       import_min_free_bytes = cfg.retention.importMinFree;
+      disk_alert_percent = cfg.alerts.diskUsagePercent;
       system_roots = ["/run/current-system" "/run/booted-system"];
       repos =
         lib.mapAttrs (name: r: {

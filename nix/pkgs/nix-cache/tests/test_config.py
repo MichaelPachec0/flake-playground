@@ -90,3 +90,18 @@ def test_import_min_free_bytes_loaded(tmp_path):
 def test_bad_import_min_free_bytes_rejected(tmp_path, value):
     with pytest.raises(ValueError, match="import_min_free_bytes"):
         load_config(_with_top(tmp_path, import_min_free_bytes=value))
+
+
+def test_disk_alert_percent_loaded(tmp_path):
+    assert make_config(tmp_path).disk_alert_percent == 85
+
+
+@pytest.mark.parametrize("value", [1, 99])
+def test_disk_alert_percent_bounds_accepted(tmp_path, value):
+    assert load_config(_with_top(tmp_path, disk_alert_percent=value)).disk_alert_percent == value
+
+
+@pytest.mark.parametrize("value", [0, 100, -5, "85", 85.0, True, None, _MISSING])
+def test_bad_disk_alert_percent_rejected(tmp_path, value):
+    with pytest.raises(ValueError, match="disk_alert_percent"):
+        load_config(_with_top(tmp_path, disk_alert_percent=value))

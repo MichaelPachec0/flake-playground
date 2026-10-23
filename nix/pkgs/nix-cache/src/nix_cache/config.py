@@ -81,6 +81,8 @@ class Config:
     protect_hours: int
     # Free space an import must leave on /nix/store (the importer's floor).
     import_min_free_bytes: int
+    # The pruner alerts once a day while /nix/store's filesystem is this full.
+    disk_alert_percent: int
     system_roots: tuple[str, ...]
     repos: dict[str, RepoConfig]
 
@@ -133,6 +135,7 @@ def load_config(path: Path) -> Config:
         active_days=int(data["active_days"]),
         protect_hours=int(data["protect_hours"]),
         import_min_free_bytes=_top_int("import_min_free_bytes", data.get("import_min_free_bytes")),
+        disk_alert_percent=_top_int("disk_alert_percent", data.get("disk_alert_percent"), 1, 99),
         system_roots=tuple(data.get("system_roots", [])),
         repos=repos,
     )

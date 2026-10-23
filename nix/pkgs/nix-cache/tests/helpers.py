@@ -105,6 +105,7 @@ def write_config(tmp_path: Path, **overrides) -> dict[str, Path]:
         "active_days": 30,
         "protect_hours": 24,
         "import_min_free_bytes": 10 << 30,
+        "disk_alert_percent": 85,
         "system_roots": [],
         "repos": {
             "flake-playground": {

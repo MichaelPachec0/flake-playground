@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,7 +29,17 @@ def env(tmp_path, monkeypatch):
     cfg = make_config(tmp_path)  # budget_bytes = 1000
     graph: dict = {store_path(90, "filler"): info(1)}  # non-empty: the pruner refuses an empty store
     monkeypatch.setattr(nixcli, "path_info", lambda paths=(), **kw: graph)
+    disk["used"] = 10
+    monkeypatch.setattr(os, "statvfs", _statvfs)
     return cfg, graph
+
+
+disk = {"used": 10}  # percent of /nix/store's filesystem in use
+
+
+def _statvfs(path):
+    assert path == "/nix/store"
+    return SimpleNamespace(f_blocks=1000, f_bavail=1000 - 10 * disk["used"], f_frsize=4096)
 
 
 def titles(cfg):
@@ -220,3 +231,34 @@ def test_empty_graph_refuses_to_apply(env, capsys, tmp_path):
     assert "refusing" in capsys.readouterr().err
     assert list_pins(cfg.pins_dir) == before
     assert not list(cfg.gcroots_dir.glob("keep.*"))
+
+
+DISK = "nix-cache: disk filling"
+
+
+def test_disk_alert_at_threshold_once_a_day(env):
+    cfg, _ = env  # disk_alert_percent = 85
+    disk["used"] = 85
+    pruner.run(cfg, now=NOW)
+    disk["used"] = 97
+    pruner.run(cfg, now=NOW + 3600)
+    assert titles(cfg).count(DISK) == 1
+    pruner.run(cfg, now=NOW + DAY)
+    assert titles(cfg).count(DISK) == 2
+    body = [json.loads(p.read_text())["body"] for p in sorted(cfg.spool.glob("*.json"))
+            if json.loads(p.read_text())["title"] == DISK][0]
+    assert body.startswith("/nix/store is 85% full (alert at 85%).")
+
+
+def test_no_disk_alert_below_threshold(env):
+    cfg, _ = env
+    disk["used"] = 84
+    pruner.run(cfg, now=NOW)
+    assert DISK not in titles(cfg)
+
+
+def test_no_disk_alert_in_dry_run(env):
+    cfg, _ = env
+    disk["used"] = 99
+    pruner.run(cfg, now=NOW, dry_run=True)
+    assert DISK not in titles(cfg)
