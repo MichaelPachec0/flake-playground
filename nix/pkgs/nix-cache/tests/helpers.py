@@ -90,3 +90,50 @@ def write_bundle(directory: Path, members, name: str = "1700000000-1.tar.zst") -
     path = directory / name
     path.write_bytes(zstd_bytes(tar_bytes(members)))
     return path
+
+
+def write_config(tmp_path: Path, **overrides) -> dict[str, Path]:
+    """Write config.json and create its dirs; plain paths only, no nix_cache import."""
+    drop = tmp_path / "drop" / "flake-playground"
+    for sub in ("incoming", "tmp", "failed"):
+        (drop / sub).mkdir(parents=True, exist_ok=True)
+    data = {
+        "state_dir": str(tmp_path / "state"),
+        "gcroots_dir": str(tmp_path / "gcroots"),
+        "access_log": str(tmp_path / "access.log"),
+        "budget_bytes": 1000,
+        "active_days": 30,
+        "protect_hours": 24,
+        "system_roots": [],
+        "repos": {
+            "flake-playground": {
+                "drop_dir": str(drop),
+                "trusted_keys": ["vmtest-repo-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="],
+                "max_bundle_bytes": 1 << 20,
+                "max_unpacked_bytes": 4 << 20,
+                "max_pending": 4,
+                "upload_key_expiry": ["20991231"],
+            }
+        },
+    }
+    data.update(overrides)
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(data))
+    state = Path(data["state_dir"])
+    pins = Path(data["gcroots_dir"]) / "pins"
+    state.mkdir(parents=True, exist_ok=True)
+    pins.mkdir(parents=True, exist_ok=True)
+    return {
+        "config": path,
+        "drop": drop,
+        "incoming": drop / "incoming",
+        "failed": drop / "failed",
+        "state": state,
+        "pins": pins,
+    }
+
+
+def make_config(tmp_path: Path, **overrides):
+    from nix_cache.config import load_config
+
+    return load_config(write_config(tmp_path, **overrides)["config"])
