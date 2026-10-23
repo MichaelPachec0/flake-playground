@@ -43,7 +43,7 @@ def test_parse_line_rejects_hostile_input():
 
 
 def test_parse_line_odd_users_are_ignored_not_fatal():
-    for user in ("x" * 500, "a\nb", "a b", "café", "'; DROP TABLE users;--", 5, ["a"]):
+    for user in ("x" * 500, "a\nb", "a b", "caf\u00e9", "'; DROP TABLE users;--", 5, ["a"]):
         e = parse_line(line("/x", user=user).encode())
         assert e is not None and e.user == ""
 
