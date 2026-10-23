@@ -7,6 +7,11 @@
   lib,
   python3Packages,
   zstd,
+  coreutils,
+  findutils,
+  gnutar,
+  makeWrapper,
+  runtimeShell,
 }:
 python3Packages.buildPythonApplication {
   pname = "nix-cache";
@@ -20,10 +25,31 @@ python3Packages.buildPythonApplication {
       ./src
       ./tests
       ./cache-receive.sh
+      ./push-bundle.sh
     ];
   };
 
   build-system = [python3Packages.setuptools];
+
+  nativeBuildInputs = [makeWrapper];
+
+  # nix-cache-push-bundle is shell, not Python: the one copy of the upload
+  # pipeline (tar exactly the members cache-receive accepts, zstd, pipe to
+  # the given ssh command). Used by the VM test, the push workflow and
+  # manual pushes.
+  # The shebang is pinned here because the tests run before the fixup phase.
+  postInstall = ''
+    install -Dm755 ${./push-bundle.sh} $out/bin/nix-cache-push-bundle
+    substituteInPlace $out/bin/nix-cache-push-bundle \
+      --replace-fail '#!/usr/bin/env bash' '#!${runtimeShell}'
+    wrapProgram $out/bin/nix-cache-push-bundle \
+      --prefix PATH : ${lib.makeBinPath [coreutils findutils gnutar zstd]}
+  '';
+
+  # tests/test_cli.py is the black-box suite; point it at the installed tools.
+  preInstallCheck = ''
+    export NIX_CACHE_BIN=$out/bin
+  '';
 
   nativeCheckInputs = [
     python3Packages.pytestCheckHook
