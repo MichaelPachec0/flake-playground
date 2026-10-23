@@ -74,7 +74,13 @@ def _once(conn: sqlite3.Connection, cfg: Config, key: str, now: int, title: str,
 def disk_notice(conn: sqlite3.Connection, cfg: Config, now: int) -> None:
     # Protected paths and failed/ bundles are not bounded by the budget, and
     # other users share the disk: warn before the importer's floor bites.
-    st = os.statvfs(STORE_FS)
+    try:
+        st = os.statvfs(STORE_FS)
+    except OSError as e:
+        # Never let this abort the remaining notices.
+        _once(conn, cfg, f"disk-check:{now // 86400}", now, "nix-cache: disk check failed",
+              f"statvfs({STORE_FS}) failed: {e}. Disk usage is not being watched.")
+        return
     if st.f_blocks == 0:
         return
     used_pct = 100 * (1 - st.f_bavail / st.f_blocks)

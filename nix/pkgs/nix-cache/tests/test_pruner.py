@@ -39,6 +39,8 @@ disk = {"used": 10}  # percent of /nix/store's filesystem in use
 
 def _statvfs(path):
     assert path == "/nix/store"
+    if disk["used"] is None:
+        raise OSError(5, "Input/output error")
     return SimpleNamespace(f_blocks=1000, f_bavail=1000 - 10 * disk["used"], f_frsize=4096)
 
 
@@ -262,3 +264,16 @@ def test_no_disk_alert_in_dry_run(env):
     disk["used"] = 99
     pruner.run(cfg, now=NOW, dry_run=True)
     assert DISK not in titles(cfg)
+
+
+def test_disk_check_failure_alerts_daily_and_other_notices_continue(env):
+    cfg, graph = env
+    graph.update({A: info(5000)})
+    pin(cfg.pins_dir, NS, [A], NOW - DAY)
+    disk["used"] = None
+    pruner.run(cfg, now=NOW)
+    pruner.run(cfg, now=NOW + 60)
+    assert titles(cfg).count("nix-cache: disk check failed") == 1
+    assert titles(cfg).count("nix-cache: over budget") == 1
+    pruner.run(cfg, now=NOW + DAY)
+    assert titles(cfg).count("nix-cache: disk check failed") == 2
