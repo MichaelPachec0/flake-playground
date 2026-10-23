@@ -180,6 +180,21 @@ def test_make_bundle(tmp_path, fakes, capsys):
     assert f"skipping {R3}" in capsys.readouterr().err
 
 
+def test_root_served_upstream_is_still_shipped(tmp_path, fakes):
+    # The importer no longer substitutes roots, so a locally built root must
+    # ride in the bundle even when upstream has it; a non-root path upstream
+    # serves is still left out; a root the own cache serves is not shipped.
+    fakes.by_base["up"] |= {R2, D_NEW}
+    fakes.bodies[R2] = narinfo_text(R2)
+    fakes.bodies[D_NEW] = narinfo_text(D_NEW)
+    m = make(tmp_path, [R1, R2])
+    assert m.roots == tuple(sorted([R1, R2]))
+    assert m.paths == (R2,)
+    assert fakes.copied == [R2]
+    assert D_NEW not in m.paths and R1 not in m.paths
+    assert (tmp_path / "bundle" / f"{store_hash(R2)}.narinfo").is_file()
+
+
 def test_reference_narinfos_are_seeded_for_the_copy_then_removed(tmp_path, fakes):
     make(tmp_path, [R2])
     # Written before the copy: one narinfo per excluded reference, with the

@@ -141,7 +141,8 @@ def copy_missing(out: Path, missing: list[str], closure: dict[str, dict], served
     reference a cache already serves. So seed OUT with a narinfo for each
     such reference (the body the cache answered the presence GET with, else
     one built from local path-info), copy, then delete the seeds: the bundle
-    carries only the missing paths and the importer substitutes the rest.
+    carries only the missing paths and the importer substitutes the rest
+    (references only; roots are always shipped unless the own cache has them).
     """
     wanted = set(missing)
     refs = sorted({r for p in missing for r in closure[p]["references"]} - wanted)
@@ -219,11 +220,17 @@ def make_bundle(
         served.update(fetch_present(own, own_url, sorted(remaining), jobs))
         remaining -= served.keys()
     plain = build_opener()
+    upstream_served: set[str] = set()
     for upstream in upstreams:
         found = fetch_present(plain, upstream, sorted(remaining), jobs)
         served.update(found)
+        upstream_served |= found.keys()
         remaining -= found.keys()
-    missing = sorted(remaining)
+    # The importer never substitutes roots (upstream signatures would let a
+    # bundle pin arbitrary upstream closures), so a locally built root ships
+    # even when an upstream has it. Roots the own cache has stay out: they
+    # are already valid on the host.
+    missing = sorted(remaining | (upstream_served & set(upload_roots)))
     if missing:
         copy_missing(out, missing, closure, served)
     info = out / "nix-cache-info"

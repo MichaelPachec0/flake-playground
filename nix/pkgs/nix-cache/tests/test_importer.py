@@ -137,17 +137,27 @@ def test_rejects_paths_mismatch(cfg, fake_nix):
     rejected(cfg, fake_nix, "manifest paths do not match")
 
 
-def test_rejects_unknown_root(cfg, fake_nix):
-    fake_nix.unsubstitutable.add(A)
-    drop(cfg, bundle_members(manifest([A], []), {}))
-    rejected(cfg, fake_nix, "neither on this host nor substitutable")
-
-
-def test_upstream_root_is_substituted(cfg, fake_nix):
+def test_upstream_only_root_is_rejected(cfg, fake_nix):
+    # An upstream path is not valid on the host and carries no repo signature:
+    # a manifest-only bundle must not make the host substitute it.
     drop(cfg, bundle_members(manifest([GLIBC], []), {}))
+    rejected(cfg, fake_nix, f"1 root(s) are neither in the bundle nor on this host; first: {GLIBC}")
+    assert fake_nix.realised == [] and fake_nix.copied == []
+
+
+def test_mixed_bundle_with_absent_outside_root_is_rejected(cfg, fake_nix):
+    drop(cfg, bundle_members(manifest([A, GLIBC], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, f"neither in the bundle nor on this host; first: {GLIBC}")
+    assert fake_nix.realised == [] and fake_nix.copied == []
+
+
+def test_outside_root_valid_on_host_is_repinned_not_realised(cfg, fake_nix):
+    fake_nix.valid.add(B)
+    drop(cfg, bundle_members(manifest([A, B], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
     importer.run(cfg, "flake-playground", now=1000)
-    assert fake_nix.realised == [GLIBC]
-    assert [p.targets for p in list_pins(cfg.pins_dir)] == [(GLIBC,)]
+    assert fake_nix.realised == [] and fake_nix.copied == [A]
+    [p] = list_pins(cfg.pins_dir)
+    assert set(p.targets) == {A, B}
 
 
 def test_rejects_set_not_allowed_for_repo(cfg, fake_nix):

@@ -4,6 +4,10 @@ Runs as the untrusted `nix-cache` user (no network, no sudo). Every store
 write goes through the root nix-daemon, which re-checks signatures, so this
 code cannot weaken trust; it only adds a per-repo key binding on top: a
 repo's drop directory only ever imports paths signed by that repo's keys.
+Roots are never substituted: each is either a bundled (signed) path or
+already valid on the host. Upstream signatures are valid too, so
+substituting a root would let a bundle without paths (which needs no repo
+signature) make the host download and pin arbitrary upstream closures.
 """
 
 from __future__ import annotations
@@ -75,9 +79,10 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
             raise BundleError("bundle has no manifest.json")
         manifest = parse_manifest((d / "manifest.json").read_text())
         # Checked before anything is verified or realised. A bundle without
-        # paths needs no signature, so these two caps are what limit an
-        # upload-key holder to the repo's own namespaces and a bounded number
-        # of roots per bundle.
+        # paths needs no signature and can only re-pin roots the host already
+        # has (see the roots check below); these two caps limit an upload-key
+        # holder to the repo's own namespaces and a bounded number of roots
+        # per bundle.
         if manifest.set not in repo.allowed_sets:
             raise BundleError(
                 f"set {manifest.set!r} is not allowed for {repo.name}"
@@ -90,10 +95,20 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
             raise BundleError("manifest paths do not match the narinfos in the bundle")
         url = f"file://{d}"
         check_key_binding(infos, repo.trusted_keys, url)
-        # Roots outside the bundle and references CI left out (present on
-        # cache.nixos.org or already here) must be valid before the copy.
+        # Every root is a bundled (signed) path or already valid on the host;
+        # roots are never substituted. Checked before any realise or copy.
+        # Roots served by the own cache count as valid here: if they were
+        # collected in between, this rejects and the next CI run ships them.
         outside = {r for r in manifest.roots if r not in infos}
-        external = ({ref for i in infos.values() for ref in i.references} | outside) - infos.keys()
+        absent = nixcli.invalid_paths(outside)
+        if absent:
+            raise BundleError(
+                f"{len(absent)} root(s) are neither in the bundle nor on this host;"
+                f" first: {sorted(absent)[0]}"
+            )
+        # References of bundled (signed) paths that CI left out (present on
+        # cache.nixos.org or already here) must be valid before the copy.
+        external = {ref for i in infos.values() for ref in i.references} - infos.keys()
         missing = nixcli.invalid_paths(external)
         if missing:
             try:
