@@ -29,12 +29,24 @@ jobs:
     # artifact upload below actually run, whereas a manual cancel skips them
     # and throws away the evidence.
     timeout-minutes: 30
+    outputs:
+      bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run flake checks
+        id: checks
         uses: ./.github/actions/nix-checks
+        with:
+          cache-backend: ${{ vars.NIX_CACHE_BACKEND || 'snapshot' }}
+          cache-url: ${{ secrets.NIX_CACHE_URL }}
+          cache-read-token: ${{ secrets.NIX_CACHE_READ_TOKEN }}
+          cache-read-user: ${{ vars.NIX_CACHE_READ_USER }}
+          cache-public-keys: ${{ vars.NIX_CACHE_PUBLIC_KEYS }}
+          cache-bundle-set: gate
+          cache-bundle-roots: ".#legacyPackages.x86_64-linux.ci.cacheRoots.gate"
+          cache-bundle-artifact: nix-cache-gate-x86_64-linux
 
   # The NixOS VM integration tests (picr-vm, pingvin-share-vm, zipline-latest-vm,
   # zipline-latest-migration-vm). Separate from
@@ -49,7 +61,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run VM tests
         uses: ./.github/actions/nix-checks
@@ -58,3 +70,81 @@ jobs:
           # Own cache: the VM closures are large and would otherwise evict the
           # gate's cache (and the two jobs would race to save one key).
           cache-key-prefix: "nix-vm"
+          # Read only: VM-test closures are not worth caching, so no bundle.
+          cache-backend: ${{ vars.NIX_CACHE_BACKEND || 'snapshot' }}
+          cache-url: ${{ secrets.NIX_CACHE_URL }}
+          cache-read-token: ${{ secrets.NIX_CACHE_READ_TOKEN }}
+          cache-read-user: ${{ vars.NIX_CACHE_READ_USER }}
+          cache-public-keys: ${{ vars.NIX_CACHE_PUBLIC_KEYS }}
+
+  # aarch64: every package that builds there, so aarch64 hosts (selene)
+  # substitute instead of compiling. Only with the self-hosted cache (no
+  # snapshot backend for it) and not for fork PRs, which would build the
+  # whole set from scratch without secrets.
+  checks-aarch64:
+    if: ${{ vars.NIX_CACHE_BACKEND == 'selene' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    # actions: write only for the snapshot fallback (cache-nix-action purges
+    # old entries through the API) when the self-hosted cache is unreachable.
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build aarch64 packages
+        id: checks
+        uses: ./.github/actions/nix-checks
+        with:
+          flake-attr: ".#legacyPackages.aarch64-linux.ci.packages"
+          cache-key-prefix: "nix-arm"
+          cache-backend: selene
+          cache-url: ${{ secrets.NIX_CACHE_URL }}
+          cache-read-token: ${{ secrets.NIX_CACHE_READ_TOKEN }}
+          cache-read-user: ${{ vars.NIX_CACHE_READ_USER }}
+          cache-public-keys: ${{ vars.NIX_CACHE_PUBLIC_KEYS }}
+          cache-bundle-set: gate
+          cache-bundle-arch: aarch64-linux
+          cache-bundle-roots: ".#legacyPackages.aarch64-linux.ci.cacheRoots.gate"
+          cache-bundle-artifact: nix-cache-gate-aarch64-linux
+
+  # Pushes run only with the self-hosted cache, never for pull requests, and
+  # only for main (environment cache-push refuses other refs anyway).
+  # tools-flake pins the nix-cache tools to the commit under test.
+  push-gate:
+    needs: checks
+    if: ${{ vars.NIX_CACHE_BACKEND == 'selene' && needs.checks.outputs.bundle-ok == 'true' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && github.ref == 'refs/heads/main' }}
+    permissions: {}
+    uses: ./.github/workflows/nix-cache-push.yml
+    with:
+      repo: flake-playground
+      set: gate
+      arch: x86_64-linux
+      artifact-name: nix-cache-gate-x86_64-linux
+      read-user: ${{ vars.NIX_CACHE_READ_USER }}
+      tools-flake: github:${{ github.repository }}/${{ github.sha }}
+    secrets:
+      NIX_CACHE_URL: ${{ secrets.NIX_CACHE_URL }}
+      NIX_CACHE_READ_TOKEN: ${{ secrets.NIX_CACHE_READ_TOKEN }}
+
+  push-gate-aarch64:
+    needs: checks-aarch64
+    if: ${{ vars.NIX_CACHE_BACKEND == 'selene' && needs.checks-aarch64.outputs.bundle-ok == 'true' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && github.ref == 'refs/heads/main' }}
+    permissions: {}
+    uses: ./.github/workflows/nix-cache-push.yml
+    with:
+      repo: flake-playground
+      set: gate
+      arch: aarch64-linux
+      artifact-name: nix-cache-gate-aarch64-linux
+      read-user: ${{ vars.NIX_CACHE_READ_USER }}
+      tools-flake: github:${{ github.repository }}/${{ github.sha }}
+    secrets:
+      NIX_CACHE_URL: ${{ secrets.NIX_CACHE_URL }}
+      NIX_CACHE_READ_TOKEN: ${{ secrets.NIX_CACHE_READ_TOKEN }}
