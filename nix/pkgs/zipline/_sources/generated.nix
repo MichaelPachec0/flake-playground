@@ -8,13 +8,13 @@
 {
   zipline = {
     pname = "zipline";
-    version = "v4.8.0";
+    version = "v4.8.1";
     src = fetchFromGitHub {
       owner = "diced";
       repo = "zipline";
-      rev = "v4.8.0";
+      rev = "v4.8.1";
       fetchSubmodules = false;
-      sha256 = "sha256-/La9Kl6gyuRNnEi523RqxtA+VMN3iyyzl+Y1JD8PZxk=";
+      sha256 = "sha256-5oITyUws1aCeGBU2+FavpYyAvUArPkVTkYGA1CeYKBI=";
     };
   };
 }
