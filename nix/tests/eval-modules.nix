@@ -469,8 +469,8 @@ in {
       lib.any (a: !a.assertion && lib.hasInfix "expires \"${expires}\" is not a real date" a.message) sys.config.assertions;
   in
     assert lib.assertMsg (
-      lib.all failing ["20991399" "20990001" "20990100" "20990230" "20990431" "20991132"]
-      && !(lib.any failing ["20991231" "20280229" "20990131" "20990430"])
+      lib.all failing ["20991399" "20990001" "20990100" "20990230" "20990431" "20991132" "20990229" "21000229"]
+      && !(lib.any failing ["20991231" "20280229" "20000229" "20990131" "20990430"])
     ) "nix-cache-host: an uploadKeys expiry with an impossible month or day must fail an assertion, real dates must not";
       pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-bad-expiry" {} "touch $out";
 

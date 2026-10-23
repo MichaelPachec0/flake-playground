@@ -111,13 +111,15 @@ inputs: {
 
   # YYYYMMDD with a real month and day. The type only checks 8 digits; an
   # impossible date (20991399) would make sshd's expiry-time and the
-  # pruner's expiry notice fail at runtime, stalling pruning. Feb 29 is
-  # accepted in every year (close enough for an expiry date).
+  # pruner's expiry notice fail at runtime, stalling pruning. Feb 29 only
+  # in Gregorian leap years.
   validDate = s: let
+    year = lib.toIntBase10 (builtins.substring 0 4 s);
     month = lib.toIntBase10 (builtins.substring 4 2 s);
     day = lib.toIntBase10 (builtins.substring 6 2 s);
+    leap = lib.mod year 4 == 0 && (lib.mod year 100 != 0 || lib.mod year 400 == 0);
   in
-    month >= 1 && month <= 12 && day >= 1 && day <= builtins.elemAt [31 29 31 30 31 30 31 31 30 31 30 31] (month - 1);
+    month >= 1 && month <= 12 && day >= 1 && day <= builtins.elemAt [31 (if leap then 29 else 28) 31 30 31 30 31 31 30 31 30 31] (month - 1);
 
   defaultAlert = pkgs.writeShellScript "nix-cache-log-alert" ''
     # Default alert sink: the journal (tag nix-cache-alert). Set
