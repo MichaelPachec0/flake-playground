@@ -31,6 +31,10 @@ on:
         type: string
         required: true
       artifact-name:
+        description: >-
+          Bundle artifact to download: the build job's bundle-artifact output
+          (nix-cache-bundle appends the run attempt to the base name), so a
+          re-run of only this job still finds the artifact its build uploaded.
         type: string
         required: true
       read-user:

@@ -31,6 +31,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
+      bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,6 +93,7 @@ jobs:
       actions: write
     outputs:
       bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
+      bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -126,7 +128,7 @@ jobs:
       repo: flake-playground
       set: gate
       arch: x86_64-linux
-      artifact-name: nix-cache-gate-x86_64-linux
+      artifact-name: ${{ needs.checks.outputs.bundle-artifact }}
       read-user: ${{ vars.NIX_CACHE_READ_USER }}
       tools-flake: github:${{ github.repository }}/${{ github.sha }}
     secrets:
@@ -142,7 +144,7 @@ jobs:
       repo: flake-playground
       set: gate
       arch: aarch64-linux
-      artifact-name: nix-cache-gate-aarch64-linux
+      artifact-name: ${{ needs.checks-aarch64.outputs.bundle-artifact }}
       read-user: ${{ vars.NIX_CACHE_READ_USER }}
       tools-flake: github:${{ github.repository }}/${{ github.sha }}
     secrets:

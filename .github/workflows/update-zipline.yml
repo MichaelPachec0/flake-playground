@@ -25,6 +25,7 @@ jobs:
       contents: write
     outputs:
       bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
+      bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -89,7 +90,7 @@ jobs:
       repo: flake-playground
       set: bump-zipline
       arch: x86_64-linux
-      artifact-name: nix-cache-bump-zipline-x86_64-linux
+      artifact-name: ${{ needs.update.outputs.bundle-artifact }}
       read-user: ${{ vars.NIX_CACHE_READ_USER }}
       tools-flake: github:${{ github.repository }}/${{ github.sha }}
     secrets:

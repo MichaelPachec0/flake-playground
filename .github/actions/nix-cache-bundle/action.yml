@@ -16,7 +16,10 @@ inputs:
     required: false
     default: "x86_64-linux"
   artifact-name:
-    description: "Name of the uploaded artifact (unique per run)."
+    description: >-
+      Base name of the uploaded artifact (unique per run). The action appends
+      -<run attempt>, so "Re-run all jobs" never collides with an artifact of
+      an earlier attempt; pass output artifact-name on to the push job.
     required: true
   cache-url:
     description: "Cache URL (secret)."
@@ -45,7 +48,12 @@ inputs:
 outputs:
   ok:
     description: "true when the artifact was uploaded."
-    value: ${{ steps.bundle.outputs.ok }}
+    # outcome, not conclusion: with continue-on-error a failed upload still
+    # concludes as success.
+    value: ${{ steps.bundle.outputs.built == 'true' && steps.upload.outcome == 'success' }}
+  artifact-name:
+    description: "Name the bundle was uploaded under (the push job downloads this one)."
+    value: ${{ inputs.artifact-name }}-${{ github.run_attempt }}
 
 runs:
   using: composite
@@ -65,7 +73,7 @@ runs:
         NIXPKGS_ALLOW_UNFREE: "1"
       run: |
         set -uo pipefail
-        echo "ok=false" >> "$GITHUB_OUTPUT"
+        echo "built=false" >> "$GITHUB_OUTPUT"
         case "$POLICY" in optional|required) ;; *) echo "::error::policy must be optional or required"; exit 1 ;; esac
         give_up() {
           if [ "$POLICY" = required ]; then echo "::error::$1"; exit 1; fi
@@ -105,13 +113,24 @@ runs:
           --run-id "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" || give_up "nix-cache-bundle failed"
         rm -f "$work/netrc"
         du -sh "$work/bundle"
-        echo "ok=true" >> "$GITHUB_OUTPUT"
+        echo "built=true" >> "$GITHUB_OUTPUT"
 
+    # Under the optional policy an upload failure (artifact service hiccup,
+    # quota) must not fail the build job: it only means no push this run.
+    # Output ok stays false then, so the push job is skipped.
     - name: Upload the bundle artifact
-      if: ${{ steps.bundle.outputs.ok == 'true' }}
+      id: upload
+      if: ${{ steps.bundle.outputs.built == 'true' }}
+      continue-on-error: ${{ inputs.policy == 'optional' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: ${{ inputs.artifact-name }}
+        name: ${{ inputs.artifact-name }}-${{ github.run_attempt }}
         path: ${{ runner.temp }}/nix-cache-bundle/bundle
         retention-days: 1
         if-no-files-found: error
+        overwrite: true
+
+    - name: Report a skipped push
+      if: ${{ steps.upload.outcome == 'failure' }}
+      shell: bash
+      run: echo "::warning::uploading the nix cache bundle artifact failed; not pushing to the nix cache"
