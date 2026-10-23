@@ -33,6 +33,10 @@ STALE_REALERT_SECONDS = 3600
 EXPIRY_WARN_SECONDS = 14 * 86400
 
 
+class PrunerError(Exception):
+    pass
+
+
 def read_keep(gcroots_dir: Path) -> set[str]:
     result: set[str] = set()
     for d in gcroots_dir.glob("keep.*"):
@@ -43,9 +47,10 @@ def read_keep(gcroots_dir: Path) -> set[str]:
 
 def write_keep(gcroots_dir: Path, tops, now: int) -> Path:
     gcroots_dir.mkdir(parents=True, exist_ok=True)
+    # Orphans of a crashed earlier run are live GC roots; safe to drop under the lock.
+    for orphan in gcroots_dir.glob(".keep.*.tmp"):
+        shutil.rmtree(orphan, ignore_errors=True)
     tmp = gcroots_dir / f".keep.{now}.tmp"
-    if tmp.exists():
-        shutil.rmtree(tmp)
     tmp.mkdir()
     for p in sorted(tops):
         os.symlink(p, tmp / Path(p).name)
@@ -70,8 +75,12 @@ def _once(conn: sqlite3.Connection, cfg: Config, key: str, now: int, title: str,
 
 
 def emit_notices(conn: sqlite3.Connection, cfg: Config, plan: RetentionPlan, now: int) -> None:
+    newest: dict = {}
+    for p in list_pins(cfg.pins_dir):
+        newest[p.namespace] = max(newest.get(p.namespace, 0), p.stamp)
     for ns in plan.expired:
-        _once(conn, cfg, f"expired:{ns}", now, "nix-cache: namespace expired",
+        # Keyed by the newest stamp so a namespace that revives and expires again alerts again.
+        _once(conn, cfg, f"expired:{ns}:{newest.get(ns, 0)}", now, "nix-cache: namespace expired",
               f"{ns} has had no new pin for {cfg.active_days} days; its pins are now ordinary eviction candidates.")
     if plan.over_budget:
         _once(conn, cfg, f"over-budget:{now // 86400}", now, "nix-cache: over budget",
@@ -118,6 +127,8 @@ def run(
         try:
             ingest(conn, cfg.access_log)
             graph = build_graph(nixcli.path_info(all_paths=True))
+            if not graph:
+                raise PrunerError("nix path-info --all returned no store paths; refusing to apply")
             if not dry_run:
                 sweep_all(cfg.pins_dir)
                 prune_paths(conn, {store_hash(p) for p in graph})
@@ -133,9 +144,10 @@ def run(
             )
             if not dry_run:
                 write_keep(cfg.gcroots_dir, plan.tops, now)
+                # Notices read the pins before they are deleted (expiry key uses the newest stamp).
+                emit_notices(conn, cfg, plan, now)
                 for p in plan.delete_pins:
                     delete_pin(cfg.pins_dir, p)
-                emit_notices(conn, cfg, plan, now)
         finally:
             conn.close()
     return {
@@ -153,20 +165,24 @@ def run(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cache-pruner", description="Plan and apply nix-cache retention.")
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--dry-run", action="store_true", help="print the plan, change nothing")
+    parser.add_argument("--dry-run", action="store_true", help="change no roots, pins or notices (still requeues alerts and ingests the log)")
     parser.add_argument("--budget-bytes", type=int)
     parser.add_argument("--protect-hours", type=int)
     parser.add_argument("--active-days", type=int)
     parser.add_argument("--now", type=int, help="pretend the current epoch is NOW (tests)")
     args = parser.parse_args(argv)
-    summary = run(
-        load_config(args.config),
-        dry_run=args.dry_run,
-        now=args.now,
-        budget_bytes=args.budget_bytes,
-        protect_hours=args.protect_hours,
-        active_days=args.active_days,
-    )
+    try:
+        summary = run(
+            load_config(args.config),
+            dry_run=args.dry_run,
+            now=args.now,
+            budget_bytes=args.budget_bytes,
+            protect_hours=args.protect_hours,
+            active_days=args.active_days,
+        )
+    except PrunerError as e:
+        print(f"cache-pruner: {e}", file=sys.stderr)
+        return 1
     print(json.dumps(summary, sort_keys=True))
     return 0
 

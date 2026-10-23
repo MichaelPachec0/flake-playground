@@ -26,7 +26,7 @@ def info(size=10, refs=(), reg=0):
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     cfg = make_config(tmp_path)  # budget_bytes = 1000
-    graph: dict = {}
+    graph: dict = {store_path(90, "filler"): info(1)}  # non-empty: the pruner refuses an empty store
     monkeypatch.setattr(nixcli, "path_info", lambda paths=(), **kw: graph)
     return cfg, graph
 
@@ -183,3 +183,40 @@ def test_prunes_path_rows_not_in_store(env):
     conn = open_db(cfg.db)
     assert [h for (h,) in conn.execute("SELECT hash FROM paths")] == [live]
     conn.close()
+
+
+def test_orphaned_keep_tmp_is_removed(env):
+    cfg, graph = env
+    graph.update({A: info()})
+    pin(cfg.pins_dir, NS, [A], NOW - DAY)
+    orphan = cfg.gcroots_dir / ".keep.1.tmp"
+    orphan.mkdir()
+    os.symlink(B, orphan / Path(B).name)
+    pruner.run(cfg, now=NOW, dry_run=True)
+    assert orphan.exists()
+    pruner.run(cfg, now=NOW)
+    assert not orphan.exists()
+
+
+def test_expired_alert_again_after_revival(env):
+    cfg, graph = env
+    graph.update({A: info(), C: info()})
+    pin(cfg.pins_dir, OLD_NS, [C], NOW - 40 * DAY)
+    pin(cfg.pins_dir, NS, [A], NOW - DAY)
+    pruner.run(cfg, now=NOW)
+    pin(cfg.pins_dir, OLD_NS, [C], NOW + 1)
+    later = NOW + 60 * DAY
+    pruner.run(cfg, now=later)
+    bodies = [json.loads(p.read_text())["body"] for p in cfg.spool.glob("*.json")]
+    assert sum(b.startswith(str(OLD_NS)) for b in bodies) == 2
+
+
+def test_empty_graph_refuses_to_apply(env, capsys, tmp_path):
+    cfg, graph = env
+    graph.clear()
+    pin(cfg.pins_dir, NS, [A], NOW - DAY)
+    before = list_pins(cfg.pins_dir)
+    assert pruner.main(["--config", str(tmp_path / "config.json"), "--now", str(NOW)]) == 1
+    assert "refusing" in capsys.readouterr().err
+    assert list_pins(cfg.pins_dir) == before
+    assert not list(cfg.gcroots_dir.glob("keep.*"))
