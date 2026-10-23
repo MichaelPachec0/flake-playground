@@ -298,7 +298,11 @@ in {
       && c.systemd.services.cache-pruner.unitConfig.OnSuccess == ["cache-gc.service"]
       && c.systemd.timers ? cache-pruner
       && lib.hasInfix "nix-store --gc" c.systemd.services.cache-gc.serviceConfig.ExecStart
+      && lib.hasInfix "flock /var/lib/nix-cache/lock " c.systemd.services.cache-gc.serviceConfig.ExecStart
+      && !(c.systemd.services.cache-gc.serviceConfig ? User)
       && c.systemd.paths ? nix-cache-alert
+      && c.systemd.paths.nix-cache-alert.pathConfig.PathExistsGlob == "/var/lib/nix-cache/alerts/*.json"
+      && !(c.systemd.paths.nix-cache-alert.pathConfig ? DirectoryNotEmpty)
       && c.systemd.services ? "nix-cache-unit-failed@"
       # Glob, not DirectoryNotEmpty: files the importer leaves in incoming/
       # would re-trigger the path unit until its start limit trips.
@@ -374,8 +378,13 @@ in {
       && rejects {services.nix-cache-host.htpasswdFile = lib.mkForce "${builtins.storeDir}/x-htpasswd";} (h: h.htpasswdFile)
       && rejects {services.nix-cache-host.htpasswdFile = lib.mkForce "relative/htpasswd";} (h: h.htpasswdFile)
       && rejects {services.nix-cache-host.nginx.sslCertificateKey = lib.mkForce ./eval-modules.nix;} (h: h.nginx.sslCertificateKey)
-      && !(rejects {} (h: [(keys h) h.htpasswdFile h.nginx.sslCertificateKey]))
-    ) "nix-cache-host: upload keys with newlines/options/no type, and store or path-literal secrets, must be rejected";
+      && rejects {services.nix-cache-host.alerts.command = "/bin/notify --token x";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "/bin/notify%n";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "/bin/a;b";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "notify";} (h: h.alerts.command)
+      && !(rejects {services.nix-cache-host.alerts.command = "/run/current-system/sw/bin/ntfy-alert";} (h: h.alerts.command))
+      && !(rejects {} (h: [(keys h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
+    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, and alert commands that are not one absolute path, must be rejected";
       pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-unsafe-input" {} "touch $out";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};

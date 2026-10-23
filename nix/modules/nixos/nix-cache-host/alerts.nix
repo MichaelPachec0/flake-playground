@@ -4,14 +4,21 @@
 {
   config,
   lib,
+  utils,
   ...
 }: let
   cfg = config.services.nix-cache-host;
+  # The option type already rules out whitespace, quotes and %; escape anyway
+  # so each context stays correct on its own.
+  command = cfg.alerts.command;
 in {
   config = lib.mkIf cfg.enable {
     systemd.paths.nix-cache-alert = {
       wantedBy = ["paths.target"];
-      pathConfig.DirectoryNotEmpty = "/var/lib/nix-cache/alerts";
+      # A glob, not DirectoryNotEmpty: nix-cache-alert only consumes *.json,
+      # so any other file left in the spool would re-trigger the unit until
+      # its start limit trips and every later alert goes undelivered.
+      pathConfig.PathExistsGlob = "/var/lib/nix-cache/alerts/*.json";
     };
 
     systemd.services.nix-cache-alert = {
@@ -21,7 +28,7 @@ in {
         User = "nix-cache";
         Group = "nix-cache";
         LoadCredential = cfg.alerts.loadCredential;
-        ExecStart = "${lib.getExe' cfg.package "nix-cache-alert"} --spool /var/lib/nix-cache/alerts --deferred /var/lib/nix-cache/alerts-deferred --command ${cfg.alerts.command}";
+        ExecStart = "${lib.getExe' cfg.package "nix-cache-alert"} --spool /var/lib/nix-cache/alerts --deferred /var/lib/nix-cache/alerts-deferred --command ${utils.escapeSystemdExecArg command}";
       };
     };
 
@@ -29,7 +36,7 @@ in {
       description = "Alert that %i failed";
       scriptArgs = "%i";
       script = ''
-        ${config.systemd.package}/bin/journalctl -u "$1" -n 40 --no-pager | ${cfg.alerts.command} "nix-cache: $1 failed"
+        ${config.systemd.package}/bin/journalctl -u "$1" -n 40 --no-pager | ${lib.escapeShellArg command} "nix-cache: $1 failed"
       '';
       serviceConfig = {
         Type = "oneshot";

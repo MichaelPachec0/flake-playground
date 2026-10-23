@@ -23,6 +23,14 @@ inputs: {
     types.addCheck types.str (s: lib.hasPrefix "/" s && !lib.hasPrefix "${builtins.storeDir}/" s)
     // {description = "absolute path outside the Nix store, as a string";};
 
+  # The alert command lands in a systemd ExecStart and a bash script, so it
+  # is one absolute executable path from a conservative charset: no
+  # whitespace, quotes, `%` (systemd specifiers) or shell metacharacters.
+  # Wrap anything needing arguments in a script (pkgs.writeShellScript).
+  alertCommandType =
+    types.strMatching "/[A-Za-z0-9._+@=:,/-]+"
+    // {description = "absolute path of one executable (no whitespace, quotes, % or shell metacharacters)";};
+
   # One authorized_keys line: a key type, base64, an optional printable-ASCII
   # comment. No newline can slip through to add a second, unrestricted line,
   # and no leading options can be smuggled in ahead of the module's own.
@@ -213,10 +221,14 @@ in {
 
     alerts = {
       command = mkOption {
-        type = types.str;
+        type = alertCommandType;
         default = "${defaultAlert}";
         defaultText = lib.literalExpression "a script that logs to the journal with tag nix-cache-alert";
-        description = "Executable run as COMMAND TITLE with the alert body on stdin.";
+        description = ''
+          Absolute path of one executable, run as COMMAND TITLE with the alert
+          body on stdin. No arguments: wrap a command that needs them in a
+          script (for example pkgs.writeShellScript).
+        '';
       };
       loadCredential = mkOption {
         type = types.listOf types.str;
