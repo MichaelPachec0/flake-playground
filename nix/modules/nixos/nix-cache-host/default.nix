@@ -17,6 +17,17 @@ inputs: {
   inherit (lib) mkOption types;
   gib = n: n * 1024 * 1024 * 1024;
 
+  # Secrets are named by a string, never a Nix path: a path literal would be
+  # copied into the world-readable store the moment it is interpolated.
+  secretPath =
+    types.addCheck types.str (s: lib.hasPrefix "/" s && !lib.hasPrefix "${builtins.storeDir}/" s)
+    // {description = "absolute path outside the Nix store, as a string";};
+
+  # One authorized_keys line: a key type, base64, an optional printable-ASCII
+  # comment. No newline can slip through to add a second, unrestricted line,
+  # and no leading options can be smuggled in ahead of the module's own.
+  sshKeyType = types.strMatching "(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\\.com|sk-ecdsa-sha2-nistp256@openssh\\.com) [A-Za-z0-9+/]+={0,3}( [ -~]*)?";
+
   repoModule = {name, ...}: {
     options = {
       uid = mkOption {
@@ -38,7 +49,7 @@ inputs: {
         type = types.listOf (types.submodule {
           options = {
             key = mkOption {
-              type = types.str;
+              type = sshKeyType;
               description = "SSH public key line of the CI push job.";
             };
             expires = mkOption {
@@ -99,11 +110,11 @@ in {
     };
 
     htpasswdFile = mkOption {
-      type = types.path;
+      type = secretPath;
       description = ''
         htpasswd with one {SSHA} line per read token (create lines with
-        nix-cache-htpasswd-entry). Must be readable by nginx; keep it out of
-        the Nix store.
+        nix-cache-htpasswd-entry). Must be readable by nginx. A string, not
+        a path literal, so it never lands in the Nix store.
       '';
     };
 
@@ -132,9 +143,9 @@ in {
         description = "TLS certificate when not using useACMEHost.";
       };
       sslCertificateKey = mkOption {
-        type = types.nullOr types.path;
+        type = types.nullOr secretPath;
         default = null;
-        description = "TLS key when not using useACMEHost.";
+        description = "TLS key when not using useACMEHost (a string path outside the Nix store).";
       };
       defaultServer = mkOption {
         type = types.bool;
@@ -223,6 +234,16 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # With allowed-users containing "*" (the NixOS default), every local
+    # account, the upload users included, can talk to the nix-daemon. Not an
+    # assertion: the host may accept that, but it should be a decision.
+    warnings = lib.optional (lib.elem "*" (config.nix.settings.allowed-users or [])) ''
+      services.nix-cache-host: nix.settings.allowed-users contains "*", so the
+      cache-drop-* upload users can reach the nix-daemon. Set
+      nix.settings.allowed-users to the accounts that need it (the module adds
+      nix-cache and harmonia through extra-allowed-users).
+    '';
+
     assertions =
       [
         {

@@ -45,6 +45,19 @@ in {
         assertion = config.networking.firewall.enable || config.networking.nftables.enable;
         message = "services.nix-cache-host: the upload users' egress block needs networking.firewall or networking.nftables";
       }
+      {
+        # The forced command runs through bash, so ~/.ssh/environment could set
+        # BASH_ENV or LD_PRELOAD. PermitUserEnvironment cannot go in a Match
+        # block, so the host-wide setting must stay off. Any value but "no"
+        # enables it (a pattern list enables the names it matches).
+        assertion =
+          lib.elem (config.services.openssh.settings.PermitUserEnvironment or false) [false null "no"]
+          && !(lib.any (l: let
+            m = builtins.match "[ \t]*permituserenvironment[ \t]+([^ \t]+).*" (lib.toLower l);
+          in
+            m != null && lib.head m != "no") (lib.splitString "\n" config.services.openssh.extraConfig));
+        message = "services.nix-cache-host: services.openssh PermitUserEnvironment must stay disabled (it would let upload users set BASH_ENV/LD_PRELOAD for the forced command)";
+      }
     ];
 
     users.users = lib.mapAttrs' (repo: r:
@@ -68,8 +81,12 @@ in {
     services.openssh.enable = true;
     # Match blocks run to the next Match, so close with `Match all`: anything
     # appended after this module would otherwise only apply to upload users.
+    # Inside a Match block AcceptEnv replaces the host-wide list; accepting
+    # only a name no client sends keeps BASH_ENV, BASH_FUNC_*, SHELLOPTS and
+    # LD_* away from the bash that runs the forced command.
     services.openssh.extraConfig = lib.mkAfter (lib.concatStrings (lib.mapAttrsToList (repo: r: ''
         Match User ${user repo}
+          AcceptEnv NIX_CACHE_UPLOAD_NO_ENV
           ForceCommand ${lib.getExe (receive repo r)}
           AuthenticationMethods publickey
           DisableForwarding yes
@@ -134,15 +151,15 @@ in {
       };
     };
     networking.firewall.extraCommands = lib.mkIf (!config.networking.nftables.enable) ''
-      ip46tables -N nix-cache-egress 2>/dev/null || true
-      ip46tables -F nix-cache-egress
-      ${lib.concatMapStrings (uid: "ip46tables -A nix-cache-egress -m owner --uid-owner ${toString uid} -j DROP\n") uids}
-      ip46tables -C OUTPUT -j nix-cache-egress 2>/dev/null || ip46tables -I OUTPUT -j nix-cache-egress
+      ip46tables -w -N nix-cache-egress 2>/dev/null || true
+      ip46tables -w -F nix-cache-egress
+      ${lib.concatMapStrings (uid: "ip46tables -w -A nix-cache-egress -m owner --uid-owner ${toString uid} -j DROP\n") uids}
+      ip46tables -w -C OUTPUT -j nix-cache-egress 2>/dev/null || ip46tables -w -I OUTPUT -j nix-cache-egress
     '';
     networking.firewall.extraStopCommands = lib.mkIf (!config.networking.nftables.enable) ''
-      ip46tables -D OUTPUT -j nix-cache-egress 2>/dev/null || true
-      ip46tables -F nix-cache-egress 2>/dev/null || true
-      ip46tables -X nix-cache-egress 2>/dev/null || true
+      ip46tables -w -D OUTPUT -j nix-cache-egress 2>/dev/null || true
+      ip46tables -w -F nix-cache-egress 2>/dev/null || true
+      ip46tables -w -X nix-cache-egress 2>/dev/null || true
     '';
   };
 }
