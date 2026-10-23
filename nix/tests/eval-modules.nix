@@ -317,7 +317,12 @@ in {
       && c.services.harmonia.cache.signKeyPaths == []
       && c.services.harmonia.cache.settings.bind == "127.0.0.1:37450"
       && c.services.nginx.virtualHosts."cache.example".basicAuthFile == "/run/secrets/nix-cache-htpasswd"
-      && c.services.nginx.virtualHosts."cache.example".locations."/".return == "404"
+      # Outside the allowlist: 404 in the content phase, after auth (a
+      # rewrite-phase `return` would answer anonymous probes before auth).
+      && c.services.nginx.virtualHosts."cache.example".locations."/".return == null
+      && c.services.nginx.virtualHosts."cache.example".locations."/".tryFiles == "/nix-cache-not-found =404"
+      && lib.all (l: lib.hasInfix "limit_except GET { deny all; }" l.extraConfig && lib.hasInfix "Cache-Control \"private\" always" l.extraConfig)
+      (map (n: c.services.nginx.virtualHosts."cache.example".locations.${n}) ["= /nix-cache-info" "~ \"^/[0-9a-df-np-sv-z]{32}\\.narinfo$\"" "^~ /nar/"])
       && c.services.nginx.virtualHosts.nix-cache-default-server.rejectSSL
       && lib.hasInfix "log_format nix_cache_json" c.services.nginx.commonHttpConfig
       # The pruner reads the access log through SupplementaryGroups = nginx.
@@ -326,7 +331,7 @@ in {
       && !(c.services.logrotate.settings.nginx.copytruncate or false)
       && c.services.logrotate.settings.nginx.delaycompress
       && !(c.services.logrotate.settings.header.dateext or false);
-    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost, default server, nginx group and log rotation must be configured, and an explicit allowed-users must not warn";
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group and log rotation must be configured, and an explicit allowed-users must not warn";
   };
   # fail2ban on: only the guess jail (unknown token users), with escalating
   # bans, and fail2ban waits for nginx to create the error log.
@@ -340,10 +345,11 @@ in {
         jail.settings.logpath
         == "/var/log/nginx/nix-cache.error.log"
         && jail.settings."bantime.increment"
-        && lib.hasInfix "was not found in" jail.filter.Definition.failregex
+        && lib.hasPrefix "^\\s*\\[error\\] " jail.filter.Definition.failregex
+        && lib.hasInfix "was not found in \"[^\"]*\", client: <HOST>, server: \\S*, request: " jail.filter.Definition.failregex
         && lib.filter (lib.hasPrefix "nix-cache") (lib.attrNames c.services.fail2ban.jails) == ["nix-cache-guess"]
         && lib.elem "nginx.service" c.systemd.services.fail2ban.after;
-      message = "with fail2ban enabled the module must add only the nix-cache-guess jail (bantime.increment) and order fail2ban after nginx";
+      message = "with fail2ban enabled the module must add only the nix-cache-guess jail (anchored failregex, bantime.increment) and order fail2ban after nginx";
     };
   # nftables branch of the egress block. The nftables start script is a build
   # input, so the ruleset also goes through `nft --check` here.

@@ -10,9 +10,18 @@
 }: let
   cfg = config.services.nix-cache-host;
   upstream = "http://127.0.0.1:${toString cfg.harmonia.port}";
+  # Substitution only reads: other methods are refused (GET implies HEAD).
+  # Responses sit behind per-token auth, so no shared cache along the way may
+  # keep them; Harmonia's own Cache-Control is replaced, not duplicated.
   proxied = extra: {
     proxyPass = upstream;
-    extraConfig = extra;
+    extraConfig =
+      ''
+        limit_except GET { deny all; }
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "private" always;
+      ''
+      + extra;
   };
   rotate = config.services.logrotate.settings;
   isSet = s: k: (s.${k} or null) == true;
@@ -73,6 +82,8 @@ in {
           extraConfig = ''
             access_log /var/log/nginx/nix-cache.access.log nix_cache_json;
             error_log /var/log/nginx/nix-cache.error.log;
+            # Keyed on the CLAIMED $remote_user: limit_conn runs before the
+            # password check, so a wrong token still counts against that user.
             limit_conn nix_cache_user ${toString cfg.nginx.maxConnsPerUser};
             limit_req zone=nix_cache_anon burst=20 nodelay;
             limit_req_status 429;
@@ -85,8 +96,14 @@ in {
               proxy_buffering off;
             '';
             # Everything else Harmonia offers (/serve/, /log/, .ls, ...) is not
-            # needed for substitution.
-            "/".return = "404";
+            # needed for substitution. Refused in the content phase (try_files
+            # on an empty root), not with `return`: return runs in the rewrite
+            # phase, before auth and rate limiting, so anonymous probes would
+            # get an unthrottled 404 instead of a 401.
+            "/" = {
+              root = "/var/empty";
+              tryFiles = "/nix-cache-not-found =404";
+            };
           };
         }
         // lib.optionalAttrs (cfg.nginx.sslCertificate != null) {
@@ -103,12 +120,22 @@ in {
 
     networking.firewall.allowedTCPPorts = [80 443];
 
-    # Unknown token users are guessing: ban. A KNOWN user with a wrong token is
-    # a host on a retired token generation; the pruner alerts on that instead
-    # (banning it would only make its substitutions time out).
+    # Unknown token users are guessing: ban. Token rotation retires a
+    # generation by replacing its htpasswd hash with the {SSHA} of a random
+    # throwaway token and keeping the user name, so a host still on a retired
+    # generation is a KNOWN user with an unusable hash: nginx logs "password
+    # mismatch", which this jail ignores and the pruner alerts on instead.
+    # Deleting the line would turn that host into an unknown user and get it
+    # banned (its substitutions would just time out).
+    #
+    # The user name is attacker-chosen and logged unescaped, but nginx cuts
+    # it at the first ':' (user:password), so it can never contain the real
+    # ", client: <ip>" that follows. The greedy user match therefore always
+    # ends at nginx's own text and <HOST> is the real peer; a quote in the
+    # name cannot break the match to dodge the jail either.
     services.fail2ban.jails.nix-cache-guess = lib.mkIf cfg.fail2ban.enable {
       filter.Definition = {
-        failregex = ''^.* user "[^"]*" was not found in "[^"]*", client: <HOST>, server: '';
+        failregex = ''^\s*\[error\] \d+#\d+: \*\d+ user ".*" was not found in "[^"]*", client: <HOST>, server: \S*, request: '';
         ignoreregex = "";
       };
       settings = {
