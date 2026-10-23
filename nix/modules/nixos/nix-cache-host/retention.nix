@@ -33,6 +33,12 @@ in {
             "/var/lib/nix-cache"
           ];
           MemoryMax = "2G";
+          # Same reason as the importer: the pruner holds the shared lock, so
+          # a hung nix child must fail the unit (and alert) instead of
+          # blocking imports and GC forever. Longer than the importer's
+          # because a pass walks closures of every pin, and the hourly timer
+          # simply skips while a run is still active.
+          TimeoutStartSec = "3h";
         };
     };
 

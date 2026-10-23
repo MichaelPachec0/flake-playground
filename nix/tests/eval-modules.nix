@@ -313,6 +313,9 @@ in {
       && lib.elem c.nix.package c.systemd.services.cache-pruner.path
       && lib.elem c.nix.package c.systemd.services.cache-importer-flake-playground.path
       && lib.all (s: lib.elem "/nix/var/nix/gcroots/cache" c.systemd.services.${s}.serviceConfig.ReadWritePaths) ["cache-pruner" "cache-importer-flake-playground"]
+      # Both hold the shared lock: a hung run must time out and alert.
+      && c.systemd.services.cache-importer-flake-playground.serviceConfig.TimeoutStartSec == "2h"
+      && c.systemd.services.cache-pruner.serviceConfig.TimeoutStartSec == "3h"
       && lib.elem "f /var/lib/nix-cache/lock 0600 nix-cache nix-cache -" c.systemd.tmpfiles.rules
       && c.services.harmonia.cache.enable
       && c.services.harmonia.cache.signKeyPaths == []
@@ -337,7 +340,7 @@ in {
         repo = (builtins.fromJSON c.services.nix-cache-host.configFile.text).repos.flake-playground;
       in
         repo.allowed_sets == ["gate" "bump-flake-lock"] && repo.max_roots == 64);
-    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation and the importer's set allowlist and root cap must be configured, and an explicit allowed-users must not warn";
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation, importer/pruner start timeouts and the importer's set allowlist and root cap must be configured, and an explicit allowed-users must not warn";
   };
   # fail2ban on: only the guess jail (unknown token users), with escalating
   # bans, and fail2ban waits for nginx to create the error log.

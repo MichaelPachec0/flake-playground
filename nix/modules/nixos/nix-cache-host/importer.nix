@@ -50,6 +50,14 @@ in {
               "/var/lib/nix-cache"
             ];
             MemoryMax = "2G";
+            # A oneshot has no start timeout by default, and the importer
+            # holds /var/lib/nix-cache/lock for the whole run: a hung nix
+            # child would silently block every repo's importer, the pruner
+            # and GC. The time also covers waiting for the lock behind a GC
+            # and substituting large upstream closures. A timeout fails the
+            # unit, so OnFailure alerts; the bundle stays in incoming/ and
+            # the path unit retries it.
+            TimeoutStartSec = "2h";
           };
       })
     cfg.repos;
