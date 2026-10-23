@@ -12,11 +12,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
+
+
+def _safe_title(title: str) -> str:
+    """One line, no control chars, and never a leading '-' (it is argv[1])."""
+    title = re.sub(r"[\x00-\x1f\x7f]+", " ", title).strip()
+    return "alert: " + title if title.startswith("-") else title
 
 
 def queue_alert(spool: Path, title: str, body: str) -> Path:
@@ -25,7 +32,7 @@ def queue_alert(spool: Path, title: str, body: str) -> Path:
     staging.mkdir(parents=True, exist_ok=True)
     name = f"{time.time_ns()}-{uuid.uuid4().hex[:8]}.json"
     tmp = staging / name
-    tmp.write_text(json.dumps({"title": title, "body": body}))
+    tmp.write_text(json.dumps({"title": _safe_title(title), "body": body}))
     final = spool / name
     os.replace(tmp, final)
     return final
@@ -38,7 +45,7 @@ def flush(spool: Path, deferred: Path, command: str) -> int:
     for item in sorted(p for p in spool.iterdir() if p.suffix == ".json"):
         try:
             data = json.loads(item.read_text())
-            title, body = str(data["title"]), str(data["body"])
+            title, body = _safe_title(str(data["title"])), str(data["body"])
         except (OSError, ValueError, KeyError, TypeError):
             item.unlink(missing_ok=True)
             continue

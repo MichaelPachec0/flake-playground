@@ -11,6 +11,8 @@ import os
 import subprocess
 from collections.abc import Iterable, Iterator
 
+from .manifest import STORE_PATH_RE
+
 NIX = os.environ.get("NIX_CACHE_NIX", "nix")
 NIX_STORE = os.environ.get("NIX_CACHE_NIX_STORE", "nix-store")
 FEATURES = ["--extra-experimental-features", "nix-command"]
@@ -35,8 +37,17 @@ def _chunks(items: list[str]) -> Iterator[list[str]]:
         yield items[i : i + CHUNK]
 
 
+def _checked(paths: Iterable[str]) -> list[str]:
+    """Reject anything that is not a plain store path (option or newline smuggling)."""
+    result = list(paths)
+    for p in result:
+        if not isinstance(p, str) or not STORE_PATH_RE.fullmatch(p):
+            raise NixError(f"refusing non-store path: {p!r}")
+    return result
+
+
 def _lines(paths: Iterable[str]) -> str:
-    return "".join(f"{p}\n" for p in paths)
+    return "".join(f"{p}\n" for p in _checked(paths))
 
 
 def nix(*args: str, stdin: str | None = None) -> str:
@@ -45,14 +56,14 @@ def nix(*args: str, stdin: str | None = None) -> str:
 
 def invalid_paths(paths: Iterable[str]) -> set[str]:
     result: set[str] = set()
-    for chunk in _chunks(sorted(set(paths))):
+    for chunk in _chunks(sorted(set(_checked(paths)))):
         result.update(_run([NIX_STORE, "--check-validity", "--print-invalid", *chunk]).split())
     return result
 
 
 def realise(paths: Iterable[str]) -> None:
     """Substitute store paths (they have no derivation here, so nothing is built)."""
-    for chunk in _chunks(sorted(set(paths))):
+    for chunk in _chunks(sorted(set(_checked(paths)))):
         _run([NIX_STORE, "--realise", *chunk])
 
 

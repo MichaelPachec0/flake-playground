@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from helpers import make_config
+import json
+
+import pytest
+from helpers import make_config, write_config
+
+from nix_cache.config import load_config
 
 
 def test_load_config(tmp_path):
@@ -15,3 +20,17 @@ def test_load_config(tmp_path):
     assert cfg.deferred == cfg.state_dir / "alerts-deferred"
     assert cfg.db == cfg.state_dir / "stats.sqlite"
     assert cfg.work_dir == cfg.state_dir / "work"
+
+
+def _with_keys(tmp_path, keys):
+    files = write_config(tmp_path)
+    data = json.loads(files["config"].read_text())
+    data["repos"]["flake-playground"]["trusted_keys"] = keys
+    files["config"].write_text(json.dumps(data))
+    return files["config"]
+
+
+@pytest.mark.parametrize("keys", [[], ["a-1:AAA BBB"], ["a-1:AAA", "b:C C"], ["nocolon"], ["a:b\n"], [5]])
+def test_bad_trusted_keys_rejected(tmp_path, keys):
+    with pytest.raises(ValueError, match="trusted"):
+        load_config(_with_keys(tmp_path, keys))

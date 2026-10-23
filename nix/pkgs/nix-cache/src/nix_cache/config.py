@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
+
+KEY_RE = re.compile(r"[A-Za-z0-9._-]+:[A-Za-z0-9+/]+={0,2}")
+
+
+def _keys(name: str, keys: object) -> tuple[str, ...]:
+    if not isinstance(keys, list) or not keys:
+        raise ValueError(f"repo {name!r}: trusted_keys must be a non-empty list")
+    for key in keys:
+        if not isinstance(key, str) or not KEY_RE.fullmatch(key):
+            raise ValueError(f"repo {name!r}: invalid trusted key {key!r}")
+    return tuple(keys)
 
 
 @dataclass(frozen=True)
@@ -72,7 +84,7 @@ def load_config(path: Path) -> Config:
         name: RepoConfig(
             name=name,
             drop_dir=Path(r["drop_dir"]),
-            trusted_keys=tuple(r["trusted_keys"]),
+            trusted_keys=_keys(name, r["trusted_keys"]),
             max_bundle_bytes=int(r["max_bundle_bytes"]),
             max_unpacked_bytes=int(r["max_unpacked_bytes"]),
             max_pending=int(r["max_pending"]),

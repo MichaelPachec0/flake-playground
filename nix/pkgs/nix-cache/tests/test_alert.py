@@ -44,3 +44,13 @@ def test_corrupt_spool_entry_is_dropped(tmp_path):
     script, out = sink(tmp_path)
     assert alert.flush(spool, deferred, str(script)) == 0
     assert not out.exists() and list(spool.iterdir()) == []
+
+
+def test_title_cannot_become_an_option(tmp_path):
+    spool, deferred = tmp_path / "alerts", tmp_path / "deferred"
+    alert.queue_alert(spool, "--evil\nsecond\x07line", "b")
+    script, out = sink(tmp_path)
+    assert alert.flush(spool, deferred, str(script)) == 0
+    title, body = json.loads(out.read_text())
+    assert not title.startswith("-") and "\n" not in title and "\x07" not in title
+    assert "--evil" in title and body == "b"

@@ -4,7 +4,10 @@ import sys
 
 import pytest
 
+from helpers import store_path
 from nix_cache import nixcli
+
+A = store_path(1, "a")
 
 
 @pytest.fixture
@@ -36,9 +39,9 @@ sys.exit(int(open({str(out)!r} + ".rc").read()) if __import__("os").path.exists(
 
 def test_invalid_paths_chunks_and_parses(fake_bin):
     out, calls = fake_bin
-    out.write_text("/nix/store/b\n")
-    paths = [f"/nix/store/{i}" for i in range(1200)]
-    assert nixcli.invalid_paths(paths) == {"/nix/store/b"}
+    out.write_text(store_path(2, "b") + "\n")
+    paths = [store_path(i, "p") for i in range(1200)]
+    assert nixcli.invalid_paths(paths) == {store_path(2, "b")}
     assert len(calls()) == 3
     assert calls()[0]["argv"][:2] == ["--check-validity", "--print-invalid"]
 
@@ -58,12 +61,12 @@ def test_nix_error_carries_stderr(fake_bin, tmp_path):
 
 def test_path_info_uses_stdin(fake_bin):
     out, calls = fake_bin
-    out.write_text(json.dumps({"/nix/store/a": {"narSize": 1, "references": [], "deriver": None, "registrationTime": 5}}))
-    info = nixcli.path_info(["/nix/store/a"], recursive=True)
-    assert info["/nix/store/a"]["narSize"] == 1
+    out.write_text(json.dumps({A: {"narSize": 1, "references": [], "deriver": None, "registrationTime": 5}}))
+    info = nixcli.path_info([A], recursive=True)
+    assert info[A]["narSize"] == 1
     call = calls()[0]
     assert call["argv"][-6:] == ["path-info", "--json", "--json-format", "1", "--recursive", "--stdin"]
-    assert call["stdin"] == "/nix/store/a\n"
+    assert call["stdin"] == A + "\n"
 
 
 def test_normalise_list_and_basenames():
@@ -80,7 +83,7 @@ def test_normalise_drops_invalid_entries():
 
 def test_verify_sigs_passes_only_given_keys(fake_bin):
     _, calls = fake_bin
-    nixcli.verify_sigs("file:///b", ["/nix/store/a"], ["k-1:AAA", "k-2:BBB"])
+    nixcli.verify_sigs("file:///b", [A], ["k-1:AAA", "k-2:BBB"])
     argv = calls()[0]["argv"]
     assert "verify" in argv and "--sigs-needed" in argv
     assert argv[argv.index("trusted-public-keys") + 1] == "k-1:AAA k-2:BBB"
@@ -88,6 +91,24 @@ def test_verify_sigs_passes_only_given_keys(fake_bin):
 
 def test_copy_no_recursive(fake_bin):
     _, calls = fake_bin
-    nixcli.copy_no_recursive("file:///b", ["/nix/store/a"])
+    nixcli.copy_no_recursive("file:///b", [A])
     argv = calls()[0]["argv"]
     assert argv[argv.index("copy"):] == ["copy", "--no-recursive", "--from", "file:///b", "--to", "daemon", "--stdin"]
+
+
+BAD = ["-rf", "/nix/store/x", f"{A}\n{store_path(2, 'b')}", A + "\n", "../etc"]
+
+
+@pytest.mark.parametrize("bad", BAD)
+def test_store_paths_are_validated(fake_bin, bad):
+    _, calls = fake_bin
+    for fn in (
+        nixcli.invalid_paths,
+        nixcli.realise,
+        nixcli.path_info,
+        lambda p: nixcli.verify_sigs("file:///b", p, ["k:AA"]),
+        lambda p: nixcli.copy_no_recursive("file:///b", p),
+    ):
+        with pytest.raises(nixcli.NixError, match="non-store path"):
+            fn([A, bad])
+    assert calls() == []
