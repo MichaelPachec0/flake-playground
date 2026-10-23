@@ -23,6 +23,12 @@ in {
 
     systemd.services.nix-cache-alert = {
       description = "Deliver queued nix-cache alerts";
+      # Every queued alert can start this unit once, and a pruner pass or a
+      # run of rejected uploads queues several within seconds. With systemd's
+      # default start limit (5 per 10 s) the sixth start fails, and the path
+      # unit then stays failed: every later alert would go undelivered. Each
+      # run consumes or defers every *.json, so it cannot re-trigger itself.
+      startLimitIntervalSec = 0;
       serviceConfig = {
         Type = "oneshot";
         User = "nix-cache";

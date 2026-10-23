@@ -28,6 +28,13 @@ in {
         description = "Import nix-cache bundles uploaded by ${repo}";
         path = [config.nix.package];
         unitConfig.OnFailure = ["nix-cache-unit-failed@%n.service"];
+        # The path unit starts this once per upload that lands while it is
+        # idle, so six pushes within 10 s (CI matrix jobs) would hit systemd's
+        # default start limit, fail the path unit for good and leave every
+        # later upload unimported. A run imports or rejects every pending
+        # bundle; only a crash leaves one behind, and that is retried at once
+        # (each failure still alerts through OnFailure).
+        startLimitIntervalSec = 0;
         serviceConfig =
           hardening
           // {
