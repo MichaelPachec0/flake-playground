@@ -73,6 +73,18 @@ def _sweep(base: Path) -> None:
                 e.unlink()
 
 
+def sweep_all(pins_dir: Path) -> None:
+    """Sweep stale temp dirs in every namespace; caller must hold the cache lock.
+
+    Orphaned .<stamp>.tmp / .<stamp>.del dirs are live GC roots until their
+    namespace is next touched, so the pruner calls this on each pass.
+    """
+    for repo in _subdirs(pins_dir):
+        for set_ in _subdirs(repo):
+            for arch in _subdirs(set_):
+                _sweep(arch)
+
+
 def pin(pins_dir: Path, ns: Namespace, roots, now: int) -> Pin:
     _check(ns)
     roots = sorted(set(roots))

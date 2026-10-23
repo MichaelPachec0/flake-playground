@@ -12,6 +12,7 @@ requires-python = ">=3.12"
 nix-cache-htpasswd-entry = "nix_cache.htpasswd:main"
 nix-cache-alert = "nix_cache.alert:main"
 cache-importer = "nix_cache.importer:main"
+cache-pruner = "nix_cache.pruner:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

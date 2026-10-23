@@ -62,3 +62,15 @@ def mark_notice(conn: sqlite3.Connection, key: str, at: int) -> None:
         "INSERT INTO notices(key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at",
         (key, at),
     )
+
+
+def prune_paths(conn: sqlite3.Connection, live_hashes: set[str]) -> int:
+    """Drop stats rows for hashes not in the store; returns the number removed.
+
+    A token holder can create rows with arbitrary ?hash= values, so the table
+    is bounded by the store graph rather than by request volume.
+    """
+    stale = [(h,) for (h,) in conn.execute("SELECT hash FROM paths") if h not in live_hashes]
+    conn.executemany("DELETE FROM paths WHERE hash = ?", stale)
+    conn.commit()
+    return len(stale)
