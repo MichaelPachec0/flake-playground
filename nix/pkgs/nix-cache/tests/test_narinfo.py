@@ -55,3 +55,40 @@ def test_regexes_reject_trailing_newline():
     assert NAR_URL_RE.fullmatch(nar_url(P))
     assert not NAR_URL_RE.fullmatch(nar_url(P) + "\n")
     assert not BASENAME_RE.fullmatch(P.rsplit("/", 1)[1] + "\n")
+
+
+def test_compression_parsed():
+    assert parse_narinfo(narinfo_text(P)).compression == "zstd"
+
+
+def _with(compression_line, url_suffix):
+    text = narinfo_text(P).replace("Compression: zstd\n", compression_line)
+    return text.replace(nar_url(P), nar_url(P).removesuffix(".nar.zst") + url_suffix)
+
+
+@pytest.mark.parametrize(
+    "line, suffix, expected",
+    [
+        ("Compression: none\n", ".nar", "none"),
+        ("Compression: xz\n", ".nar.xz", "xz"),
+        ("Compression: bzip2\n", ".nar.bz2", "bzip2"),
+        ("", ".nar.bz2", "bzip2"),  # Nix defaults a missing Compression to bzip2
+    ],
+)
+def test_compression_matching_url_accepted(line, suffix, expected):
+    assert parse_narinfo(_with(line, suffix)).compression == expected
+
+
+@pytest.mark.parametrize(
+    "line, suffix",
+    [
+        ("Compression: xz\n", ".nar.zst"),  # Nix decompresses by the field, not the URL
+        ("Compression: zstd\n", ".nar"),
+        ("", ".nar.zst"),
+        ("Compression: br\n", ".nar.zst"),
+        ("Compression: \n", ".nar.bz2"),
+    ],
+)
+def test_compression_mismatch_rejected(line, suffix):
+    with pytest.raises(NarInfoError, match="Compression"):
+        parse_narinfo(_with(line, suffix))

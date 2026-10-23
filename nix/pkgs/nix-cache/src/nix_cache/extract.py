@@ -8,6 +8,8 @@ duplicates can never reach the filesystem.
 
 from __future__ import annotations
 
+import bz2
+import lzma
 import re
 import shutil
 import subprocess
@@ -19,6 +21,7 @@ NAR_FILE_RE = re.compile(r"nar/[0-9a-df-np-sv-z]{52}\.nar(\.(zst|xz|bz2))?")
 ZSTD = "zstd"
 
 
+READ_CHUNK = 1 << 20
 SLACK_BYTES = 1 << 20  # tar headers and padding on top of the file-data cap
 MAX_MEMBERS = 100_000
 
@@ -121,3 +124,56 @@ def extract_bundle(src: Path, dest: Path, max_unpacked_bytes: int) -> None:
     for required in ("nix-cache-info", "manifest.json"):
         if required not in seen:
             raise BundleError(f"bundle lacks {required}")
+
+
+def _count_nar(stream, path: Path, nar_size: int) -> None:
+    total = 0
+    while True:
+        chunk = stream.read(READ_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > nar_size:
+            raise BundleError(f"{path.name} unpacks to more than its NarSize of {nar_size} bytes")
+    if total != nar_size:
+        raise BundleError(f"{path.name} unpacks to {total} bytes, NarSize says {nar_size}")
+
+
+def check_nar_size(path: Path, compression: str, nar_size: int) -> None:
+    """Stream-decompress one bundled NAR and require exactly nar_size bytes.
+
+    The importer's size guards trust NarSize, which the uploader writes. A
+    NAR with a correct hash can still claim a tiny NarSize while unpacking to
+    gigabytes (a compression bomb), so the claim is checked here, before the
+    daemon writes anything. Counting stops as soon as it passes nar_size;
+    nothing is buffered beyond one chunk.
+    """
+    if compression == "none":
+        with open(path, "rb") as f:
+            _count_nar(f, path, nar_size)
+        return
+    if compression in ("xz", "bzip2"):
+        opener = lzma.open if compression == "xz" else bz2.open
+        try:
+            with opener(path, "rb") as f:
+                _count_nar(f, path, nar_size)
+        except (lzma.LZMAError, OSError, EOFError) as e:
+            raise BundleError(f"{path.name}: corrupt {compression} data: {e}") from e
+        return
+    if compression != "zstd":
+        raise BundleError(f"{path.name}: unsupported compression {compression!r}")
+    proc = subprocess.Popen(
+        [ZSTD, "-dcq", "--", str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    assert proc.stdout is not None and proc.stderr is not None
+    try:
+        _count_nar(proc.stdout, path, nar_size)
+    finally:
+        # On an early stop, closing the pipe makes zstd exit (EPIPE) instead
+        # of decompressing the rest.
+        proc.stdout.close()
+        stderr = proc.stderr.read().decode(errors="replace").strip()
+        proc.stderr.close()
+        returncode = proc.wait()
+    if returncode != 0:
+        raise BundleError(f"{path.name}: zstd failed ({returncode}): {stderr}")

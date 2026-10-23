@@ -11,6 +11,10 @@ STORE_DIR = "/nix/store"
 NAR_URL_RE = re.compile(r"^nar/[0-9a-df-np-sv-z]{52}\.nar(\.(zst|xz|bz2))?$")
 BASENAME_RE = re.compile(r"^[0-9a-df-np-sv-z]{32}-[A-Za-z0-9+._?=-]+$")
 REQUIRED = ("StorePath", "URL", "NarHash", "NarSize")
+# Nix decompresses a NAR by the Compression field (a missing one means
+# bzip2), not by the URL, so the two must agree for the importer's own size
+# check to read the NAR the way the daemon will.
+URL_SUFFIX_BY_COMPRESSION = {"none": ".nar", "zstd": ".nar.zst", "xz": ".nar.xz", "bzip2": ".nar.bz2"}
 
 
 class NarInfoError(ValueError):
@@ -23,6 +27,7 @@ class NarInfo:
     url: str
     nar_hash: str
     nar_size: int
+    compression: str
     references: tuple[str, ...]
     deriver: str | None
     sigs: tuple[str, ...]
@@ -59,6 +64,10 @@ def parse_narinfo(text: str) -> NarInfo:
     if not re.fullmatch(r"[0-9]+", fields["NarSize"]):
         raise NarInfoError(f"bad NarSize {fields['NarSize']!r}")
     nar_size = int(fields["NarSize"])
+    compression = fields.get("Compression", "bzip2")
+    suffix = URL_SUFFIX_BY_COMPRESSION.get(compression)
+    if suffix is None or not url.endswith(suffix):
+        raise NarInfoError(f"Compression {compression!r} does not match NAR URL {url!r}")
     references = []
     for ref in fields.get("References", "").split():
         if not BASENAME_RE.fullmatch(ref):
@@ -76,6 +85,7 @@ def parse_narinfo(text: str) -> NarInfo:
         url=url,
         nar_hash=fields["NarHash"],
         nar_size=nar_size,
+        compression=compression,
         references=tuple(references),
         deriver=deriver,
         sigs=tuple(sigs),

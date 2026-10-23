@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import subprocess
 import tarfile
 from pathlib import Path
@@ -72,7 +73,14 @@ def manifest(roots, paths, set_="gate", arch="x86_64-linux", **extra) -> dict:
     return {"version": 1, "set": set_, "arch": arch, "roots": list(roots), "paths": list(paths), **extra}
 
 
-def bundle_members(manifest_doc: dict, narinfos: dict[str, str]) -> list:
+def nar_bytes(size: int) -> bytes:
+    """A zstd-compressed stand-in NAR that decompresses to exactly size bytes."""
+    return zstd_bytes(b"N" * size)
+
+
+def bundle_members(manifest_doc: dict, narinfos: dict[str, str], nars: dict[str, bytes] | None = None) -> list:
+    """nars overrides the NAR file bytes of a path; by default each NAR is
+    zstd data whose decompressed size matches the narinfo's NarSize."""
     members = [
         file_member("nix-cache-info", b"StoreDir: /nix/store\n"),
         file_member("manifest.json", json.dumps(manifest_doc).encode()),
@@ -81,7 +89,11 @@ def bundle_members(manifest_doc: dict, narinfos: dict[str, str]) -> list:
         members.append(dir_member("nar"))
     for path, text in narinfos.items():
         members.append(file_member(Path(path).name[:32] + ".narinfo", text.encode()))
-        members.append(file_member(nar_url(path), b"NAR!"))
+        if nars and path in nars:
+            data = nars[path]
+        else:
+            data = nar_bytes(int(re.search(r"^NarSize: ([0-9]+)$", text, re.M).group(1)))
+        members.append(file_member(nar_url(path), data))
     return members
 
 

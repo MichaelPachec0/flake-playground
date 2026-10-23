@@ -24,7 +24,7 @@ from . import nixcli
 from .alert import queue_alert
 from .config import Config, RepoConfig, load_config
 from .db import load_hits, open_db
-from .extract import BundleError, extract_bundle
+from .extract import BundleError, check_nar_size, extract_bundle
 from .graph import build_graph, system_closure
 from .lock import locked
 from .manifest import ManifestError, parse_manifest
@@ -91,6 +91,10 @@ def check_size(cfg: Config, infos: dict[str, NarInfo], missing: set[str], now: i
         # Re-pinning paths the host already has never fails on budget or space.
         return
     graph = build_graph(nixcli.path_info(all_paths=True))
+    if not graph:
+        # As in the pruner: an empty store listing means the query is broken,
+        # and protected bytes would wrongly read as 0.
+        raise BundleError("nix path-info --all returned no store paths; refusing to import")
     conn = open_db(cfg.db)
     try:
         hits = load_hits(conn)
@@ -150,6 +154,9 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
             raise BundleError("manifest paths do not match the narinfos in the bundle")
         url = f"file://{d}"
         check_key_binding(infos, repo.trusted_keys, url)
+        # NarSize feeds the size guards below; prove it before trusting it.
+        for info in infos.values():
+            check_nar_size(d / info.url, info.compression, info.nar_size)
         # Every root is a bundled (signed) path or already valid on the host;
         # roots are never substituted. Checked before any realise or copy.
         # Roots served by the own cache count as valid here: if they were

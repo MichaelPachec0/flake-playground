@@ -6,6 +6,8 @@ import pytest
 
 from helpers import (
     bundle_members,
+    nar_bytes,
+    zstd_bytes,
     make_config,
     manifest,
     narinfo_text,
@@ -34,7 +36,8 @@ class FakeNix:
         self.estimates: dict[str, int] = {}
         self.estimated: list[list[str]] = []
         self.estimate_error: str | None = None
-        self.graph: dict[str, dict] = {}
+        # Non-empty by default: the importer refuses an empty store graph.
+        self.graph: dict[str, dict] = {store_path(90, "filler"): {"narSize": 0, "references": [], "registrationTime": 0}}
         self.graph_reads = 0
 
     def invalid_paths(self, paths):
@@ -430,3 +433,38 @@ def test_budget_counts_pinned_and_probed_paths(cfg, fake_nix):
     assert [r.read_text() for r in reasons] == [
         "bundle would add 4 bytes to 997 protected bytes, over the budget of 1000\n"
     ]
+
+
+# --- NAR sizes are checked before anything trusts NarSize -----------------
+
+
+def test_nar_bomb_is_rejected_before_any_import(cfg, fake_nix):
+    # Correct hash and a tiny NarSize would slip past both size guards; the
+    # decompressed NAR is counted against NarSize before check_size and copy.
+    drop(cfg, bundle_members(
+        manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=10)}, nars={A: zstd_bytes(bytes(1 << 20))},
+    ))
+    rejected(cfg, fake_nix, "more than its NarSize of 10")
+    assert fake_nix.estimated == [] and fake_nix.graph_reads == 0
+    no_import(fake_nix)
+
+
+def test_nar_shorter_than_nar_size_is_rejected(cfg, fake_nix):
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=10)}, nars={A: nar_bytes(9)}))
+    rejected(cfg, fake_nix, "9 bytes, NarSize says 10")
+    no_import(fake_nix)
+
+
+def test_nar_matching_nar_size_is_accepted(cfg, fake_nix):
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=10)}, nars={A: nar_bytes(10)}))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert fake_nix.copied == [A]
+
+
+def test_empty_store_graph_rejects(cfg, fake_nix):
+    # Mirror the pruner: an empty path-info --all means the store query is
+    # broken, so protected bytes cannot be trusted to be 0.
+    fake_nix.graph = {}
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "nix path-info --all returned no store paths")
+    no_import(fake_nix)
