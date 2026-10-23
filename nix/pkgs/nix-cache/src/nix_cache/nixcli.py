@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from collections.abc import Iterable, Iterator
 
@@ -24,12 +25,21 @@ class NixError(RuntimeError):
     """A nix command exited non-zero."""
 
 
-def _run(argv: list[str], stdin: str | None = None) -> str:
+def _exec(argv: list[str], stdin: str | None = None) -> subprocess.CompletedProcess:
     proc = subprocess.run(argv, input=stdin, capture_output=True, text=True)
     if proc.returncode != 0:
         shown = " ".join(argv[:4])
         raise NixError(f"{shown} ... failed ({proc.returncode}): {proc.stderr.strip()[-2000:]}")
-    return proc.stdout
+    return proc
+
+
+def _run(argv: list[str], stdin: str | None = None) -> str:
+    return _exec(argv, stdin).stdout
+
+
+def _run_stderr(argv: list[str]) -> str:
+    """For commands that print their report on stderr (nix-store --dry-run)."""
+    return _exec(argv).stderr
 
 
 def _chunks(items: list[str]) -> Iterator[list[str]]:
@@ -65,6 +75,53 @@ def realise(paths: Iterable[str]) -> None:
     """Substitute store paths (they have no derivation here, so nothing is built)."""
     for chunk in _chunks(sorted(set(_checked(paths)))):
         _run([NIX_STORE, "--realise", *chunk])
+
+
+# printMissing (libmain/shared.cc, Nix 2.34) with sizes from renderSize: one
+# decimal and a binary unit, never below KiB ("0.1 KiB" for 100 bytes).
+_SIZE = r"([0-9]+)\.([0-9]) ([KMGTPEZY])iB"
+FETCH_SUMMARY_RE = re.compile(
+    rf"(?:this path|these [0-9]+ paths) will be fetched \({_SIZE} download, {_SIZE} unpacked\):"
+)
+_UNIT_POWER = {u: i + 1 for i, u in enumerate("KMGTPEZY")}
+# "warning: ..." lines (e.g. an ignored substituter) do not change the report.
+_HARMLESS_RE = re.compile(r"warning: .*")
+
+
+def _size_up(whole: str, tenth: str, unit: str) -> int:
+    """Bytes of a renderSize value, rounded up: it may hide up to half a tenth."""
+    tenths = int(whole) * 10 + int(tenth)
+    scale = 1024 ** _UNIT_POWER[unit]
+    return -(-(2 * tenths + 1) * scale // 20)
+
+
+def _parse_dry_run(report: str) -> int:
+    total = 0
+    for line in report.splitlines():
+        if not line.strip() or _HARMLESS_RE.fullmatch(line):
+            continue
+        if line.startswith("  ") and STORE_PATH_RE.fullmatch(line[2:]):
+            continue
+        m = FETCH_SUMMARY_RE.fullmatch(line)
+        if m is None:
+            # Builds, unknown paths and anything unexpected: fail closed.
+            raise NixError(f"unexpected nix-store --dry-run output: {line[:300]!r}")
+        total += _size_up(*m.group(4, 5, 6))
+    return total
+
+
+def fetch_estimate(paths: Iterable[str]) -> int:
+    """Bytes (NAR size, rounded up) the store would grow by if paths were realised.
+
+    Goes through the daemon like realise, so it works without network access
+    in this process. print-missing is forced on: with it off, nix-store
+    prints nothing and the estimate would silently read as 0.
+    """
+    total = 0
+    for chunk in _chunks(sorted(set(_checked(paths)))):
+        report = _run_stderr([NIX_STORE, "--option", "print-missing", "true", "--realise", "--dry-run", *chunk])
+        total += _parse_dry_run(report)
+    return total
 
 
 def _full(path: str) -> str:
