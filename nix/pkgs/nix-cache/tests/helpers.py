@@ -42,3 +42,51 @@ def narinfo_text(path, *, references=(), sigs=("vmtest-repo-1:c2ln",), deriver=N
         lines.append(f"Deriver: {Path(deriver).name}")
     lines += [f"Sig: {s}" for s in sigs]
     return "\n".join(lines) + "\n"
+
+
+def file_member(name: str, data: bytes) -> tuple[tarfile.TarInfo, bytes]:
+    info = tarfile.TarInfo(name)
+    info.size = len(data)
+    return info, data
+
+
+def dir_member(name: str) -> tuple[tarfile.TarInfo, None]:
+    info = tarfile.TarInfo(name)
+    info.type = tarfile.DIRTYPE
+    return info, None
+
+
+def tar_bytes(members) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for info, data in members:
+            tar.addfile(info, io.BytesIO(data) if data is not None else None)
+    return buf.getvalue()
+
+
+def zstd_bytes(data: bytes) -> bytes:
+    return subprocess.run(["zstd", "-q", "-c"], input=data, capture_output=True, check=True).stdout
+
+
+def manifest(roots, paths, set_="gate", arch="x86_64-linux", **extra) -> dict:
+    return {"version": 1, "set": set_, "arch": arch, "roots": list(roots), "paths": list(paths), **extra}
+
+
+def bundle_members(manifest_doc: dict, narinfos: dict[str, str]) -> list:
+    members = [
+        file_member("nix-cache-info", b"StoreDir: /nix/store\n"),
+        file_member("manifest.json", json.dumps(manifest_doc).encode()),
+    ]
+    if narinfos:
+        members.append(dir_member("nar"))
+    for path, text in narinfos.items():
+        members.append(file_member(Path(path).name[:32] + ".narinfo", text.encode()))
+        members.append(file_member(nar_url(path), b"NAR!"))
+    return members
+
+
+def write_bundle(directory: Path, members, name: str = "1700000000-1.tar.zst") -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / name
+    path.write_bytes(zstd_bytes(tar_bytes(members)))
+    return path
