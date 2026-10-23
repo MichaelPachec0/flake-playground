@@ -13,6 +13,7 @@ nix-cache-htpasswd-entry = "nix_cache.htpasswd:main"
 nix-cache-alert = "nix_cache.alert:main"
 cache-importer = "nix_cache.importer:main"
 cache-pruner = "nix_cache.pruner:main"
+nix-cache-bundle = "nix_cache.bundle:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
