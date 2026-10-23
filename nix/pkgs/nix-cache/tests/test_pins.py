@@ -72,3 +72,62 @@ def test_delete_last_pin_removes_namespace(tmp_path):
     delete_pin(tmp_path, only)
     assert latest_stamps(tmp_path) == {}
     assert not (tmp_path / "flake-playground").exists()
+
+
+@pytest.mark.parametrize("bad", ["/etc", "", "/", "/nix/store/../../x", "relative"])
+def test_pin_rejects_non_store_roots(tmp_path, bad):
+    with pytest.raises(ValueError):
+        pin(tmp_path, NS, [A, bad], 1)
+    assert not tmp_path.exists() or list(tmp_path.iterdir()) == []
+
+
+def test_pin_dedupes_roots(tmp_path):
+    p = pin(tmp_path, NS, [A, A, B], 1)
+    assert p.targets == (A, B)
+    assert len(list(p.path.iterdir())) == 2
+
+
+def test_failed_pin_leaves_no_tmp_and_stale_tmp_swept(tmp_path, monkeypatch):
+    import nix_cache.pins as pins
+
+    def boom(*a, **k):
+        raise OSError("boom")
+
+    monkeypatch.setattr(pins.os, "symlink", boom)
+    with pytest.raises(OSError):
+        pin(tmp_path, NS, [A], 100)
+    base = NS.dir(tmp_path)
+    assert list(base.iterdir()) == []
+    monkeypatch.undo()
+    (base / ".5.tmp").mkdir()
+    (base / ".5.tmp" / "x").symlink_to(A)
+    (base / ".6.del").mkdir()
+    pin(tmp_path, NS, [A], 100)
+    assert sorted(e.name for e in base.iterdir()) == ["100", "latest"]
+
+
+def test_delete_ignores_stale_tmp_for_namespace_removal(tmp_path):
+    only = pin(tmp_path, NS, [A], 100)
+    (NS.dir(tmp_path) / ".7.tmp").mkdir()
+    delete_pin(tmp_path, only)
+    assert not (tmp_path / "flake-playground").exists()
+
+
+def test_delete_leaves_no_del_dir_and_latest_valid(tmp_path):
+    pin(tmp_path, NS, [A], 100)
+    newest = pin(tmp_path, NS, [B], 200)
+    delete_pin(tmp_path, newest)
+    base = NS.dir(tmp_path)
+    assert sorted(e.name for e in base.iterdir()) == ["100", "latest"]
+    assert (base / "latest").resolve() == (base / "100").resolve()
+
+
+def test_latest_stamps_falls_back_when_missing_or_dangling(tmp_path):
+    pin(tmp_path, NS, [A], 100)
+    p2 = pin(tmp_path, NS, [B], 200)
+    latest = NS.dir(tmp_path) / "latest"
+    latest.unlink()
+    assert latest_stamps(tmp_path) == {NS: 200}
+    os.symlink("999", latest)
+    assert latest_stamps(tmp_path) == {NS: 200}
+    assert p2.stamp == 200

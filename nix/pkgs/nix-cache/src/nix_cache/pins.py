@@ -17,6 +17,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from nix_cache.manifest import STORE_PATH_RE
+
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 ARCH_RE = re.compile(r"[a-z0-9_]+-[a-z]+")
 
@@ -59,23 +61,42 @@ def _set_latest(base: Path, stamp: int) -> None:
     os.replace(tmp, base / "latest")
 
 
+def _sweep(base: Path) -> None:
+    """Remove stale temp dirs left by a crashed pin() or delete_pin()."""
+    for e in base.iterdir():
+        if e.name.startswith(".") and (e.name.endswith(".tmp") or e.name.endswith(".del")):
+            if e.is_dir() and not e.is_symlink():
+                shutil.rmtree(e, ignore_errors=True)
+            elif e.name != ".latest.tmp":
+                continue
+            else:
+                e.unlink()
+
+
 def pin(pins_dir: Path, ns: Namespace, roots, now: int) -> Pin:
     _check(ns)
+    roots = sorted(set(roots))
+    for root in roots:
+        if not isinstance(root, str) or not STORE_PATH_RE.fullmatch(root):
+            raise ValueError(f"not a store path: {root!r}")
     base = ns.dir(pins_dir)
     base.mkdir(parents=True, exist_ok=True)
+    _sweep(base)
     stamp = now
     while (base / str(stamp)).exists():
         stamp += 1
     tmp = base / f".{stamp}.tmp"
-    if tmp.exists():
-        shutil.rmtree(tmp)
     tmp.mkdir()
-    for root in roots:
-        os.symlink(root, tmp / Path(root).name)
-    final = base / str(stamp)
-    os.rename(tmp, final)
+    try:
+        for root in roots:
+            os.symlink(root, tmp / Path(root).name)
+        final = base / str(stamp)
+        os.rename(tmp, final)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     _set_latest(base, stamp)
-    return Pin(ns, stamp, final, tuple(sorted(roots)))
+    return Pin(ns, stamp, final, tuple(roots))
 
 
 def _subdirs(path: Path) -> list[Path]:
@@ -100,27 +121,42 @@ def list_pins(pins_dir: Path) -> list[Pin]:
     return sorted(pins, key=lambda p: (p.namespace, p.stamp))
 
 
+def _stamps(base: Path) -> list[int]:
+    return [int(e.name) for e in _subdirs(base) if e.name.isdigit()]
+
+
 def latest_stamps(pins_dir: Path) -> dict[Namespace, int]:
     result: dict[Namespace, int] = {}
     for repo in _subdirs(pins_dir):
         for set_ in _subdirs(repo):
             for arch in _subdirs(set_):
+                ns = Namespace(repo.name, set_.name, arch.name)
                 link = arch / "latest"
-                if link.is_symlink() and os.readlink(link).isdigit():
-                    result[Namespace(repo.name, set_.name, arch.name)] = int(os.readlink(link))
+                if link.is_symlink():
+                    target = os.readlink(link)
+                    if target.isdigit() and (arch / target).is_dir():
+                        result[ns] = int(target)
+                        continue
+                stamps = _stamps(arch)
+                if stamps:
+                    result[ns] = max(stamps)
     return result
 
 
 def delete_pin(pins_dir: Path, p: Pin) -> None:
-    shutil.rmtree(p.path)
     base = p.namespace.dir(pins_dir)
     latest = base / "latest"
-    if latest.is_symlink() and not (base / os.readlink(latest)).is_dir():
-        remaining = [int(e.name) for e in _subdirs(base) if e.name.isdigit()]
-        if remaining:
-            _set_latest(base, max(remaining))
-        else:
-            latest.unlink()
+    others = [s for s in _stamps(base) if s != p.stamp]
+    if others:
+        _set_latest(base, max(others))
+    elif latest.is_symlink():
+        latest.unlink()
+    doomed = base / f".{p.stamp}.del"
+    if doomed.exists():
+        shutil.rmtree(doomed)
+    os.rename(p.path, doomed)
+    shutil.rmtree(doomed)
+    _sweep(base)
     d = base
     while d != pins_dir and d.is_dir() and not any(d.iterdir()):
         d.rmdir()
