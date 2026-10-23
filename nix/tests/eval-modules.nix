@@ -313,9 +313,10 @@ in {
       && lib.elem c.nix.package c.systemd.services.cache-pruner.path
       && lib.elem c.nix.package c.systemd.services.cache-importer-flake-playground.path
       && lib.all (s: lib.elem "/nix/var/nix/gcroots/cache" c.systemd.services.${s}.serviceConfig.ReadWritePaths) ["cache-pruner" "cache-importer-flake-playground"]
-      # Both hold the shared lock: a hung run must time out and alert.
+      # All three hold the shared lock: a hung run must time out and alert.
       && c.systemd.services.cache-importer-flake-playground.serviceConfig.TimeoutStartSec == "2h"
       && c.systemd.services.cache-pruner.serviceConfig.TimeoutStartSec == "3h"
+      && c.systemd.services.cache-gc.serviceConfig.TimeoutStartSec == "1h"
       && lib.elem "f /var/lib/nix-cache/lock 0600 nix-cache nix-cache -" c.systemd.tmpfiles.rules
       && c.services.harmonia.cache.enable
       && c.services.harmonia.cache.signKeyPaths == []

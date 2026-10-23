@@ -59,6 +59,11 @@ in {
         Nice = 19;
         IOSchedulingClass = "idle";
         ExecStart = "${pkgs.util-linux}/bin/flock /var/lib/nix-cache/lock ${config.nix.package}/bin/nix-store --gc";
+        # GC holds the shared lock too. A hung run must fail (and alert)
+        # instead of starving imports until the importer's own 2h timeout.
+        # Stopping mid-run is safe: paths already deleted stay deleted and
+        # the next pruner pass collects the rest.
+        TimeoutStartSec = "1h";
       };
     };
   };
