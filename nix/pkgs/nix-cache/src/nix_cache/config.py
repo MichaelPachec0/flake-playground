@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from .manifest import SET_RE
+
 KEY_RE = re.compile(r"[A-Za-z0-9._-]+:[A-Za-z0-9+/]+={0,2}")
 
 
@@ -19,6 +21,24 @@ def _keys(name: str, keys: object) -> tuple[str, ...]:
     return tuple(keys)
 
 
+def _sets(name: str, sets: object) -> tuple[str, ...]:
+    # The only namespaces a repo's bundles may pin under. Bundles that carry
+    # no paths need no signature, so this list is what bounds the namespaces
+    # (each one "latest is always kept" while active) an upload key can make.
+    if not isinstance(sets, list) or not sets:
+        raise ValueError(f"repo {name!r}: allowed_sets must be a non-empty list")
+    for s in sets:
+        if not isinstance(s, str) or not SET_RE.fullmatch(s):
+            raise ValueError(f"repo {name!r}: invalid set name {s!r} in allowed_sets")
+    return tuple(sets)
+
+
+def _positive(name: str, field: str, value: object) -> int:
+    if type(value) is not int or value < 1:
+        raise ValueError(f"repo {name!r}: {field} must be a positive integer, got {value!r}")
+    return value
+
+
 @dataclass(frozen=True)
 class RepoConfig:
     name: str
@@ -27,6 +47,8 @@ class RepoConfig:
     max_bundle_bytes: int
     max_unpacked_bytes: int
     max_pending: int
+    max_roots: int
+    allowed_sets: tuple[str, ...]
     upload_key_expiry: tuple[str, ...]
 
     @property
@@ -88,6 +110,8 @@ def load_config(path: Path) -> Config:
             max_bundle_bytes=int(r["max_bundle_bytes"]),
             max_unpacked_bytes=int(r["max_unpacked_bytes"]),
             max_pending=int(r["max_pending"]),
+            max_roots=_positive(name, "max_roots", r.get("max_roots")),
+            allowed_sets=_sets(name, r.get("allowed_sets")),
             upload_key_expiry=tuple(r.get("upload_key_expiry", [])),
         )
         for name, r in data["repos"].items()

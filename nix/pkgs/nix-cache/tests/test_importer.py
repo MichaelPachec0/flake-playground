@@ -150,6 +150,39 @@ def test_upstream_root_is_substituted(cfg, fake_nix):
     assert [p.targets for p in list_pins(cfg.pins_dir)] == [(GLIBC,)]
 
 
+def test_rejects_set_not_allowed_for_repo(cfg, fake_nix):
+    # Path-less bundles need no signature, so the set allowlist is what bounds
+    # how many namespaces an upload-key holder can create.
+    fake_nix.valid.add(A)
+    drop(cfg, bundle_members(manifest([A], [], set_="other"), {}))
+    rejected(cfg, fake_nix, "set 'other' is not allowed for flake-playground (allowed: gate, many)")
+
+
+def test_allowed_sets_are_accepted(cfg, fake_nix):
+    fake_nix.valid.add(A)
+    drop(cfg, bundle_members(manifest([A], [], set_="many"), {}))
+    importer.run(cfg, "flake-playground", now=1000)
+    [p] = list_pins(cfg.pins_dir)
+    assert str(p.namespace) == "flake-playground/many/x86_64-linux"
+
+
+def test_rejects_more_roots_than_max_roots(cfg, fake_nix):
+    roots = [store_path(100 + i, f"r{i}") for i in range(9)]  # max_roots is 8 in make_config
+    fake_nix.valid.update(roots)
+    drop(cfg, bundle_members(manifest(roots, []), {}))
+    rejected(cfg, fake_nix, "9 roots, cap is 8")
+    assert fake_nix.realised == []
+
+
+def test_max_roots_is_inclusive(cfg, fake_nix):
+    roots = [store_path(100 + i, f"r{i}") for i in range(8)]
+    fake_nix.valid.update(roots)
+    drop(cfg, bundle_members(manifest(roots, []), {}))
+    importer.run(cfg, "flake-playground", now=1000)
+    [p] = list_pins(cfg.pins_dir)
+    assert len(p.targets) == 8
+
+
 def test_forged_repo_field_is_ignored(cfg, fake_nix):
     drop(cfg, bundle_members(manifest([A], [A], repo="someone-else"), {A: narinfo_text(A, sigs=REPO_SIG)}))
     importer.run(cfg, "flake-playground", now=1000)

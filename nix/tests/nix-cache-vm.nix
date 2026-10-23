@@ -69,6 +69,8 @@ in
         repos.vmtest = {
           uid = 2001;
           signingPublicKeys = [repoPublic];
+          # Every set the test pushes to; "other" is pushed to prove rejection.
+          sets = ["gate" "many" "forged"];
           uploadKeys = [
             {
               key = sshKeys.snakeOilPublicKey;
@@ -331,10 +333,17 @@ in
           # A wrong-key signature relabelled with the repo key's name: only the
           # daemon-side crypto check (nix store verify) can catch it.
           push(bundle("x", key="/etc/nix-cache-vm/wrong.sk", tamper="s/^Sig: vmtest-wrong-1:/Sig: vmtest-repo-1:/"))
+          # A path-less bundle (A is already cached) needs no signature, so
+          # only the repo's set allowlist stops it from opening a namespace.
+          other = bundle("a", set_="other")
+          assert ci.succeed(f"jq '.paths | length' {other}/manifest.json").strip() == "0"
+          push(other)
           wait_imported()
-          assert len(reasons()) == 3, reasons()
+          assert len(reasons()) == 4, reasons()
           selene.succeed(f"grep -l 'carry no signature' {DROP}/failed/*.reason | wc -l | grep -qx 2")
           selene.succeed(f"grep -q 'signature or content check failed' {DROP}/failed/*.reason")
+          selene.succeed(f"grep -q \"set 'other' is not allowed for vmtest\" {DROP}/failed/*.reason")
+          selene.fail(f"test -e {PINS}/other")
           assert selene.succeed(f"readlink {PINS}/gate/x86_64-linux/latest") == before
           for p in ["${payloadU}", "${payloadW}", "${payloadX}"]:
               assert not valid(selene, p)

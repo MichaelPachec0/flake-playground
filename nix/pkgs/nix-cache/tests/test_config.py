@@ -20,6 +20,8 @@ def test_load_config(tmp_path):
     assert cfg.deferred == cfg.state_dir / "alerts-deferred"
     assert cfg.db == cfg.state_dir / "stats.sqlite"
     assert cfg.work_dir == cfg.state_dir / "work"
+    assert repo.allowed_sets == ("gate", "many")
+    assert repo.max_roots == 8
 
 
 def _with_keys(tmp_path, keys):
@@ -34,3 +36,32 @@ def _with_keys(tmp_path, keys):
 def test_bad_trusted_keys_rejected(tmp_path, keys):
     with pytest.raises(ValueError, match="trusted"):
         load_config(_with_keys(tmp_path, keys))
+
+
+def _with_repo(tmp_path, **fields):
+    files = write_config(tmp_path)
+    data = json.loads(files["config"].read_text())
+    data["repos"]["flake-playground"].update(fields)
+    files["config"].write_text(json.dumps(data))
+    return files["config"]
+
+
+@pytest.mark.parametrize("sets", [[], "gate", ["gate", ""], ["Gate"], ["-gate"], ["gate\n"], ["a/b"], [5], None])
+def test_bad_allowed_sets_rejected(tmp_path, sets):
+    with pytest.raises(ValueError, match="allowed_sets"):
+        load_config(_with_repo(tmp_path, allowed_sets=sets))
+
+
+def test_missing_allowed_sets_rejected(tmp_path):
+    files = write_config(tmp_path)
+    data = json.loads(files["config"].read_text())
+    del data["repos"]["flake-playground"]["allowed_sets"]
+    files["config"].write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="allowed_sets"):
+        load_config(files["config"])
+
+
+@pytest.mark.parametrize("max_roots", [0, -1, "8", 1.5, True, None])
+def test_bad_max_roots_rejected(tmp_path, max_roots):
+    with pytest.raises(ValueError, match="max_roots"):
+        load_config(_with_repo(tmp_path, max_roots=max_roots))

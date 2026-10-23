@@ -84,6 +84,25 @@ inputs: {
         default = 16;
         description = "Bundles waiting beyond this many are rejected instead of filling the disk.";
       };
+      sets = mkOption {
+        type = types.nonEmptyListOf (types.strMatching "[a-z0-9][a-z0-9-]*");
+        example = ["gate" "bump-flake-lock"];
+        description = ''
+          Set names (cache namespaces) this repo's bundles may pin under; a
+          bundle naming any other set is rejected. No default: a bundle that
+          carries no paths needs no signature, so this list is what bounds
+          the namespaces an upload key can create (the latest pin of each
+          active namespace is always kept).
+        '';
+      };
+      maxRoots = mkOption {
+        type = types.ints.positive;
+        default = 64;
+        description = ''
+          Most roots one bundle may name; bundles naming more are rejected.
+          Bounds what one upload can ask this host to substitute and pin.
+        '';
+      };
     };
   };
 
@@ -316,6 +335,8 @@ in {
           max_bundle_bytes = r.maxBundleBytes;
           max_unpacked_bytes = r.maxUnpackedBytes;
           max_pending = r.maxPending;
+          max_roots = r.maxRoots;
+          allowed_sets = r.sets;
           upload_key_expiry = map (k: k.expires) r.uploadKeys;
         })
         cfg.repos;

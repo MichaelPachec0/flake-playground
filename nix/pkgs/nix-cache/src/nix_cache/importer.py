@@ -74,6 +74,17 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         if not (d / "manifest.json").is_file():
             raise BundleError("bundle has no manifest.json")
         manifest = parse_manifest((d / "manifest.json").read_text())
+        # Checked before anything is verified or realised. A bundle without
+        # paths needs no signature, so these two caps are what limit an
+        # upload-key holder to the repo's own namespaces and a bounded number
+        # of roots per bundle.
+        if manifest.set not in repo.allowed_sets:
+            raise BundleError(
+                f"set {manifest.set!r} is not allowed for {repo.name}"
+                f" (allowed: {', '.join(repo.allowed_sets)})"
+            )
+        if len(manifest.roots) > repo.max_roots:
+            raise BundleError(f"bundle names {len(manifest.roots)} roots, cap is {repo.max_roots}")
         infos = load_narinfos(d)
         if set(manifest.paths) != set(infos):
             raise BundleError("manifest paths do not match the narinfos in the bundle")

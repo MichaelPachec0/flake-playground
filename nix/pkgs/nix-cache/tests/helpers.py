@@ -112,6 +112,8 @@ def write_config(tmp_path: Path, **overrides) -> dict[str, Path]:
                 "max_bundle_bytes": 1 << 20,
                 "max_unpacked_bytes": 4 << 20,
                 "max_pending": 4,
+                "max_roots": 8,
+                "allowed_sets": ["gate", "many"],
                 "upload_key_expiry": ["20991231"],
             }
         },

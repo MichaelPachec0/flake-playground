@@ -42,6 +42,7 @@
       repos.flake-playground = {
         uid = 2001;
         signingPublicKeys = ["vmtest-repo-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="];
+        sets = ["gate" "bump-flake-lock"];
         uploadKeys = [
           {
             key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVtZXN0IGtleSBmb3IgZXZhbCBjaGVja3Mgb25seQ ci";
@@ -330,8 +331,13 @@ in {
       # Rotation the pruner can follow: rename + reopen, <log>.1 uncompressed.
       && !(c.services.logrotate.settings.nginx.copytruncate or false)
       && c.services.logrotate.settings.nginx.delaycompress
-      && !(c.services.logrotate.settings.header.dateext or false);
-    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group and log rotation must be configured, and an explicit allowed-users must not warn";
+      && !(c.services.logrotate.settings.header.dateext or false)
+      # The importer's per-repo caps: allowed set names and roots per bundle.
+      && (let
+        repo = (builtins.fromJSON c.services.nix-cache-host.configFile.text).repos.flake-playground;
+      in
+        repo.allowed_sets == ["gate" "bump-flake-lock"] && repo.max_roots == 64);
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation and the importer's set allowlist and root cap must be configured, and an explicit allowed-users must not warn";
   };
   # fail2ban on: only the guess jail (unknown token users), with escalating
   # bans, and fail2ban waits for nginx to create the error log.
@@ -389,13 +395,22 @@ in {
   # Option types that keep secrets out of the store and keep authorized_keys
   # to one restricted line per key: each override must fail to evaluate.
   nixos-nix-cache-host-rejects-unsafe-input = let
-    rejects = override: sel: let
+    rejectsIn = base: override: sel: let
       sys = lib.nixosSystem {
         inherit system;
-        modules = [nixosModules.nix-cache-host nixosStub nixCacheHostCfg override];
+        modules = [nixosModules.nix-cache-host nixosStub base override];
       };
     in
       !(builtins.tryEval (builtins.deepSeq (sel sys.config.services.nix-cache-host) true)).success;
+    rejects = rejectsIn nixCacheHostCfg;
+    # The base config without repos.flake-playground.sets (it has no default).
+    withoutSets = lib.recursiveUpdate (removeAttrs nixCacheHostCfg ["services"]) {
+      services.nix-cache-host =
+        nixCacheHostCfg.services.nix-cache-host
+        // {repos.flake-playground = removeAttrs nixCacheHostCfg.services.nix-cache-host.repos.flake-playground ["sets"];};
+    };
+    sets = h: h.repos.flake-playground.sets;
+    badSets = v: {services.nix-cache-host.repos.flake-playground.sets = lib.mkForce v;};
     badKey = key: {
       services.nix-cache-host.repos.flake-playground.uploadKeys = [
         {
@@ -420,8 +435,14 @@ in {
       && rejects {services.nix-cache-host.alerts.command = "/bin/a;b";} (h: h.alerts.command)
       && rejects {services.nix-cache-host.alerts.command = "notify";} (h: h.alerts.command)
       && !(rejects {services.nix-cache-host.alerts.command = "/run/current-system/sw/bin/ntfy-alert";} (h: h.alerts.command))
-      && !(rejects {} (h: [(keys h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
-    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, and alert commands that are not one absolute path, must be rejected";
+      && rejectsIn withoutSets {} sets
+      && rejects (badSets []) sets
+      && rejects (badSets ["Gate"]) sets
+      && rejects (badSets ["a/b"]) sets
+      && rejects (badSets ["-gate"]) sets
+      && rejects {services.nix-cache-host.repos.flake-playground.maxRoots = 0;} (h: h.repos.flake-playground.maxRoots)
+      && !(rejects {} (h: [(keys h) (sets h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
+    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, alert commands that are not one absolute path, and missing, empty or malformed repo set lists must be rejected";
       pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-unsafe-input" {} "touch $out";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
