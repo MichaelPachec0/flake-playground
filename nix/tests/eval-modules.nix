@@ -338,10 +338,14 @@ in {
       && !(c.services.logrotate.settings.header.dateext or false)
       # The importer's per-repo caps: allowed set names and roots per bundle.
       && (let
-        repo = (builtins.fromJSON c.services.nix-cache-host.configFile.text).repos.flake-playground;
+        json = builtins.fromJSON c.services.nix-cache-host.configFile.text;
+        repo = json.repos.flake-playground;
       in
-        repo.allowed_sets == ["gate" "bump-flake-lock"] && repo.max_roots == 64);
-    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation, importer/pruner start timeouts and the importer's set allowlist and root cap must be configured, and an explicit allowed-users must not warn";
+        repo.allowed_sets == ["gate" "bump-flake-lock"]
+        && repo.max_roots == 64
+        # The importer's free-space floor (default 10 GiB).
+        && json.import_min_free_bytes == 10737418240);
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation, importer/pruner start timeouts and the importer's set allowlist, root cap and free-space floor must be configured, and an explicit allowed-users must not warn";
   };
   # fail2ban on: only the guess jail (unknown token users), with escalating
   # bans, and fail2ban waits for nginx to create the error log.

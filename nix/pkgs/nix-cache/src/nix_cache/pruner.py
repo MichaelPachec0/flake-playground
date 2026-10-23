@@ -23,7 +23,7 @@ from .accesslog import ingest
 from .alert import queue_alert, requeue
 from .config import Config, load_config
 from .db import load_hits, mark_notice, notice_seen, open_db, prune_paths
-from .graph import build_graph, closure, store_hash
+from .graph import build_graph, store_hash, system_closure
 from .lock import locked
 from .pins import delete_pin, latest_stamps, list_pins, sweep_all
 from .retention import Policy, RetentionPlan, plan_retention
@@ -62,10 +62,6 @@ def write_keep(gcroots_dir: Path, tops, now: int) -> Path:
         if old != final and old.is_dir():
             shutil.rmtree(old)
     return final
-
-
-def system_closure(graph, roots) -> set[str]:
-    return closure(graph, [os.path.realpath(r) for r in roots if os.path.exists(r)])
 
 
 def _once(conn: sqlite3.Connection, cfg: Config, key: str, now: int, title: str, body: str) -> None:
@@ -116,10 +112,8 @@ def run(
     active_days: int | None = None,
 ) -> dict:
     now = now if now is not None else int(time.time())
-    policy = Policy(
-        budget_bytes=cfg.budget_bytes if budget_bytes is None else budget_bytes,
-        active_seconds=86400 * (cfg.active_days if active_days is None else active_days),
-        protect_seconds=3600 * (cfg.protect_hours if protect_hours is None else protect_hours),
+    policy = Policy.from_config(
+        cfg, budget_bytes=budget_bytes, active_days=active_days, protect_hours=protect_hours
     )
     with locked(cfg.lock_file):
         requeue(cfg.deferred, cfg.spool)

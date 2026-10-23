@@ -1,5 +1,6 @@
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -30,6 +31,11 @@ class FakeNix:
         self.verified: list[tuple] = []
         self.verify_error: str | None = None
         self.unsubstitutable: set[str] = set()
+        self.estimates: dict[str, int] = {}
+        self.estimated: list[list[str]] = []
+        self.estimate_error: str | None = None
+        self.graph: dict[str, dict] = {}
+        self.graph_reads = 0
 
     def invalid_paths(self, paths):
         return {p for p in paths if p not in self.valid}
@@ -41,6 +47,21 @@ class FakeNix:
         self.realised.extend(sorted(paths))
         self.valid.update(paths)
 
+    def fetch_estimate(self, paths):
+        # Like nix-store --dry-run: an unsubstitutable path is "unknown" and fails.
+        self.estimated.append(sorted(paths))
+        if self.estimate_error:
+            raise NixError(self.estimate_error)
+        bad = set(paths) & self.unsubstitutable
+        if bad:
+            raise NixError(f"don't know how to build {sorted(bad)[0]}")
+        return sum(self.estimates.get(p, 0) for p in paths)
+
+    def path_info(self, paths=(), *, all_paths=False, **kw):
+        assert all_paths
+        self.graph_reads += 1
+        return self.graph
+
     def verify_sigs(self, url, paths, keys):
         self.verified.append((url, list(paths), list(keys)))
         if self.verify_error:
@@ -51,11 +72,26 @@ class FakeNix:
         self.valid.update(paths)
 
 
+class FakeFs:
+    def __init__(self):
+        self.free = 1 << 50
+        self.error: OSError | None = None
+        self.paths: list[str] = []
+
+    def statvfs(self, path):
+        self.paths.append(path)
+        if self.error:
+            raise self.error
+        return SimpleNamespace(f_bavail=self.free, f_frsize=1, f_blocks=1 << 51)
+
+
 @pytest.fixture
 def fake_nix(monkeypatch):
     fake = FakeNix()
-    for name in ("invalid_paths", "realise", "verify_sigs", "copy_no_recursive"):
+    for name in ("invalid_paths", "realise", "fetch_estimate", "path_info", "verify_sigs", "copy_no_recursive"):
         monkeypatch.setattr(nixcli, name, getattr(fake, name))
+    fake.fs = FakeFs()
+    monkeypatch.setattr(os, "statvfs", fake.fs.statvfs)
     return fake
 
 
@@ -272,3 +308,125 @@ def test_failed_entries_expire_after_7_days(cfg, fake_nix):
 
 def test_main_unknown_repo(cfg, capsys, tmp_path):
     assert importer.main(["--config", str(tmp_path / "config.json"), "--repo", "nope"]) == 2
+
+
+# --- size guards (budget, free-space floor) -------------------------------
+# make_config: budget_bytes 1000, import_min_free_bytes 10 GiB, protect 24 h.
+FLOOR = 10 << 30
+X = store_path(9, "x")  # already on the host, freshly registered: protected
+
+
+def fresh(size, now=1000):
+    return {"narSize": size, "references": [], "deriver": None, "registrationTime": now}
+
+
+def no_import(fake_nix):
+    assert fake_nix.realised == [] and fake_nix.copied == []
+
+
+def test_unsubstitutable_outside_reference_is_rejected(cfg, fake_nix):
+    fake_nix.unsubstitutable.add(GLIBC)
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "outside the bundle")
+    no_import(fake_nix)
+
+
+def test_over_budget_is_rejected_before_any_download(cfg, fake_nix):
+    fake_nix.estimates[GLIBC] = 600
+    fake_nix.graph = {X: fresh(397)}
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "bundle would add 604 bytes to 397 protected bytes, over the budget of 1000")
+    assert fake_nix.estimated == [[GLIBC]]
+    no_import(fake_nix)
+
+
+def test_exactly_at_budget_is_accepted(cfg, fake_nix):
+    fake_nix.estimates[GLIBC] = 600
+    fake_nix.graph = {X: fresh(396)}
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert fake_nix.realised == [GLIBC] and fake_nix.copied == [A]
+    assert [p.targets for p in list_pins(cfg.pins_dir)] == [(A,)]
+
+
+def test_free_space_floor_breach_is_rejected(cfg, fake_nix):
+    fake_nix.estimates[GLIBC] = 6
+    fake_nix.fs.free = FLOOR + 9
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, f"bundle would leave {FLOOR - 1} bytes free on /nix/store, below the floor of {FLOOR}")
+    assert fake_nix.fs.paths == ["/nix/store"]
+    no_import(fake_nix)
+
+
+def test_free_space_floor_is_inclusive(cfg, fake_nix):
+    fake_nix.fs.free = FLOOR + 4
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert fake_nix.copied == [A]
+
+
+def test_unreadable_free_space_rejects(cfg, fake_nix):
+    fake_nix.fs.error = OSError(5, "Input/output error")
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "cannot read free space on /nix/store")
+    no_import(fake_nix)
+
+
+def test_nothing_new_bypasses_both_guards(cfg, fake_nix):
+    # Re-pinning paths the host already has never fails on budget or space,
+    # even when protected paths alone are over the budget and the disk is full.
+    fake_nix.valid.update([A, B])
+    fake_nix.graph = {X: fresh(5000)}
+    fake_nix.fs.free = 0
+    drop(cfg, bundle_members(manifest([A, B], [A]), {A: narinfo_text(A, references=[B], sigs=REPO_SIG)}))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert [set(p.targets) for p in list_pins(cfg.pins_dir)] == [{A, B}]
+    assert fake_nix.estimated == [] and fake_nix.graph_reads == 0 and fake_nix.fs.paths == []
+
+
+def test_bundled_nar_size_counts_toward_new_bytes(cfg, fake_nix):
+    fake_nix.graph = {X: fresh(401)}
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=600)}))
+    rejected(cfg, fake_nix, "bundle would add 600 bytes to 401 protected bytes")
+    no_import(fake_nix)
+
+
+def test_already_valid_bundled_paths_do_not_count(cfg, fake_nix):
+    fake_nix.valid.add(A)
+    fake_nix.graph = {X: fresh(990)}
+    drop(cfg, bundle_members(
+        manifest([A, B], [A, B]),
+        {A: narinfo_text(A, sigs=REPO_SIG, nar_size=600), B: narinfo_text(B, sigs=REPO_SIG, nar_size=10)},
+    ))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert [set(p.targets) for p in list_pins(cfg.pins_dir)] == [{A, B}]
+
+
+def test_estimate_failure_rejects_fail_closed(cfg, fake_nix):
+    fake_nix.estimate_error = "unexpected nix-store --dry-run output: 'this derivation will be built:'"
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "this derivation will be built")
+    no_import(fake_nix)
+
+
+def test_budget_counts_pinned_and_probed_paths(cfg, fake_nix):
+    # Protection comes from the pins dir and the stats DB, not only from the graph.
+    from nix_cache.db import open_db
+    from nix_cache.graph import store_hash
+    from nix_cache.pins import Namespace, pin
+
+    probed = store_path(10, "probed")
+    now = 10 * 86400  # registrations at 0 are outside the 24 h protection window
+    with importer.locked(cfg.lock_file):
+        pin(cfg.pins_dir, Namespace("flake-playground", "gate", "x86_64-linux"), [X], now - 100)
+    conn = open_db(cfg.db)
+    conn.execute("INSERT INTO paths(hash, last_narinfo_hit) VALUES (?, ?)", (store_hash(probed), now - 50))
+    conn.commit()
+    conn.close()
+    fake_nix.graph = {X: fresh(500, now=0), probed: fresh(497, now=0), store_path(11, "old"): fresh(9000, now=0)}
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    importer.run(cfg, "flake-playground", now=now)
+    reasons = list(cfg.repos["flake-playground"].failed.glob("*.reason"))
+    assert [r.read_text() for r in reasons] == [
+        "bundle would add 4 bytes to 997 protected bytes, over the budget of 1000\n"
+    ]

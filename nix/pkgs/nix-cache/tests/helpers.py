@@ -27,7 +27,7 @@ def nar_url(path: str) -> str:
     return f"nar/{Path(path).name[:32]}{'0' * 20}.nar.zst"
 
 
-def narinfo_text(path, *, references=(), sigs=("vmtest-repo-1:c2ln",), deriver=None) -> str:
+def narinfo_text(path, *, references=(), sigs=("vmtest-repo-1:c2ln",), deriver=None, nar_size=4) -> str:
     lines = [
         f"StorePath: {path}",
         f"URL: {nar_url(path)}",
@@ -35,7 +35,7 @@ def narinfo_text(path, *, references=(), sigs=("vmtest-repo-1:c2ln",), deriver=N
         "FileHash: sha256:" + "1" * 52,
         "FileSize: 4",
         "NarHash: sha256:" + "1" * 52,
-        "NarSize: 4",
+        f"NarSize: {nar_size}",
         "References: " + " ".join(Path(r).name for r in references),
     ]
     if deriver:
@@ -104,6 +104,7 @@ def write_config(tmp_path: Path, **overrides) -> dict[str, Path]:
         "budget_bytes": 1000,
         "active_days": 30,
         "protect_hours": 24,
+        "import_min_free_bytes": 10 << 30,
         "system_roots": [],
         "repos": {
             "flake-playground": {

@@ -39,6 +39,13 @@ def _positive(name: str, field: str, value: object) -> int:
     return value
 
 
+def _top_int(field: str, value: object, low: int = 1, high: int | None = None) -> int:
+    if type(value) is not int or value < low or (high is not None and value > high):
+        bound = f"between {low} and {high}" if high is not None else "a positive integer"
+        raise ValueError(f"{field} must be {bound}, got {value!r}")
+    return value
+
+
 @dataclass(frozen=True)
 class RepoConfig:
     name: str
@@ -72,6 +79,8 @@ class Config:
     budget_bytes: int
     active_days: int
     protect_hours: int
+    # Free space an import must leave on /nix/store (the importer's floor).
+    import_min_free_bytes: int
     system_roots: tuple[str, ...]
     repos: dict[str, RepoConfig]
 
@@ -123,6 +132,7 @@ def load_config(path: Path) -> Config:
         budget_bytes=int(data["budget_bytes"]),
         active_days=int(data["active_days"]),
         protect_hours=int(data["protect_hours"]),
+        import_min_free_bytes=_top_int("import_min_free_bytes", data.get("import_min_free_bytes")),
         system_roots=tuple(data.get("system_roots", [])),
         repos=repos,
     )

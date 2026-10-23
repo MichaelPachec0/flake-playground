@@ -4,7 +4,7 @@ from helpers import store_path
 from nix_cache.db import Hits
 from nix_cache.graph import build_graph, store_hash
 from nix_cache.pins import Namespace, Pin
-from nix_cache.retention import Policy, plan_retention
+from nix_cache.retention import Policy, plan_retention, protected_bytes
 
 NS = Namespace("flake-playground", "gate", "x86_64-linux")
 OLD_NS = Namespace("flake-playground", "bump-picr", "x86_64-linux")
@@ -130,3 +130,28 @@ def test_latest_pointer_wins_over_newest_stamp():
     pins = [mkpin(NS, NOW - 2 * DAY, a), mkpin(NS, NOW - DAY, b)]
     r = plan({a: info(), b: info()}, pins, budget=0, latest={NS: NOW - 2 * DAY}, protect=0)
     assert a in r.keep and b not in r.keep
+
+
+def test_protected_bytes_matches_kept_bytes_over_budget():
+    # The importer's budget check must charge exactly what the pruner keeps
+    # when protected paths alone exceed the budget.
+    sys_lib, fresh, probed, stale = (store_path(i, n) for i, n in [(90, "glibc"), (91, "fresh"), (92, "probed"), (93, "stale")])
+    old = store_path(94, "old")
+    g = {
+        LATEST: info([LIB, sys_lib], size=7),
+        LIB: info(size=11),
+        sys_lib: info(size=500),
+        fresh: info(size=13, reg=NOW - 60),
+        probed: info(size=17),
+        stale: info(size=19),
+        old: info(size=23),
+    }
+    pins = [mkpin(NS, NOW - 2 * DAY, old), mkpin(NS, NOW - DAY, LATEST), mkpin(OLD_NS, NOW - 40 * DAY, stale)]
+    hits = {store_hash(probed): Hits(None, NOW - 60)}
+    r = plan(g, pins, budget=5, hits=hits, system={sys_lib})
+    assert r.over_budget
+    got = protected_bytes(
+        build_graph(g), pins, {}, hits, {sys_lib},
+        Policy(budget_bytes=5, active_seconds=30 * DAY, protect_seconds=DAY), NOW,
+    )
+    assert got == r.kept_bytes == 7 + 11 + 13 + 17

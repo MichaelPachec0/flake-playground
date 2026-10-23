@@ -244,6 +244,15 @@ in {
         default = gib 40;
         description = "nix max-free: how far such an emergency collection goes.";
       };
+      importMinFree = mkOption {
+        type = types.ints.positive;
+        default = gib 10;
+        description = ''
+          The importer rejects a bundle that would leave less free space than
+          this on /nix/store. Independent of nix min-free, which only collects
+          unrooted paths and so cannot free space held by protected pins.
+        '';
+      };
     };
 
     fail2ban.enable = mkOption {
@@ -349,6 +358,7 @@ in {
       budget_bytes = cfg.retention.budgetBytes;
       active_days = cfg.retention.activeDays;
       protect_hours = cfg.retention.protectHours;
+      import_min_free_bytes = cfg.retention.importMinFree;
       system_roots = ["/run/current-system" "/run/booted-system"];
       repos =
         lib.mapAttrs (name: r: {

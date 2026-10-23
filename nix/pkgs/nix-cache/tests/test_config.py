@@ -65,3 +65,28 @@ def test_missing_allowed_sets_rejected(tmp_path):
 def test_bad_max_roots_rejected(tmp_path, max_roots):
     with pytest.raises(ValueError, match="max_roots"):
         load_config(_with_repo(tmp_path, max_roots=max_roots))
+
+
+def _with_top(tmp_path, **fields):
+    files = write_config(tmp_path)
+    data = json.loads(files["config"].read_text())
+    for k, v in fields.items():
+        if v is _MISSING:
+            del data[k]
+        else:
+            data[k] = v
+    files["config"].write_text(json.dumps(data))
+    return files["config"]
+
+
+_MISSING = object()
+
+
+def test_import_min_free_bytes_loaded(tmp_path):
+    assert make_config(tmp_path).import_min_free_bytes == 10 << 30
+
+
+@pytest.mark.parametrize("value", [0, -1, "10", 1.5, True, None, _MISSING])
+def test_bad_import_min_free_bytes_rejected(tmp_path, value):
+    with pytest.raises(ValueError, match="import_min_free_bytes"):
+        load_config(_with_top(tmp_path, import_min_free_bytes=value))

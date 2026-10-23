@@ -53,6 +53,11 @@ def closure(graph: dict[str, Node], roots: Iterable[str]) -> set[str]:
     return seen
 
 
+def system_closure(graph: dict[str, Node], roots: Iterable[str]) -> set[str]:
+    """Closure of the host's own system roots (symlinks such as /run/current-system)."""
+    return closure(graph, [os.path.realpath(r) for r in roots if os.path.exists(r)])
+
+
 def closure_excluding(graph: dict[str, Node], root: str, exclude: set[str]) -> set[str]:
     """Closure of root, not descending into paths already in exclude."""
     if root in exclude or root not in graph:

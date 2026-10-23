@@ -23,16 +23,20 @@ from pathlib import Path
 from . import nixcli
 from .alert import queue_alert
 from .config import Config, RepoConfig, load_config
+from .db import load_hits, open_db
 from .extract import BundleError, extract_bundle
+from .graph import build_graph, system_closure
 from .lock import locked
 from .manifest import ManifestError, parse_manifest
 from .narinfo import NarInfo, NarInfoError, parse_narinfo
 from .nixcli import NixError
-from .pins import Namespace, Pin, pin
+from .pins import Namespace, Pin, latest_stamps, list_pins, pin
+from .retention import Policy, protected_bytes
 
 BUNDLE_RE = re.compile(r"[0-9]+-[0-9]+\.tar\.zst")
 FAILED_RETENTION_SECONDS = 7 * 86400
 REJECT_ERRORS = (BundleError, ManifestError, NarInfoError, NixError, ValueError)
+STORE_FS = "/nix/store"
 
 
 def pending_bundles(incoming: Path) -> list[Path]:
@@ -65,6 +69,57 @@ def check_key_binding(infos: dict[str, NarInfo], trusted_keys, bundle_url: str) 
             nixcli.verify_sigs(bundle_url, sorted(infos), trusted_keys)
         except NixError as e:
             raise BundleError(f"signature or content check failed: {e}") from e
+
+
+def check_size(cfg: Config, infos: dict[str, NarInfo], missing: set[str], now: int) -> None:
+    """Reject a bundle whose import would push protected paths over the budget
+    or leave less than the floor free on /nix/store, before anything is fetched.
+
+    Retention never evicts protected paths (latest pin of each active
+    namespace, fresh registrations and narinfo hits), even over the budget,
+    so without this check repeated uploads, or a small signed path whose
+    references pull in huge upstream closures, could fill the disk.
+    """
+    try:
+        fetched = nixcli.fetch_estimate(missing) if missing else 0
+    except NixError as e:
+        raise BundleError(
+            f"cannot estimate the download of {len(missing)} path(s) outside the bundle: {e}"
+        ) from e
+    new_bytes = fetched + sum(infos[p].nar_size for p in nixcli.invalid_paths(infos))
+    if new_bytes == 0:
+        # Re-pinning paths the host already has never fails on budget or space.
+        return
+    graph = build_graph(nixcli.path_info(all_paths=True))
+    conn = open_db(cfg.db)
+    try:
+        hits = load_hits(conn)
+    finally:
+        conn.close()
+    protected = protected_bytes(
+        graph,
+        list_pins(cfg.pins_dir),
+        latest_stamps(cfg.pins_dir),
+        hits,
+        system_closure(graph, cfg.system_roots),
+        Policy.from_config(cfg),
+        now,
+    )
+    if protected + new_bytes > cfg.budget_bytes:
+        raise BundleError(
+            f"bundle would add {new_bytes} bytes to {protected} protected bytes,"
+            f" over the budget of {cfg.budget_bytes}"
+        )
+    try:
+        st = os.statvfs(STORE_FS)
+    except OSError as e:
+        raise BundleError(f"cannot read free space on {STORE_FS}: {e}") from e
+    free = st.f_bavail * st.f_frsize
+    if free - new_bytes < cfg.import_min_free_bytes:
+        raise BundleError(
+            f"bundle would leave {free - new_bytes} bytes free on {STORE_FS},"
+            f" below the floor of {cfg.import_min_free_bytes}"
+        )
 
 
 def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
@@ -110,6 +165,7 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         # cache.nixos.org or already here) must be valid before the copy.
         external = {ref for i in infos.values() for ref in i.references} - infos.keys()
         missing = nixcli.invalid_paths(external)
+        check_size(cfg, infos, missing, now)
         if missing:
             try:
                 nixcli.realise(missing)

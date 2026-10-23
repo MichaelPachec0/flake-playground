@@ -66,6 +66,8 @@ in
         htpasswdFile = "${secretsDir}/htpasswd";
         nginx.sslCertificate = "${tls}/cert.pem";
         nginx.sslCertificateKey = "${secretsDir}/key.pem";
+        # The VM's writable store is far smaller than the 10 GiB default floor.
+        retention.importMinFree = 64 * 1024 * 1024;
         repos.vmtest = {
           uid = 2001;
           signingPublicKeys = [repoPublic];

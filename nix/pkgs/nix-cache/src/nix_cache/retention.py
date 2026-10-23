@@ -9,10 +9,14 @@ rooted by its tops alone.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .db import Hits
 from .graph import Node, closure, closure_excluding, output_names, store_hash, tier
 from .pins import Namespace, Pin
+
+if TYPE_CHECKING:
+    from .config import Config
 
 
 @dataclass(frozen=True)
@@ -20,6 +24,22 @@ class Policy:
     budget_bytes: int
     active_seconds: int
     protect_seconds: int
+
+    @classmethod
+    def from_config(
+        cls,
+        cfg: Config,
+        *,
+        budget_bytes: int | None = None,
+        active_days: int | None = None,
+        protect_hours: int | None = None,
+    ) -> Policy:
+        """The policy cfg describes; the pruner's CLI overrides replace single fields."""
+        return cls(
+            budget_bytes=cfg.budget_bytes if budget_bytes is None else budget_bytes,
+            active_seconds=86400 * (cfg.active_days if active_days is None else active_days),
+            protect_seconds=3600 * (cfg.protect_hours if protect_hours is None else protect_hours),
+        )
 
 
 @dataclass(frozen=True)
@@ -32,16 +52,22 @@ class RetentionPlan:
     over_budget: bool
 
 
-def plan_retention(
+@dataclass(frozen=True)
+class _Core:
+    expired: tuple[Namespace, ...]
+    protected_pins: frozenset[tuple[Namespace, int]]
+    must: frozenset[str]
+
+
+def _core(
     graph: dict[str, Node],
     pins: list[Pin],
     latest: dict[Namespace, int],
-    previous_keep: set[str],
     hits: dict[str, Hits],
-    system_paths: set[str],
     policy: Policy,
     now: int,
-) -> RetentionPlan:
+) -> _Core:
+    """The must-keep core: latest pin of each active namespace, plus fresh paths."""
     newest: dict[Namespace, int] = {}
     for p in pins:
         newest[p.namespace] = max(newest.get(p.namespace, 0), p.stamp)
@@ -63,11 +89,46 @@ def plan_retention(
             h is not None and h.last_narinfo_hit is not None and h.last_narinfo_hit >= cutoff
         ):
             must.add(p)
+    return _Core(expired, frozenset(protected_pins), frozenset(must))
 
-    keep = closure(graph, must)
+
+def _charge(graph: dict[str, Node], paths, system_paths: set[str]) -> int:
+    return sum(graph[p].nar_size for p in paths if p not in system_paths)
+
+
+def protected_bytes(
+    graph: dict[str, Node],
+    pins: list[Pin],
+    latest: dict[Namespace, int],
+    hits: dict[str, Hits],
+    system_paths: set[str],
+    policy: Policy,
+    now: int,
+) -> int:
+    """Bytes retention keeps whatever the budget: the closure of the must-keep core.
+
+    Equals plan_retention's kept_bytes when the plan is over budget.
+    """
+    core = _core(graph, pins, latest, hits, policy, now)
+    return _charge(graph, closure(graph, core.must), system_paths)
+
+
+def plan_retention(
+    graph: dict[str, Node],
+    pins: list[Pin],
+    latest: dict[Namespace, int],
+    previous_keep: set[str],
+    hits: dict[str, Hits],
+    system_paths: set[str],
+    policy: Policy,
+    now: int,
+) -> RetentionPlan:
+    core = _core(graph, pins, latest, hits, policy, now)
+    expired, protected_pins = core.expired, core.protected_pins
+    keep = closure(graph, core.must)
 
     def charge(paths) -> int:
-        return sum(graph[p].nar_size for p in paths if p not in system_paths)
+        return _charge(graph, paths, system_paths)
 
     used = charge(keep)
     over = used > policy.budget_bytes
