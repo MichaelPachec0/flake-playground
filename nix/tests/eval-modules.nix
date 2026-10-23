@@ -346,7 +346,8 @@ in {
         == "/var/log/nginx/nix-cache.error.log"
         && jail.settings."bantime.increment"
         && lib.hasPrefix "^\\s*\\[error\\] " jail.filter.Definition.failregex
-        && lib.hasInfix "was not found in \"[^\"]*\", client: <HOST>, server: \\S*, request: " jail.filter.Definition.failregex
+        # Colon-free user match: ".*" or ".*?" would let a forged Referer pick <HOST>.
+        && lib.hasInfix "user \"[^:]*\" was not found in \"[^\"]*\", client: <HOST>, server: \\S*, request: " jail.filter.Definition.failregex
         && lib.filter (lib.hasPrefix "nix-cache") (lib.attrNames c.services.fail2ban.jails) == ["nix-cache-guess"]
         && lib.elem "nginx.service" c.systemd.services.fail2ban.after;
       message = "with fail2ban enabled the module must add only the nix-cache-guess jail (anchored failregex, bantime.increment) and order fail2ban after nginx";

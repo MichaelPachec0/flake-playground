@@ -128,14 +128,18 @@ in {
     # Deleting the line would turn that host into an unknown user and get it
     # banned (its substitutions would just time out).
     #
-    # The user name is attacker-chosen and logged unescaped, but nginx cuts
-    # it at the first ':' (user:password), so it can never contain the real
-    # ", client: <ip>" that follows. The greedy user match therefore always
-    # ends at nginx's own text and <HOST> is the real peer; a quote in the
-    # name cannot break the match to dodge the jail either.
+    # The user name is attacker-chosen and logged unescaped, as are the Host
+    # and Referer values later on the line, so a forged Referer can carry a
+    # fake `" was not found in "f", client: <victim ip>`. nginx cuts the user
+    # name at the first ':' (user:password), so the user is matched as
+    # [^:]*: the match can then never run past the first ':' on the line,
+    # which is nginx's own "client:" field, and <HOST> is always the real
+    # peer. Neither ".*" (greedy: picks the LAST fake client) nor ".*?"
+    # (lazy: on a "password mismatch" line it runs on into the Referer) is
+    # safe. A quote in the name still matches, so it cannot dodge the jail.
     services.fail2ban.jails.nix-cache-guess = lib.mkIf cfg.fail2ban.enable {
       filter.Definition = {
-        failregex = ''^\s*\[error\] \d+#\d+: \*\d+ user ".*" was not found in "[^"]*", client: <HOST>, server: \S*, request: '';
+        failregex = ''^\s*\[error\] \d+#\d+: \*\d+ user "[^:]*" was not found in "[^"]*", client: <HOST>, server: \S*, request: '';
         ignoreregex = "";
       };
       settings = {
