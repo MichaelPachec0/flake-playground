@@ -32,9 +32,11 @@ in {
         # idle, so six pushes within 10 s (CI matrix jobs) would hit systemd's
         # default start limit, fail the path unit for good and leave every
         # later upload unimported. A run imports or rejects every pending
-        # bundle; only a crash leaves one behind, and that is retried at once
-        # (each failure still alerts through OnFailure).
-        startLimitIntervalSec = 0;
+        # bundle (unexpected errors included), so it never re-triggers itself;
+        # the generous limit only stops a run that crashes outright (e.g. it
+        # cannot even write the rejection) from spinning, and OnFailure alerts.
+        startLimitBurst = 100;
+        startLimitIntervalSec = 60;
         serviceConfig =
           hardening
           // {

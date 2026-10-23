@@ -157,6 +157,40 @@ def test_forged_repo_field_is_ignored(cfg, fake_nix):
     assert p.namespace.repo == "flake-playground"
 
 
+def test_unexpected_error_rejects_instead_of_looping(cfg, fake_nix, monkeypatch):
+    # Anything outside REJECT_ERRORS (ENOSPC, EIO, a bug) must still move the
+    # bundle out of incoming/: left there, the path unit would restart the
+    # importer on it over and over.
+    def boom(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(importer, "extract_bundle", boom)
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, "internal error: OSError: [Errno 28] No space left on device")
+
+
+def test_unexpected_error_spares_later_bundles(cfg, fake_nix, monkeypatch):
+    fake_nix.valid.add(A)
+    real = importer.import_bundle
+    calls = []
+
+    def flaky(bundle, *args, **kwargs):
+        calls.append(bundle.name)
+        if len(calls) == 1:
+            raise RuntimeError("bug")
+        return real(bundle, *args, **kwargs)
+
+    monkeypatch.setattr(importer, "import_bundle", flaky)
+    drop(cfg, bundle_members(manifest([A], []), {}), "1700000000-1.tar.zst")
+    drop(cfg, bundle_members(manifest([A], []), {}), "1700000001-1.tar.zst")
+    assert importer.run(cfg, "flake-playground", now=1000) == 0
+    repo = cfg.repos["flake-playground"]
+    assert [p.name for p in repo.failed.glob("*.reason")] == ["1700000000-1.tar.zst.reason"]
+    assert "internal error: RuntimeError: bug" in (repo.failed / "1700000000-1.tar.zst.reason").read_text()
+    assert len(list_pins(cfg.pins_dir)) == 1
+    assert list(repo.incoming.iterdir()) == []
+
+
 def test_rejection_keeps_previous_pins(cfg, fake_nix):
     fake_nix.valid.add(A)
     drop(cfg, bundle_members(manifest([A], []), {}), "1700000000-1.tar.zst")

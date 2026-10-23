@@ -26,9 +26,11 @@ in {
       # Every queued alert can start this unit once, and a pruner pass or a
       # run of rejected uploads queues several within seconds. With systemd's
       # default start limit (5 per 10 s) the sixth start fails, and the path
-      # unit then stays failed: every later alert would go undelivered. Each
-      # run consumes or defers every *.json, so it cannot re-trigger itself.
-      startLimitIntervalSec = 0;
+      # unit then stays failed: every later alert would go undelivered. A
+      # healthy run consumes or defers every *.json and so never re-triggers
+      # itself; the generous limit only stops a crashing run from spinning.
+      startLimitBurst = 100;
+      startLimitIntervalSec = 60;
       serviceConfig = {
         Type = "oneshot";
         User = "nix-cache";

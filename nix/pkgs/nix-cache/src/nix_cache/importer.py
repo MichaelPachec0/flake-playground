@@ -133,6 +133,13 @@ def run(cfg: Config, repo_name: str, now: int | None = None) -> int:
             except REJECT_ERRORS as e:
                 reject(bundle, repo, str(e), cfg)
                 continue
+            except Exception as e:
+                # Anything else (ENOSPC, EIO, a bug) also moves the bundle out
+                # of incoming/: left there, the path unit would restart this
+                # run on it over and over. If reject() itself fails, the run
+                # crashes and the unit's start limit and OnFailure take over.
+                reject(bundle, repo, f"internal error: {type(e).__name__}: {e}", cfg)
+                continue
             bundle.unlink()
             print(f"imported {bundle.name} -> {p.namespace} @{p.stamp} ({len(p.targets)} roots)")
     return 0
