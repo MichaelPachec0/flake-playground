@@ -41,7 +41,7 @@ def check_ssha(hashed: str, token: str) -> bool:
 
 
 def entry(user: str, token: str, salt: bytes | None = None) -> str:
-    if not USER_RE.match(user):
+    if not USER_RE.fullmatch(user):
         raise EntryError(f"user {user!r} must look like <name>-g<N>, e.g. nyx-g1")
     if len(token) < MIN_TOKEN_CHARS:
         raise EntryError(

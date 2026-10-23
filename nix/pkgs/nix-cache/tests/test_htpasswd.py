@@ -28,7 +28,7 @@ def test_salt_is_random():
     assert htpasswd.ssha(TOKEN) != htpasswd.ssha(TOKEN)
 
 
-@pytest.mark.parametrize("user", ["nyx", "Nyx-g1", "nyx-g", "-g1", "nyx g1-g1"])
+@pytest.mark.parametrize("user", ["nyx", "Nyx-g1", "nyx-g", "-g1", "nyx g1-g1", "nyx-g1\n"])
 def test_entry_rejects_bad_user(user):
     with pytest.raises(htpasswd.EntryError):
         htpasswd.entry(user, TOKEN)

@@ -34,7 +34,7 @@ class Manifest:
 
 def _store_paths(value: object, field: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(
-        isinstance(p, str) and STORE_PATH_RE.match(p) for p in value
+        isinstance(p, str) and STORE_PATH_RE.fullmatch(p) for p in value
     ):
         raise ManifestError(f"{field} must be a list of store paths")
     if len(set(value)) != len(value):
@@ -49,10 +49,11 @@ def parse_manifest(text: str) -> Manifest:
         raise ManifestError(f"manifest.json is not valid JSON: {e}") from e
     if not isinstance(data, dict):
         raise ManifestError("manifest.json must be a JSON object")
-    if data.get("version") != 1:
+    version = data.get("version")
+    if type(version) is not int or version != 1:
         raise ManifestError(f"unsupported manifest version {data.get('version')!r}")
     set_ = data.get("set")
-    if not isinstance(set_, str) or not SET_RE.match(set_):
+    if not isinstance(set_, str) or not SET_RE.fullmatch(set_):
         raise ManifestError(f"set {set_!r} must match {SET_RE.pattern}")
     arch = data.get("arch")
     if not isinstance(arch, str) or arch not in ARCHES:

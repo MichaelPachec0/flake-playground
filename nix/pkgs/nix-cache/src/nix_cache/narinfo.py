@@ -51,25 +51,24 @@ def parse_narinfo(text: str) -> NarInfo:
         if required not in fields:
             raise NarInfoError(f"narinfo lacks {required}")
     store_path = fields["StorePath"]
-    if not STORE_PATH_RE.match(store_path):
+    if not STORE_PATH_RE.fullmatch(store_path):
         raise NarInfoError(f"bad StorePath {store_path!r}")
     url = fields["URL"]
-    if not NAR_URL_RE.match(url):
+    if not NAR_URL_RE.fullmatch(url):
         raise NarInfoError(f"unexpected NAR URL {url!r}")
-    try:
-        nar_size = int(fields["NarSize"])
-    except ValueError as e:
-        raise NarInfoError(f"bad NarSize {fields['NarSize']!r}") from e
+    if not re.fullmatch(r"[0-9]+", fields["NarSize"]):
+        raise NarInfoError(f"bad NarSize {fields['NarSize']!r}")
+    nar_size = int(fields["NarSize"])
     references = []
     for ref in fields.get("References", "").split():
-        if not BASENAME_RE.match(ref):
+        if not BASENAME_RE.fullmatch(ref):
             raise NarInfoError(f"bad reference {ref!r}")
         references.append(f"{STORE_DIR}/{ref}")
     deriver = fields.get("Deriver")
     if deriver == "unknown-deriver":
         deriver = None
     elif deriver is not None:
-        if not BASENAME_RE.match(deriver):
+        if not BASENAME_RE.fullmatch(deriver):
             raise NarInfoError(f"bad Deriver {deriver!r}")
         deriver = f"{STORE_DIR}/{deriver}"
     return NarInfo(

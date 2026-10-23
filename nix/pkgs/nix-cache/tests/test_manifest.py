@@ -34,6 +34,9 @@ def test_repo_key_is_ignored():
     "overrides",
     [
         {"version": 2},
+        {"version": True},
+        {"set": "gate\n"},
+        {"roots": [ROOT + "\n"]},
         {"set": "Gate"},
         {"set": "../x"},
         {"set": ""},
