@@ -292,8 +292,24 @@ in {
       && lib.any (lib.hasInfix "A+ /srv/cache-drop/flake-playground/incoming") c.systemd.tmpfiles.rules
       && lib.hasInfix "ip46tables -w -A nix-cache-egress -m owner --uid-owner 2001 -j DROP" c.networking.firewall.extraCommands
       && !(lib.any (lib.hasInfix "allowed-users") c.warnings)
-      && c.environment.etc ? "nix-cache/config.json";
-    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress must be configured, and an explicit allowed-users must not warn";
+      && c.environment.etc ? "nix-cache/config.json"
+      && c.systemd.paths ? cache-importer-flake-playground
+      && c.systemd.services.cache-importer-flake-playground.serviceConfig.PrivateNetwork
+      && c.systemd.services.cache-pruner.unitConfig.OnSuccess == ["cache-gc.service"]
+      && c.systemd.timers ? cache-pruner
+      && lib.hasInfix "nix-store --gc" c.systemd.services.cache-gc.serviceConfig.ExecStart
+      && c.systemd.paths ? nix-cache-alert
+      && c.systemd.services ? "nix-cache-unit-failed@"
+      # Glob, not DirectoryNotEmpty: files the importer leaves in incoming/
+      # would re-trigger the path unit until its start limit trips.
+      && c.systemd.paths.cache-importer-flake-playground.pathConfig.PathExistsGlob == "/srv/cache-drop/flake-playground/incoming/*.tar.zst"
+      && !(c.systemd.paths.cache-importer-flake-playground.pathConfig ? DirectoryNotEmpty)
+      && c.systemd.services.cache-importer-flake-playground.unitConfig.OnFailure == ["nix-cache-unit-failed@%n.service"]
+      && lib.elem c.nix.package c.systemd.services.cache-pruner.path
+      && lib.elem c.nix.package c.systemd.services.cache-importer-flake-playground.path
+      && lib.all (s: lib.elem "/nix/var/nix/gcroots/cache" c.systemd.services.${s}.serviceConfig.ReadWritePaths) ["cache-pruner" "cache-importer-flake-playground"]
+      && lib.elem "f /var/lib/nix-cache/lock 0600 nix-cache nix-cache -" c.systemd.tmpfiles.rules;
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units must be configured, and an explicit allowed-users must not warn";
   };
   # nftables branch of the egress block. The nftables start script is a build
   # input, so the ruleset also goes through `nft --check` here.
