@@ -593,8 +593,8 @@ in
           fill = max(1 << 20, blocks * frsize * 2 // 100 - used)
           assert fill < avail * frsize, (fill, avail * frsize)
           fill_file = f"{fill_mount}/vm-disk-fill"
-          selene.succeed(f"fallocate -l {fill} {fill_file}")
           try:
+              selene.succeed(f"fallocate -l {fill} {fill_file}")
               frsize, blocks, avail = map(int, selene.succeed("stat -f -c '%S %b %a' /nix/store").split())
               assert 100 * (1 - avail / blocks) >= 1, (blocks, avail)
               selene.succeed(

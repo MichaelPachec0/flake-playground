@@ -163,7 +163,7 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         if not (d / "manifest.json").is_file():
             raise BundleError("bundle has no manifest.json")
         manifest = parse_manifest((d / "manifest.json").read_text())
-        # Checked before anything is verified or realised. A bundle without
+        # Checked before any signature, size or store check. A bundle without
         # paths needs no signature and can only re-pin roots the host already
         # has (see the roots check below); these two caps limit an upload-key
         # holder to the repo's own namespaces and a bounded number of roots
