@@ -186,6 +186,7 @@ in
       ciIP = nodes.ci.networking.primaryIPAddress;
     in ''
       import json
+      import re
 
       URL = "https://${host}"
       SSH = "ssh -i /etc/nix-cache-vm/upload_key -o StrictHostKeyChecking=no -o BatchMode=yes cache-drop-vmtest@selene"
@@ -518,6 +519,7 @@ in
           selene.succeed(f"grep -q '${payloadN}' {DROP}/failed/{reason}")
           assert pin_count() == pins_before
           assert not valid(selene, "${payloadN}")
+          selene.succeed(f"test -z \"$(ls -A {DROP}/incoming)\"")
           selene.wait_until_succeeds(
               "journalctl -t nix-cache-alert | grep >/dev/null 'neither in the bundle nor on this host'", timeout=60
           )
@@ -541,40 +543,60 @@ in
           status, out = consumer.execute(f"{est} ${payloadE} 2>&1")
           assert status != 0 and "printed no fetch summary" in out, (status, out)
 
-      with subtest("an import over the budget or under the free-space floor is rejected before any copy"):
+      def guard_rejects(key, value, message):
+          # `message` is a regex over the whole reason line: anchored with `$`
+          # so "over the budget of 1" cannot prefix-match "of 10".
           selene.succeed("systemctl stop cache-importer-vmtest.path")
           try:
-              for key, value, message in [
-                  ("budget_bytes", 1, "over the budget of 1"),
-                  ("import_min_free_bytes", 1 << 50, f"below the floor of {1 << 50}"),
-              ]:
-                  alt = f"/tmp/config-{key}.json"
-                  selene.succeed(
-                      f"jq '.{key} = {value}' /etc/nix-cache/config.json > {alt} && chmod 0644 {alt}"
-                  )
-                  assert ci.succeed(f"cat {bundle('b')}/manifest.json | jq -r '.paths | length'").strip() == "1"
-                  push("/tmp/bundle-b")
-                  before_reasons = reasons()
-                  pins_before = pin_count()
-                  out = importer_by_hand(alt)
-                  assert message in out, out
-                  new = reasons() - before_reasons
-                  assert len(new) == 1, new
-                  selene.succeed(f"grep -q '{message}' {DROP}/failed/{next(iter(new))}")
-                  assert not valid(selene, "${payloadB}")
-                  assert pin_count() == pins_before
-                  selene.succeed(f"test -z \"$(ls -A {DROP}/incoming)\"")
+              alt = f"/tmp/config-{key}.json"
+              selene.succeed(
+                  f"jq '.{key} = {value}' /etc/nix-cache/config.json > {alt} && chmod 0644 {alt}"
+              )
+              assert ci.succeed(f"cat {bundle('b')}/manifest.json | jq -r '.paths | length'").strip() == "1"
+              push("/tmp/bundle-b")
+              before_reasons = reasons()
+              pins_before = pin_count()
+              out = importer_by_hand(alt)
+              assert re.search(message, out, re.M), out
+              new = reasons() - before_reasons
+              assert len(new) == 1, new
+              selene.succeed(f"grep -Eq '{message}' {DROP}/failed/{next(iter(new))}")
+              assert not valid(selene, "${payloadB}")
+              assert pin_count() == pins_before
+              selene.succeed(f"test -z \"$(ls -A {DROP}/incoming)\"")
           finally:
               selene.succeed("systemctl start cache-importer-vmtest.path")
 
+      with subtest("an import over the budget is rejected before any copy"):
+          guard_rejects("budget_bytes", 1, "over the budget of 1$")
+
+      with subtest("an import under the free-space floor is rejected before any copy"):
+          guard_rejects("import_min_free_bytes", 1 << 50, f"below the floor of {1 << 50}$")
+
       with subtest("pruner disk alert fires at disk_alert_percent"):
-          # The VM store is a 1 GB overlay that is nearly empty (0.0% used), so
-          # put 32 MB on its backing filesystem (3%) to cross a 1% threshold; removed afterwards.
+          # The pruner reads statvfs of /nix/store, which on the VM is an
+          # overlay reporting its writable upper filesystem. Find that
+          # filesystem's mount from the overlay's own upperdir option and size
+          # the fill from statvfs so usage lands well past the 1% threshold
+          # whatever the disk size or its current usage; removed afterwards.
           selene.succeed("jq '.disk_alert_percent = 1' /etc/nix-cache/config.json > /tmp/config-disk.json && chmod 0644 /tmp/config-disk.json")
           delivered = "journalctl -t nix-cache-alert -o cat | grep -c '^nix-cache: disk filling$'"
           assert int(selene.execute(delivered)[1]) == 0
-          selene.succeed("fallocate -l 32M /nix/.rw-store/vm-disk-fill")
+          opts = selene.succeed("findmnt -no OPTIONS -T /nix/store").strip()
+          upper = re.search(r"(?:^|,)upperdir=([^,]+)", opts)
+          assert upper, opts
+          # The option was recorded in the initrd, where the root sat at /sysroot.
+          upper_dir = re.sub(r"^/sysroot(?=/)", "", upper.group(1))
+          fill_mount = selene.succeed(f"findmnt -no TARGET -T {upper_dir}").strip()
+          frsize, blocks, avail = map(int, selene.succeed("stat -f -c '%S %b %a' /nix/store").split())
+          used = blocks * frsize - avail * frsize
+          fill = max(1 << 20, blocks * frsize * 2 // 100 - used)
+          assert fill < avail * frsize, (fill, avail * frsize)
+          fill_file = f"{fill_mount}/vm-disk-fill"
+          selene.succeed(f"fallocate -l {fill} {fill_file}")
           try:
+              frsize, blocks, avail = map(int, selene.succeed("stat -f -c '%S %b %a' /nix/store").split())
+              assert 100 * (1 - avail / blocks) >= 1, (blocks, avail)
               selene.succeed(
                   "systemd-run --wait --collect --pipe -p User=nix-cache -p SupplementaryGroups=nginx"
                   " -p Environment=HOME=/var/lib/nix-cache -p Environment=PATH=/run/current-system/sw/bin"
@@ -582,6 +604,6 @@ in
               )
               selene.wait_until_succeeds(f"test \"$({delivered})\" -ge 1", timeout=60)
           finally:
-              selene.succeed("rm -f /nix/.rw-store/vm-disk-fill")
+              selene.succeed(f"rm -f {fill_file}")
     '';
   }
