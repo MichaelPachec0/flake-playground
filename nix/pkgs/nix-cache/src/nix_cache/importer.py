@@ -71,59 +71,78 @@ def check_key_binding(infos: dict[str, NarInfo], trusted_keys, bundle_url: str) 
             raise BundleError(f"signature or content check failed: {e}") from e
 
 
-def check_size(cfg: Config, infos: dict[str, NarInfo], missing: set[str], now: int) -> None:
-    """Reject a bundle whose import would push protected paths over the budget
-    or leave less than the floor free on /nix/store, before anything is fetched.
+class SizeGuard:
+    """Rejects an import that would push protected paths over the budget or
+    leave less than the floor free on /nix/store, before anything is fetched.
 
     Retention never evicts protected paths (latest pin of each active
     namespace, fresh registrations and narinfo hits), even over the budget,
     so without this check repeated uploads, or a small signed path whose
     references pull in huge upstream closures, could fill the disk.
+
+    Protected bytes are computed once per bundle and reused: nothing changes
+    the store between the checks, since the importer holds the shared lock.
     """
+
+    def __init__(self, cfg: Config, now: int) -> None:
+        self._cfg = cfg
+        self._now = now
+        self._protected: int | None = None
+
+    def _protected_bytes(self) -> int:
+        if self._protected is None:
+            cfg = self._cfg
+            graph = build_graph(nixcli.path_info(all_paths=True))
+            if not graph:
+                # As in the pruner: an empty store listing means the query is
+                # broken, and protected bytes would wrongly read as 0.
+                raise BundleError("nix path-info --all returned no store paths; refusing to import")
+            conn = open_db(cfg.db)
+            try:
+                hits = load_hits(conn)
+            finally:
+                conn.close()
+            self._protected = protected_bytes(
+                graph,
+                list_pins(cfg.pins_dir),
+                latest_stamps(cfg.pins_dir),
+                hits,
+                system_closure(graph, cfg.system_roots),
+                Policy.from_config(cfg),
+                self._now,
+            )
+        return self._protected
+
+    def check(self, new_bytes: int) -> None:
+        if new_bytes == 0:
+            # Re-pinning paths the host already has never fails on budget or space.
+            return
+        cfg = self._cfg
+        protected = self._protected_bytes()
+        if protected + new_bytes > cfg.budget_bytes:
+            raise BundleError(
+                f"bundle would add {new_bytes} bytes to {protected} protected bytes,"
+                f" over the budget of {cfg.budget_bytes}"
+            )
+        try:
+            st = os.statvfs(STORE_FS)
+        except OSError as e:
+            raise BundleError(f"cannot read free space on {STORE_FS}: {e}") from e
+        free = st.f_bavail * st.f_frsize
+        if free - new_bytes < cfg.import_min_free_bytes:
+            raise BundleError(
+                f"bundle would leave {free - new_bytes} bytes free on {STORE_FS},"
+                f" below the floor of {cfg.import_min_free_bytes}"
+            )
+
+
+def estimate_fetch(missing: set[str]) -> int:
     try:
-        fetched = nixcli.fetch_estimate(missing) if missing else 0
+        return nixcli.fetch_estimate(missing) if missing else 0
     except NixError as e:
         raise BundleError(
             f"cannot estimate the download of {len(missing)} path(s) outside the bundle: {e}"
         ) from e
-    new_bytes = fetched + sum(infos[p].nar_size for p in nixcli.invalid_paths(infos))
-    if new_bytes == 0:
-        # Re-pinning paths the host already has never fails on budget or space.
-        return
-    graph = build_graph(nixcli.path_info(all_paths=True))
-    if not graph:
-        # As in the pruner: an empty store listing means the query is broken,
-        # and protected bytes would wrongly read as 0.
-        raise BundleError("nix path-info --all returned no store paths; refusing to import")
-    conn = open_db(cfg.db)
-    try:
-        hits = load_hits(conn)
-    finally:
-        conn.close()
-    protected = protected_bytes(
-        graph,
-        list_pins(cfg.pins_dir),
-        latest_stamps(cfg.pins_dir),
-        hits,
-        system_closure(graph, cfg.system_roots),
-        Policy.from_config(cfg),
-        now,
-    )
-    if protected + new_bytes > cfg.budget_bytes:
-        raise BundleError(
-            f"bundle would add {new_bytes} bytes to {protected} protected bytes,"
-            f" over the budget of {cfg.budget_bytes}"
-        )
-    try:
-        st = os.statvfs(STORE_FS)
-    except OSError as e:
-        raise BundleError(f"cannot read free space on {STORE_FS}: {e}") from e
-    free = st.f_bavail * st.f_frsize
-    if free - new_bytes < cfg.import_min_free_bytes:
-        raise BundleError(
-            f"bundle would leave {free - new_bytes} bytes free on {STORE_FS},"
-            f" below the floor of {cfg.import_min_free_bytes}"
-        )
 
 
 def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
@@ -153,6 +172,12 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         if set(manifest.paths) != set(infos):
             raise BundleError("manifest paths do not match the narinfos in the bundle")
         url = f"file://{d}"
+        # Size guard on the claimed NarSizes alone, before anything is
+        # verified or decompressed: a signed path with a genuinely huge NAR
+        # is turned away without unpacking it.
+        guard = SizeGuard(cfg, now)
+        bundled_new = sum(infos[p].nar_size for p in nixcli.invalid_paths(infos))
+        guard.check(bundled_new)
         check_key_binding(infos, repo.trusted_keys, url)
         # NarSize feeds the size guards below; prove it before trusting it.
         for info in infos.values():
@@ -172,7 +197,8 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         # cache.nixos.org or already here) must be valid before the copy.
         external = {ref for i in infos.values() for ref in i.references} - infos.keys()
         missing = nixcli.invalid_paths(external)
-        check_size(cfg, infos, missing, now)
+        # Full guard: proven bundled sizes plus what the missing references fetch.
+        guard.check(bundled_new + estimate_fetch(missing))
         if missing:
             try:
                 nixcli.realise(missing)

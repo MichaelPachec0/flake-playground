@@ -357,7 +357,7 @@ def test_free_space_floor_breach_is_rejected(cfg, fake_nix):
     fake_nix.fs.free = FLOOR + 9
     drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
     rejected(cfg, fake_nix, f"bundle would leave {FLOOR - 1} bytes free on /nix/store, below the floor of {FLOOR}")
-    assert fake_nix.fs.paths == ["/nix/store"]
+    assert fake_nix.fs.paths and set(fake_nix.fs.paths) == {"/nix/store"}
     no_import(fake_nix)
 
 
@@ -445,7 +445,7 @@ def test_nar_bomb_is_rejected_before_any_import(cfg, fake_nix):
         manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=10)}, nars={A: zstd_bytes(bytes(1 << 20))},
     ))
     rejected(cfg, fake_nix, "more than its NarSize of 10")
-    assert fake_nix.estimated == [] and fake_nix.graph_reads == 0
+    assert fake_nix.estimated == []
     no_import(fake_nix)
 
 
@@ -468,3 +468,27 @@ def test_empty_store_graph_rejects(cfg, fake_nix):
     drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
     rejected(cfg, fake_nix, "nix path-info --all returned no store paths")
     no_import(fake_nix)
+
+
+def test_claimed_nar_size_over_budget_rejected_before_verify(cfg, fake_nix):
+    # A signed path with a genuinely huge NarSize is turned away on the claim
+    # alone: no signature check, no decompression, no download, no copy.
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG, nar_size=2000)}))
+    rejected(cfg, fake_nix, "bundle would add 2000 bytes to 0 protected bytes, over the budget of 1000")
+    assert fake_nix.verified == [] and fake_nix.estimated == []
+    no_import(fake_nix)
+
+
+def test_claimed_nar_size_below_floor_rejected_before_verify(cfg, fake_nix):
+    fake_nix.fs.free = FLOOR + 3
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=REPO_SIG)}))
+    rejected(cfg, fake_nix, f"bundle would leave {FLOOR - 1} bytes free")
+    assert fake_nix.verified == []
+    no_import(fake_nix)
+
+
+def test_store_graph_is_read_once_per_bundle(cfg, fake_nix):
+    fake_nix.estimates[GLIBC] = 5
+    drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, references=[GLIBC], sigs=REPO_SIG)}))
+    importer.run(cfg, "flake-playground", now=1000)
+    assert fake_nix.copied == [A] and fake_nix.graph_reads == 1
