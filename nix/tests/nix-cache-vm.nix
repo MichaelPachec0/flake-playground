@@ -50,6 +50,14 @@
   # Enough independent paths that one substitution makes more requests than
   # the anonymous rate limit's burst (20) allows.
   payloadsM = map (i: pkgs.writeTextDir "share/many-${toString i}" "m${toString i}") (lib.range 1 16);
+  # Guard subtests (pushed last): N is a root that is never bundled nor on
+  # selene; E is imported, then used to feed the dry-run estimator on the
+  # consumer; B is rejected by the budget and by the free-space floor.
+  payloadN = pkgs.writeTextDir "share/never-shipped" "n";
+  payloadE = pkgs.writeTextDir "share/estimate" "e";
+  payloadB = pkgs.writeTextDir "share/over-budget" "b";
+  # The package's modules (an application, so not on any env's path), to call nixcli directly.
+  pkgSitePackages = "${pkg}/${pkgs.python3.sitePackages}";
   rootsJson = name: paths: pkgs.writeText "roots-${name}.json" (builtins.toJSON (map toString paths));
 
   hostsFor = nodes: "${nodes.selene.networking.primaryIPAddress} ${host}";
@@ -111,7 +119,7 @@ in
       # allowed-users), so the module's extra-allowed-users must be enough.
       nix.settings.allowed-users = ["root"];
       nix.settings.substituters = lib.mkForce [];
-      environment.systemPackages = [pkgs.curl];
+      environment.systemPackages = [pkgs.curl pkgs.jq];
       virtualisation.memorySize = 2048;
       virtualisation.diskSize = 4096;
       # The hourly pruner must not run behind the test's back.
@@ -122,7 +130,7 @@ in
       environment.systemPackages = [pkg pkgs.zstd pkgs.jq pkgs.gnutar pkgs.curl pkgs.python3];
       nix.settings.experimental-features = ["nix-command"];
       nix.settings.substituters = lib.mkForce [];
-      virtualisation.additionalPaths = [payloadA payloadA.dev payloadC payloadU payloadW payloadX payloadR] ++ payloadsM;
+      virtualisation.additionalPaths = [payloadA payloadA.dev payloadC payloadU payloadW payloadX payloadR payloadN payloadE payloadB] ++ payloadsM;
       networking.extraHosts = hostsFor nodes;
       security.pki.certificateFiles = ["${tls}/cert.pem"];
       networking.firewall.allowedTCPPorts = [8080];
@@ -144,6 +152,9 @@ in
         "nix-cache-vm/roots-w.json".source = rootsJson "w" [payloadW];
         "nix-cache-vm/roots-x.json".source = rootsJson "x" [payloadX];
         "nix-cache-vm/roots-r.json".source = rootsJson "r" [payloadR];
+        "nix-cache-vm/roots-n.json".source = rootsJson "n" [payloadN];
+        "nix-cache-vm/roots-e.json".source = rootsJson "e" [payloadE];
+        "nix-cache-vm/roots-b.json".source = rootsJson "b" [payloadB];
       };
     };
 
@@ -157,7 +168,7 @@ in
       };
       networking.extraHosts = hostsFor nodes;
       security.pki.certificateFiles = ["${tls}/cert.pem"];
-      environment.systemPackages = [pkgs.curl];
+      environment.systemPackages = [pkgs.curl pkgs.python3];
       environment.etc."nix-cache-vm/netrc" = {
         text = "machine ${host}\nlogin consumer-g1\npassword ${tokens.consumer1}\n";
         mode = "0600";
@@ -193,7 +204,7 @@ in
           return node.execute(f"nix-store --check-validity {path}")[0] == 0
 
 
-      def bundle(name, set_="gate", key="/etc/nix-cache-vm/repo.sk", tamper=None, edit_manifest=None):
+      def bundle(name, set_="gate", key="/etc/nix-cache-vm/repo.sk", tamper=None, edit_manifest=None, strip=False):
           out = f"/tmp/bundle-{name}"
           ci.succeed(f"rm -rf {out}")
           ci.succeed(
@@ -205,6 +216,10 @@ in
               ci.succeed(f"jq -r '.paths[]' {out}/manifest.json | nix store sign --store file://{out} --key-file {key} --stdin")
           if tamper:
               ci.succeed(f"sed -i '{tamper}' {out}/*.narinfo")
+          if strip:
+              # Manifest and nix-cache-info only: no narinfos, no NARs.
+              ci.succeed(f"find {out} -mindepth 1 ! -name manifest.json ! -name nix-cache-info -delete")
+              ci.succeed(f"jq '.paths = []' {out}/manifest.json > {out}/m && mv {out}/m {out}/manifest.json")
           if edit_manifest:
               ci.succeed(f"jq '{edit_manifest}' {out}/manifest.json > {out}/m && mv {out}/m {out}/manifest.json")
           return out
@@ -237,6 +252,20 @@ in
               " -p Environment=HOME=/var/lib/nix-cache -p Environment=PATH=/run/current-system/sw/bin"
               f" /run/current-system/sw/bin/cache-pruner --config /etc/nix-cache/config.json {args}"
           )
+
+
+      def importer_by_hand(config):
+          # The importer unit's own command line, run once on a config of our
+          # choosing (the path unit must be stopped by the caller).
+          return selene.succeed(
+              "systemd-run --wait --collect --pipe -p User=nix-cache"
+              " -p Environment=HOME=/var/lib/nix-cache -p Environment=PATH=/run/current-system/sw/bin"
+              f" /run/current-system/sw/bin/cache-importer --config {config} --repo vmtest 2>&1"
+          )
+
+
+      def pin_count():
+          return int(selene.succeed("find /nix/var/nix/gcroots/cache/pins -type l | wc -l"))
 
 
       def banned(ip):
@@ -464,5 +493,95 @@ in
           selene.wait_until_succeeds("fail2ban-client status nix-cache-guess | grep -wF '${consumerIP}' >/dev/null", timeout=60)
           assert not banned("${ciIP}")
           assert code(ci, f"-u consumer-g2:${tokens.consumer2} {URL}/nix-cache-info") == "200"
+
+      # The guard subtests come last: the retention subtests above expired every
+      # namespace, and these only need a working push path for ci again.
+      with subtest("guards: ci token restored, consumer unbanned (stale-token and fail2ban subtests)"):
+          selene.succeed("fail2ban-client set nix-cache-guess unbanip ${consumerIP}")
+          assert code(consumer, f"-u consumer-g1:${tokens.consumer1} {URL}/nix-cache-info") == "200"
+          selene.succeed(
+              f"grep -v '^ci-vmtest-g1:' {HTPASSWD} > {HTPASSWD}.new"
+              f" && printf %s ${tokens.ci1} | nix-cache-htpasswd-entry ci-vmtest-g1 >> {HTPASSWD}.new"
+              f" && chown root:nginx {HTPASSWD}.new && chmod 0640 {HTPASSWD}.new && mv {HTPASSWD}.new {HTPASSWD}"
+          )
+          assert code(ci, f"-u ci-vmtest-g1:${tokens.ci1} {URL}/nix-cache-info") == "200"
+
+      with subtest("a root that is neither bundled nor on the host is rejected without a download"):
+          before_reasons = reasons()
+          pins_before = pin_count()
+          push(bundle("n", strip=True))
+          wait_imported()
+          new = reasons() - before_reasons
+          assert len(new) == 1, new
+          (reason,) = new
+          selene.succeed(f"grep -q 'root(s) are neither in the bundle nor on this host' {DROP}/failed/{reason}")
+          selene.succeed(f"grep -q '${payloadN}' {DROP}/failed/{reason}")
+          assert pin_count() == pins_before
+          assert not valid(selene, "${payloadN}")
+          selene.wait_until_succeeds(
+              "journalctl -t nix-cache-alert | grep >/dev/null 'neither in the bundle nor on this host'", timeout=60
+          )
+
+      with subtest("fetch_estimate parses real nix dry-run output"):
+          assert push(bundle("e")).strip() == "ok"
+          wait_imported()
+          assert valid(selene, "${payloadE}")
+          est = "PYTHONPATH=${pkgSitePackages} python3 -c 'import sys; from nix_cache import nixcli; print(nixcli.fetch_estimate(sys.argv[1:]))'"
+          assert not valid(consumer, "${payloadE}")
+          n = int(consumer.succeed(f"{est} ${payloadE}").strip())
+          print(f"estimate for ${payloadE}: {n}")
+          # NAR of one 1-byte file: a few hundred bytes. The estimate rounds
+          # a "0.x KiB" report up, so it is positive and small.
+          assert 0 < n < 64 * 1024, n
+          assert int(consumer.succeed(f"{est}").strip()) == 0
+          # The estimator is only for invalid paths: a valid one has no
+          # "will be fetched" line, and that must fail closed, not read as 0.
+          consumer.succeed("nix-store --realise ${payloadE}")
+          assert valid(consumer, "${payloadE}")
+          status, out = consumer.execute(f"{est} ${payloadE} 2>&1")
+          assert status != 0 and "printed no fetch summary" in out, (status, out)
+
+      with subtest("an import over the budget or under the free-space floor is rejected before any copy"):
+          selene.succeed("systemctl stop cache-importer-vmtest.path")
+          try:
+              for key, value, message in [
+                  ("budget_bytes", 1, "over the budget of 1"),
+                  ("import_min_free_bytes", 1 << 50, f"below the floor of {1 << 50}"),
+              ]:
+                  alt = f"/tmp/config-{key}.json"
+                  selene.succeed(
+                      f"jq '.{key} = {value}' /etc/nix-cache/config.json > {alt} && chmod 0644 {alt}"
+                  )
+                  assert ci.succeed(f"cat {bundle('b')}/manifest.json | jq -r '.paths | length'").strip() == "1"
+                  push("/tmp/bundle-b")
+                  before_reasons = reasons()
+                  pins_before = pin_count()
+                  out = importer_by_hand(alt)
+                  assert message in out, out
+                  new = reasons() - before_reasons
+                  assert len(new) == 1, new
+                  selene.succeed(f"grep -q '{message}' {DROP}/failed/{next(iter(new))}")
+                  assert not valid(selene, "${payloadB}")
+                  assert pin_count() == pins_before
+                  selene.succeed(f"test -z \"$(ls -A {DROP}/incoming)\"")
+          finally:
+              selene.succeed("systemctl start cache-importer-vmtest.path")
+
+      with subtest("pruner disk alert fires at disk_alert_percent"):
+          # The VM store is a 1 GB overlay that is nearly empty (0.0% used), so
+          # put 32 MB on its backing filesystem (3%) to cross a 1% threshold; removed afterwards.
+          selene.succeed("jq '.disk_alert_percent = 1' /etc/nix-cache/config.json > /tmp/config-disk.json && chmod 0644 /tmp/config-disk.json")
+          delivered = "journalctl -t nix-cache-alert -o cat | grep -c '^nix-cache: disk filling$'"
+          assert int(selene.execute(delivered)[1]) == 0
+          selene.succeed("fallocate -l 32M /nix/.rw-store/vm-disk-fill")
+          try:
+              selene.succeed(
+                  "systemd-run --wait --collect --pipe -p User=nix-cache -p SupplementaryGroups=nginx"
+                  " -p Environment=HOME=/var/lib/nix-cache -p Environment=PATH=/run/current-system/sw/bin"
+                  " /run/current-system/sw/bin/cache-pruner --config /tmp/config-disk.json"
+              )
+              selene.wait_until_succeeds(f"test \"$({delivered})\" -ge 1", timeout=60)
+          finally:
+              selene.succeed("rm -f /nix/.rw-store/vm-disk-fill")
     '';
   }
