@@ -56,7 +56,10 @@ def load_narinfos(d: Path) -> dict[str, NarInfo]:
     return infos
 
 
-def check_key_binding(infos: dict[str, NarInfo], trusted_keys, bundle_url: str) -> None:
+def check_key_names(infos: dict[str, NarInfo], trusted_keys) -> None:
+    """Cheap half of the key binding: every bundled narinfo carries a signature
+    whose key NAME is one of the repo's. No nix call, so it runs first and an
+    unsigned bundle never makes the importer read the store graph."""
     names = {k.split(":", 1)[0] for k in trusted_keys}
     unsigned = sorted(p for p, i in infos.items() if not (i.key_names & names))
     if unsigned:
@@ -64,6 +67,10 @@ def check_key_binding(infos: dict[str, NarInfo], trusted_keys, bundle_url: str) 
             f"{len(unsigned)} path(s) carry no signature from {', '.join(sorted(names))};"
             f" first: {unsigned[0]}"
         )
+
+
+def verify_key_binding(infos: dict[str, NarInfo], trusted_keys, bundle_url: str) -> None:
+    """Expensive half: nix verifies the signatures and contents themselves."""
     if infos:
         try:
             nixcli.verify_sigs(bundle_url, sorted(infos), trusted_keys)
@@ -175,10 +182,11 @@ def import_bundle(bundle: Path, repo: RepoConfig, cfg: Config, now: int) -> Pin:
         # Size guard on the claimed NarSizes alone, before anything is
         # verified or decompressed: a signed path with a genuinely huge NAR
         # is turned away without unpacking it.
+        check_key_names(infos, repo.trusted_keys)
         guard = SizeGuard(cfg, now)
         bundled_new = sum(infos[p].nar_size for p in nixcli.invalid_paths(infos))
         guard.check(bundled_new)
-        check_key_binding(infos, repo.trusted_keys, url)
+        verify_key_binding(infos, repo.trusted_keys, url)
         # NarSize feeds the size guards below; prove it before trusting it.
         for info in infos.values():
             check_nar_size(d / info.url, info.compression, info.nar_size)

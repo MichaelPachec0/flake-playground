@@ -148,6 +148,9 @@ def rejected(cfg, fake_nix, match):
 def test_rejects_unsigned(cfg, fake_nix):
     drop(cfg, bundle_members(manifest([A], [A]), {A: narinfo_text(A, sigs=())}))
     rejected(cfg, fake_nix, "carry no signature from vmtest-repo-1")
+    # The cheap key-name check runs before anything reads the store graph or
+    # runs nix.
+    assert fake_nix.graph_reads == 0 and fake_nix.verified == [] and fake_nix.estimated == []
 
 
 def test_rejects_other_repo_key(cfg, fake_nix):
