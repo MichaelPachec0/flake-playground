@@ -13,8 +13,10 @@ BASENAME_RE = re.compile(r"^[0-9a-df-np-sv-z]{32}-[A-Za-z0-9+._?=-]+$")
 REQUIRED = ("StorePath", "URL", "NarHash", "NarSize")
 # Nix decompresses a NAR by the Compression field (a missing one means
 # bzip2), not by the URL, so the two must agree for the importer's own size
-# check to read the NAR the way the daemon will.
-URL_SUFFIX_BY_COMPRESSION = {"none": ".nar", "zstd": ".nar.zst", "xz": ".nar.xz", "bzip2": ".nar.bz2"}
+# check to read the NAR the way the daemon will. Only zstd (what the bundler
+# emits) and none are accepted: Python's xz/bzip2 decoders and the daemon's
+# libarchive differ on trailing data, so their byte counts could disagree.
+URL_SUFFIX_BY_COMPRESSION = {"none": ".nar", "zstd": ".nar.zst"}
 
 
 class NarInfoError(ValueError):

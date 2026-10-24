@@ -1,6 +1,5 @@
-import bz2
 import io
-import lzma
+import subprocess
 import tarfile
 from pathlib import Path
 
@@ -187,8 +186,6 @@ def test_missing_required_not_satisfied_by_empty_manifest_member_absent(tmp_path
 # --- NAR size check: decompressed bytes must equal the narinfo's NarSize ----
 COMPRESSORS = {
     "zstd": zstd_bytes,
-    "xz": lzma.compress,
-    "bzip2": bz2.compress,
     "none": lambda b: b,
 }
 
@@ -219,12 +216,33 @@ def test_nar_shorter_than_nar_size_rejected(tmp_path, compression):
         check_nar_size(path, compression, 10)
 
 
-@pytest.mark.parametrize("compression", ["zstd", "xz", "bzip2"])
-def test_corrupt_nar_rejected(tmp_path, compression):
+def test_corrupt_zstd_nar_rejected(tmp_path):
     with pytest.raises(BundleError):
-        check_nar_size(nar_file(tmp_path, b"definitely not compressed"), compression, 25)
+        check_nar_size(nar_file(tmp_path, b"definitely not compressed"), "zstd", 25)
 
 
-def test_unknown_compression_rejected(tmp_path):
+def test_zstd_trailing_garbage_rejected(tmp_path):
+    with pytest.raises(BundleError, match="zstd failed"):
+        check_nar_size(nar_file(tmp_path, zstd_bytes(b"z" * 10) + b"junk"), "zstd", 10)
+
+
+@pytest.mark.parametrize("compression", ["br", "xz", "bzip2"])
+def test_unsupported_compression_rejected(tmp_path, compression):
     with pytest.raises(BundleError, match="unsupported compression"):
-        check_nar_size(nar_file(tmp_path, b"x"), "br", 1)
+        check_nar_size(nar_file(tmp_path, b"x"), compression, 1)
+
+
+def test_nar_bomb_leaves_no_decompressor_behind(tmp_path, monkeypatch):
+    path = nar_file(tmp_path, zstd_bytes(bytes(64 << 20)))
+    procs = []
+    real = subprocess.Popen
+
+    def recording(*args, **kwargs):
+        procs.append(real(*args, **kwargs))
+        return procs[-1]
+
+    monkeypatch.setattr(subprocess, "Popen", recording)
+    with pytest.raises(BundleError, match="more than its NarSize"):
+        check_nar_size(path, "zstd", 10)
+    [proc] = procs
+    assert proc.returncode is not None  # reaped, not left running

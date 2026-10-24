@@ -70,9 +70,7 @@ def _with(compression_line, url_suffix):
     "line, suffix, expected",
     [
         ("Compression: none\n", ".nar", "none"),
-        ("Compression: xz\n", ".nar.xz", "xz"),
-        ("Compression: bzip2\n", ".nar.bz2", "bzip2"),
-        ("", ".nar.bz2", "bzip2"),  # Nix defaults a missing Compression to bzip2
+        ("Compression: zstd\n", ".nar.zst", "zstd"),
     ],
 )
 def test_compression_matching_url_accepted(line, suffix, expected):
@@ -87,6 +85,11 @@ def test_compression_matching_url_accepted(line, suffix, expected):
         ("", ".nar.zst"),
         ("Compression: br\n", ".nar.zst"),
         ("Compression: \n", ".nar.bz2"),
+        # Only zstd (what the bundler emits) and none: Python's xz/bzip2
+        # decoders and the daemon's libarchive differ on trailing data.
+        ("Compression: xz\n", ".nar.xz"),
+        ("Compression: bzip2\n", ".nar.bz2"),
+        ("", ".nar.bz2"),  # a missing field means bzip2 to Nix
     ],
 )
 def test_compression_mismatch_rejected(line, suffix):

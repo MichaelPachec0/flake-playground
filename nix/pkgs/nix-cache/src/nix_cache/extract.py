@@ -8,8 +8,6 @@ duplicates can never reach the filesystem.
 
 from __future__ import annotations
 
-import bz2
-import lzma
 import re
 import shutil
 import subprocess
@@ -146,19 +144,12 @@ def check_nar_size(path: Path, compression: str, nar_size: int) -> None:
     NAR with a correct hash can still claim a tiny NarSize while unpacking to
     gigabytes (a compression bomb), so the claim is checked here, before the
     daemon writes anything. Counting stops as soon as it passes nar_size;
-    nothing is buffered beyond one chunk.
+    nothing is buffered beyond one chunk. Only zstd and none are supported
+    (see narinfo.URL_SUFFIX_BY_COMPRESSION).
     """
     if compression == "none":
         with open(path, "rb") as f:
             _count_nar(f, path, nar_size)
-        return
-    if compression in ("xz", "bzip2"):
-        opener = lzma.open if compression == "xz" else bz2.open
-        try:
-            with opener(path, "rb") as f:
-                _count_nar(f, path, nar_size)
-        except (lzma.LZMAError, OSError, EOFError) as e:
-            raise BundleError(f"{path.name}: corrupt {compression} data: {e}") from e
         return
     if compression != "zstd":
         raise BundleError(f"{path.name}: unsupported compression {compression!r}")
@@ -168,12 +159,17 @@ def check_nar_size(path: Path, compression: str, nar_size: int) -> None:
     assert proc.stdout is not None and proc.stderr is not None
     try:
         _count_nar(proc.stdout, path, nar_size)
-    finally:
-        # On an early stop, closing the pipe makes zstd exit (EPIPE) instead
-        # of decompressing the rest.
+    except BaseException:
+        # Early stop: kill and reap zstd rather than hoping a broken pipe
+        # stops it before it decompresses the rest.
+        proc.kill()
+        proc.wait()
         proc.stdout.close()
-        stderr = proc.stderr.read().decode(errors="replace").strip()
         proc.stderr.close()
-        returncode = proc.wait()
+        raise
+    proc.stdout.close()
+    stderr = proc.stderr.read().decode(errors="replace").strip()
+    proc.stderr.close()
+    returncode = proc.wait()
     if returncode != 0:
         raise BundleError(f"{path.name}: zstd failed ({returncode}): {stderr}")
