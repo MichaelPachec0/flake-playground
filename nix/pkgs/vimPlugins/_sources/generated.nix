@@ -226,17 +226,17 @@
   };
   neotestGtest = {
     pname = "neotestGtest";
-    version = "bdffb45731ed2a6f40ca94ed662cadb8add73b30";
+    version = "9e8031a8751e0ecd7d673a7abc48671b66e3be85";
     src = fetchgit {
       url = "https://github.com/alfaix/neotest-gtest";
-      rev = "bdffb45731ed2a6f40ca94ed662cadb8add73b30";
+      rev = "9e8031a8751e0ecd7d673a7abc48671b66e3be85";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-qQfNur/XKGI6yTSMdqaGZrO6LqWD41TXL2E2Y9zH3tc=";
+      sha256 = "sha256-xWwt3g8edNPy8xYSZhR2x74JupLnWVw2Oe7+yOyMHPs=";
     };
-    date = "2026-09-28";
+    date = "2026-10-25";
   };
   noneLs = {
     pname = "noneLs";
@@ -280,15 +280,15 @@
   };
   nvchadUi = {
     pname = "nvchadUi";
-    version = "ddb8a0a6326184bec3eb9910d151a43f6253f289";
+    version = "f297bfb60c7e4a4a833f2837be79e04df2873c6a";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "ui";
-      rev = "ddb8a0a6326184bec3eb9910d151a43f6253f289";
+      rev = "f297bfb60c7e4a4a833f2837be79e04df2873c6a";
       fetchSubmodules = false;
-      sha256 = "sha256-cNV2neGya3Cmu819um2/J1N8iVciquCClrzpXGGmHCs=";
+      sha256 = "sha256-JVXZsApbknoJ/U9jjfob8/abxhilVRH8elKVNxXvMl8=";
     };
-    date = "2026-10-25";
+    date = "2026-10-26";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";

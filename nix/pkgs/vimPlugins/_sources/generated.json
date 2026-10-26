@@ -324,7 +324,7 @@
     },
     "neotestGtest": {
         "cargoLock": null,
-        "date": "2026-09-28",
+        "date": "2026-10-25",
         "extract": null,
         "name": "neotestGtest",
         "passthru": null,
@@ -334,13 +334,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "bdffb45731ed2a6f40ca94ed662cadb8add73b30",
-            "sha256": "sha256-qQfNur/XKGI6yTSMdqaGZrO6LqWD41TXL2E2Y9zH3tc=",
+            "rev": "9e8031a8751e0ecd7d673a7abc48671b66e3be85",
+            "sha256": "sha256-xWwt3g8edNPy8xYSZhR2x74JupLnWVw2Oe7+yOyMHPs=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/alfaix/neotest-gtest"
         },
-        "version": "bdffb45731ed2a6f40ca94ed662cadb8add73b30"
+        "version": "9e8031a8751e0ecd7d673a7abc48671b66e3be85"
     },
     "noneLs": {
         "cargoLock": null,
@@ -405,7 +405,7 @@
     },
     "nvchadUi": {
         "cargoLock": null,
-        "date": "2026-10-25",
+        "date": "2026-10-26",
         "extract": null,
         "name": "nvchadUi",
         "passthru": null,
@@ -417,12 +417,12 @@
             "name": null,
             "owner": "NvChad",
             "repo": "ui",
-            "rev": "ddb8a0a6326184bec3eb9910d151a43f6253f289",
-            "sha256": "sha256-cNV2neGya3Cmu819um2/J1N8iVciquCClrzpXGGmHCs=",
+            "rev": "f297bfb60c7e4a4a833f2837be79e04df2873c6a",
+            "sha256": "sha256-JVXZsApbknoJ/U9jjfob8/abxhilVRH8elKVNxXvMl8=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "ddb8a0a6326184bec3eb9910d151a43f6253f289"
+        "version": "f297bfb60c7e4a4a833f2837be79e04df2873c6a"
     },
     "nvimDapReplHighlights": {
         "cargoLock": null,
