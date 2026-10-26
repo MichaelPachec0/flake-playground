@@ -8,17 +8,17 @@
 {
   affine-mcp-server = {
     pname = "affine-mcp-server";
-    version = "v3.10.1";
+    version = "v3.10.2";
     src = fetchFromGitHub {
       owner = "DAWNCR0W";
       repo = "affine-mcp-server";
-      rev = "v3.10.1";
+      rev = "v3.10.2";
       fetchSubmodules = false;
-      sha256 = "sha256-rEFLIsLDkbE0jgQUiD9trPKqh1DS5aSdhvzkBtKRH/o=";
+      sha256 = "sha256-CnYYhTsO76lrenUZsNtDI+MgLsRIxe1SuwsWsAaqt04=";
     };
     extract = {
-      "package-lock.json" = ./. + "/sha256-rEFLIsLDkbE0jgQUiD9trPKqh1DS5aSdhvzkBtKRH_o=/package-lock.json";
-      "package.json" = ./. + "/sha256-rEFLIsLDkbE0jgQUiD9trPKqh1DS5aSdhvzkBtKRH_o=/package.json";
+      "package-lock.json" = ./. + "/sha256-CnYYhTsO76lrenUZsNtDI+MgLsRIxe1SuwsWsAaqt04=/package-lock.json";
+      "package.json" = ./. + "/sha256-CnYYhTsO76lrenUZsNtDI+MgLsRIxe1SuwsWsAaqt04=/package.json";
     };
   };
   affine-server = {
