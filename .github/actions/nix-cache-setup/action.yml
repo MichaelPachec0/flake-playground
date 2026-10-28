@@ -1,0 +1,123 @@
+name: "Nix cache setup"
+description: >-
+  Point the runner's nix-daemon at the self-hosted binary cache: extra
+  substituter, trusted key, root-only netrc with the read token, short
+  connect timeout and fallback. Policy optional skips the cache when the
+  token is missing or the probe fails; required fails the job instead.
+
+inputs:
+  url:
+    description: "Cache URL, e.g. https://cache.example.org (pass from a secret)."
+    required: true
+  read-token:
+    description: "Read token (secret). Empty on fork PRs."
+    required: false
+    default: ""
+  read-user:
+    description: "htpasswd user the token belongs to, e.g. ci-flake-playground-g1."
+    required: false
+    default: ""
+  public-keys:
+    description: "Space-separated signing public keys to trust."
+    required: true
+  policy:
+    description: "optional (fail-open) or required (fail the job)."
+    required: false
+    default: "optional"
+
+outputs:
+  enabled:
+    description: >-
+      "true" when the daemon now substitutes from the cache, "false" when the
+      step skipped it (optional policy). Callers fall back to another cache on
+      anything but "true".
+    value: ${{ steps.configure.outputs.enabled }}
+
+runs:
+  using: composite
+  steps:
+    - name: Configure the self-hosted nix cache
+      id: configure
+      shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        TOKEN: ${{ inputs.read-token }}
+        READ_USER: ${{ inputs.read-user }}
+        KEYS: ${{ inputs.public-keys }}
+        POLICY: ${{ inputs.policy }}
+      run: |
+        set -euo pipefail
+        echo "enabled=false" >>"$GITHUB_OUTPUT"
+        case "$POLICY" in optional|required) ;; *) echo "::error::policy must be optional or required"; exit 1 ;; esac
+        NETRC=/etc/nix/nix-cache-netrc
+        CONF=/etc/nix/nix.conf
+        BACKUP=/etc/nix/nix.conf.pre-nix-cache
+        skip() {
+          if [ "$POLICY" = required ]; then echo "::error::$1"; exit 1; fi
+          echo "::warning::$1; building without the self-hosted cache"
+          exit 0
+        }
+        # Undo everything this step changed, then skip or fail per policy.
+        revert() {
+          sudo rm -f "$NETRC"
+          if sudo test -f "$BACKUP"; then
+            sudo mv -f "$BACKUP" "$CONF"
+            sudo systemctl restart nix-daemon.service || true
+          fi
+          skip "$1"
+        }
+        # Without signing keys every narinfo from the cache would be rejected
+        # as unsigned and, with fallback = true, the job would silently build
+        # everything, so the keys count as credentials too.
+        if [ -z "$TOKEN" ] || [ -z "$URL" ] || [ -z "$READ_USER" ] || [ -z "$KEYS" ]; then
+          if [ "$POLICY" = optional ]; then
+            echo "::notice::no nix cache credentials (fork PR?); building without the self-hosted cache"
+            exit 0
+          fi
+          skip "nix cache credentials missing"
+        fi
+        # Secrets are masked by the runner already; this also covers a token
+        # passed in some other way. echo and printf are bash builtins, so the
+        # token never appears in any process's argv.
+        echo "::add-mask::$TOKEN"
+        # Values land in nix.conf and the netrc line by line, so a newline
+        # (or a space in the URL, which nix.conf reads as a list separator)
+        # would inject extra settings.
+        nl=$'\n'
+        cr=$'\r'
+        case "$URL$KEYS$READ_USER$TOKEN" in
+          *"$nl"*|*"$cr"*) skip "nix cache inputs contain a line break" ;;
+        esac
+        case "$URL" in
+          *[[:space:]]*) skip "nix cache URL contains whitespace" ;;
+          https://*) ;;
+          # Plain http would send the read token in cleartext.
+          *) skip "nix cache URL must use https://" ;;
+        esac
+        if ! systemctl cat nix-daemon.service >/dev/null 2>&1; then
+          skip "no nix-daemon.service unit to point at the cache"
+        fi
+        # netrc matches on the bare host name, so drop any :port as well.
+        host=$(printf %s "$URL" | sed -E 's#^https://([^/:]+).*#\1#')
+        # Substitution runs in the root daemon, so the netrc is root-only.
+        printf 'machine %s\nlogin %s\npassword %s\n' "$host" "$READ_USER" "$TOKEN" \
+          | sudo install -m 0600 -o root -g root /dev/stdin "$NETRC"
+        # No -L: a redirect leaves the body empty and fails the check below,
+        # as does a captive portal or proxy page answering 200.
+        info=$(sudo curl -fsS --proto =https --max-time 10 --netrc-file "$NETRC" "$URL/nix-cache-info") || info=""
+        if ! printf '%s\n' "$info" | grep -qx 'StoreDir: /nix/store'; then
+          revert "nix cache probe failed"
+        fi
+        sudo cp -p "$CONF" "$BACKUP" || revert "could not back up $CONF"
+        printf '%s\n' \
+          "extra-substituters = $URL" \
+          "extra-trusted-public-keys = $KEYS" \
+          "netrc-file = $NETRC" \
+          "connect-timeout = 5" \
+          "fallback = true" \
+          | sudo tee -a "$CONF" >/dev/null || revert "could not update $CONF"
+        sudo systemctl restart nix-daemon.service || revert "nix-daemon restart failed"
+        sudo rm -f "$BACKUP"
+        echo "enabled=true" >>"$GITHUB_OUTPUT"
+        # The URL is a secret, so the host is not printed.
+        echo "nix cache enabled"

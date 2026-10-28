@@ -23,17 +23,29 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+    outputs:
+      bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
+      bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # heal-pnpm-hash.sh rewrites nix/pkgs/zipline/pnpm-deps.hash when the new
       # release changed pnpm-lock.yaml (warning, not failure); any other
       # pnpmDeps failure is fatal. The explicit build covers what the default
       # gate does not (zipline-latest is excluded from the gate aggregates).
       - name: Regenerate source + heal hash + build zipline
+        id: checks
         uses: ./.github/actions/nix-checks
         with:
+          cache-backend: ${{ vars.NIX_CACHE_BACKEND || 'snapshot' }}
+          cache-url: ${{ secrets.NIX_CACHE_URL }}
+          cache-read-token: ${{ secrets.NIX_CACHE_READ_TOKEN }}
+          cache-read-user: ${{ vars.NIX_CACHE_READ_USER }}
+          cache-public-keys: ${{ vars.NIX_CACHE_PUBLIC_KEYS }}
+          cache-bundle-set: bump-zipline
+          cache-bundle-roots: ".#legacyPackages.x86_64-linux.ci.cacheRoots.bump-zipline"
+          cache-bundle-artifact: nix-cache-bump-zipline-x86_64-linux
           pre-build-command: >-
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/zipline/nvfetcher.toml
@@ -50,7 +62,7 @@ jobs:
       - name: Commit bumped source
         id: commit
         if: ${{ success() }}
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
         with:
           commit_message: "chore: bump zipline source"
           # ONE LINE only: the action does `read -r -a` on this input, which
@@ -61,3 +73,26 @@ jobs:
       - name: Push (rebase + retry)
         if: ${{ steps.commit.outputs.changes_detected == 'true' }}
         uses: ./.github/actions/push-retry
+
+  # Bump commits pushed with GITHUB_TOKEN do not trigger ci.yml, so this
+  # workflow pushes its own set. Only with the self-hosted cache, never for
+  # pull requests, and only on main (environment cache-push refuses other
+  # refs anyway). tools-flake is the commit this run checked out: it exists
+  # on the remote, unlike the bump commit, which push-retry creates later
+  # (rebased, or not at all when nothing changed). It only supplies the
+  # nix-cache tools; the bundle itself holds what this job built.
+  push:
+    needs: update
+    if: ${{ vars.NIX_CACHE_BACKEND == 'selene' && needs.update.outputs.bundle-ok == 'true' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && github.ref == 'refs/heads/main' }}
+    permissions: {}
+    uses: ./.github/workflows/nix-cache-push.yml
+    with:
+      repo: flake-playground
+      set: bump-zipline
+      arch: x86_64-linux
+      artifact-name: ${{ needs.update.outputs.bundle-artifact }}
+      read-user: ${{ vars.NIX_CACHE_READ_USER }}
+      tools-flake: github:${{ github.repository }}/${{ github.sha }}
+    secrets:
+      NIX_CACHE_URL: ${{ secrets.NIX_CACHE_URL }}
+      NIX_CACHE_READ_TOKEN: ${{ secrets.NIX_CACHE_READ_TOKEN }}

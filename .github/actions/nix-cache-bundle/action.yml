@@ -1,0 +1,136 @@
+name: "Nix cache bundle"
+description: >-
+  Bundle the outputs of a CI set that the self-hosted cache does not have
+  yet, and upload the bundle as a workflow artifact for the push job (which
+  signs and uploads it from a separate VM). Runs after the build.
+
+inputs:
+  roots-attr:
+    description: "Flake attribute evaluating to a list of output paths (ci.cacheRoots.<set>)."
+    required: true
+  set:
+    description: "Cache namespace set name, e.g. gate or bump-picr."
+    required: true
+  arch:
+    description: "x86_64-linux or aarch64-linux."
+    required: false
+    default: "x86_64-linux"
+  artifact-name:
+    description: >-
+      Base name of the uploaded artifact (unique per run). The action appends
+      -<run attempt>, so "Re-run all jobs" never collides with an artifact of
+      an earlier attempt; pass output artifact-name on to the push job.
+    required: true
+  cache-url:
+    description: "Cache URL (secret)."
+    required: true
+  read-token:
+    description: "Read token (secret), used to see what the cache already has."
+    required: false
+    default: ""
+  read-user:
+    description: "htpasswd user of the read token."
+    required: false
+    default: ""
+  policy:
+    description: "optional (warn and skip on failure) or required."
+    required: false
+    default: "optional"
+  tools-flake:
+    description: >-
+      Pinned flake ref that provides the nix-cache package. No default (a
+      branch ref is mutable): in-repo callers pass "." or
+      github:<github.repository>/<github.sha>; callers in other repos pass a
+      fixed rev of flake-playground, bumped together with the SHA they use
+      this action at.
+    required: true
+
+outputs:
+  ok:
+    description: "true when the artifact was uploaded."
+    # outcome, not conclusion: with continue-on-error a failed upload still
+    # concludes as success.
+    value: ${{ steps.bundle.outputs.built == 'true' && steps.upload.outcome == 'success' }}
+  artifact-name:
+    description: "Name the bundle was uploaded under (the push job downloads this one)."
+    value: ${{ inputs.artifact-name }}-${{ github.run_attempt }}
+
+runs:
+  using: composite
+  steps:
+    - name: Bundle uncached outputs
+      id: bundle
+      shell: bash
+      env:
+        ROOTS_ATTR: ${{ inputs.roots-attr }}
+        SET: ${{ inputs.set }}
+        ARCH: ${{ inputs.arch }}
+        URL: ${{ inputs.cache-url }}
+        TOKEN: ${{ inputs.read-token }}
+        READ_USER: ${{ inputs.read-user }}
+        POLICY: ${{ inputs.policy }}
+        TOOLS_FLAKE: ${{ inputs.tools-flake }}
+        NIXPKGS_ALLOW_UNFREE: "1"
+      run: |
+        set -uo pipefail
+        echo "built=false" >> "$GITHUB_OUTPUT"
+        case "$POLICY" in optional|required) ;; *) echo "::error::policy must be optional or required"; exit 1 ;; esac
+        give_up() {
+          if [ "$POLICY" = required ]; then echo "::error::$1"; exit 1; fi
+          echo "::warning::$1; not pushing to the nix cache"
+          exit 0
+        }
+        [ -n "$TOKEN" ] && [ -n "$READ_USER" ] && [ -n "$URL" ] \
+          || give_up "no cache URL or read token, cannot tell what the cache already has"
+        if [ -z "$TOOLS_FLAKE" ]; then echo "::error::tools-flake is required (a pinned flake ref)"; exit 1; fi
+        # Secrets are masked by the runner already; this also covers a token
+        # passed in some other way. printf is a builtin, so the token never
+        # lands in any process's argv.
+        echo "::add-mask::$TOKEN"
+        nl=$'\n'
+        cr=$'\r'
+        case "$URL$READ_USER$TOKEN" in
+          *"$nl"*|*"$cr"*) give_up "nix cache inputs contain a line break" ;;
+        esac
+        case "$URL" in
+          *[[:space:]]*) give_up "nix cache URL contains whitespace" ;;
+          https://*) ;;
+          # Plain http would send the read token in cleartext.
+          *) give_up "nix cache URL must use https://" ;;
+        esac
+        work="$RUNNER_TEMP/nix-cache-bundle"
+        rm -rf "$work"
+        mkdir -p "$work"
+        trap 'rm -f "$work/netrc"' EXIT
+        # netrc matches on the bare host name, so drop any :port as well.
+        host=$(printf %s "$URL" | sed -E 's#^https://([^/:]+).*#\1#')
+        ( umask 077; printf 'machine %s\nlogin %s\npassword %s\n' "$host" "$READ_USER" "$TOKEN" > "$work/netrc" )
+        nix eval --impure --json "$ROOTS_ATTR" > "$work/roots.json" || give_up "could not evaluate $ROOTS_ATTR"
+        echo "$(jq length "$work/roots.json") roots in $SET"
+        nix shell "$TOOLS_FLAKE#nix-cache" -c nix-cache-bundle \
+          --roots-json "$work/roots.json" --set "$SET" --arch "$ARCH" --out "$work/bundle" \
+          --own-cache "$URL" --netrc "$work/netrc" \
+          --run-id "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" || give_up "nix-cache-bundle failed"
+        rm -f "$work/netrc"
+        du -sh "$work/bundle"
+        echo "built=true" >> "$GITHUB_OUTPUT"
+
+    # Under the optional policy an upload failure (artifact service hiccup,
+    # quota) must not fail the build job: it only means no push this run.
+    # Output ok stays false then, so the push job is skipped.
+    - name: Upload the bundle artifact
+      id: upload
+      if: ${{ steps.bundle.outputs.built == 'true' }}
+      continue-on-error: ${{ inputs.policy == 'optional' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact-name }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/nix-cache-bundle/bundle
+        retention-days: 1
+        if-no-files-found: error
+        overwrite: true
+
+    - name: Report a skipped push
+      if: ${{ steps.upload.outcome == 'failure' }}
+      shell: bash
+      run: echo "::warning::uploading the nix cache bundle artifact failed; not pushing to the nix cache"

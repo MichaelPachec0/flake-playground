@@ -28,6 +28,31 @@
     nixpkgs.config.allowUnfree = true;
   };
 
+  # Shared base for the nix-cache-host checks. Secret paths are plain strings
+  # (the module rejects path literals); eval never reads them.
+  nixCacheHostCfg = {
+    # Explicit, as on selene: the NixOS default ["*"] makes the module warn.
+    nix.settings.allowed-users = ["@wheel"];
+    services.nix-cache-host = {
+      enable = true;
+      hostName = "cache.example";
+      htpasswdFile = "/run/secrets/nix-cache-htpasswd";
+      nginx.sslCertificate = "/run/secrets/cert.pem";
+      nginx.sslCertificateKey = "/run/secrets/key.pem";
+      repos.flake-playground = {
+        uid = 2001;
+        signingPublicKeys = ["vmtest-repo-1:PKOUrEE06/Lg0wbDuGrjHbhekffk1kRlBPaYXDA/hc4="];
+        sets = ["gate" "bump-flake-lock"];
+        uploadKeys = [
+          {
+            key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVtZXN0IGtleSBmb3IgZXZhbCBjaGVja3Mgb25seQ ci";
+            expires = "20991231";
+          }
+        ];
+      };
+    };
+  };
+
   # Minimal base config so a home-manager generation evaluates.
   hmStub = {
     home.username = "ci";
@@ -253,6 +278,208 @@ in {
     services.zipline-extras.enable = true;
     services.zipline-extras.experimental.migrateToPglite.enable = true;
   } "migrateToPglite writes to";
+
+  nixos-nix-cache-host = evalNixosAssert "nixos-nix-cache-host" "nix-cache-host" nixCacheHostCfg {
+    check = c: let
+      keys = c.users.users.cache-drop-flake-playground.openssh.authorizedKeys.keys;
+    in
+      lib.hasInfix "ForceCommand" c.services.openssh.extraConfig
+      && lib.hasInfix "Match User cache-drop-flake-playground\n  AcceptEnv NIX_CACHE_UPLOAD_NO_ENV\n" c.services.openssh.extraConfig
+      && lib.hasSuffix "Match all\n" c.services.openssh.extraConfig
+      && lib.all (k: lib.hasPrefix "restrict,command=" k && lib.hasInfix "expiry-time=\"20991231\"" k) keys
+      && c.users.users.cache-drop-flake-playground.uid == 2001
+      && lib.elem "nix-cache" c.nix.settings.extra-allowed-users
+      && lib.elem "harmonia" c.nix.settings.extra-allowed-users
+      && lib.any (lib.hasInfix "A+ /srv/cache-drop/flake-playground/incoming") c.systemd.tmpfiles.rules
+      && lib.hasInfix "ip46tables -w -A nix-cache-egress -m owner --uid-owner 2001 -j DROP" c.networking.firewall.extraCommands
+      && !(lib.any (lib.hasInfix "allowed-users") c.warnings)
+      && c.environment.etc ? "nix-cache/config.json"
+      && c.systemd.paths ? cache-importer-flake-playground
+      && c.systemd.services.cache-importer-flake-playground.serviceConfig.PrivateNetwork
+      && c.systemd.services.cache-pruner.unitConfig.OnSuccess == ["cache-gc.service"]
+      && c.systemd.timers ? cache-pruner
+      && lib.hasInfix "nix-store --gc" c.systemd.services.cache-gc.serviceConfig.ExecStart
+      && lib.hasInfix "flock /var/lib/nix-cache/lock " c.systemd.services.cache-gc.serviceConfig.ExecStart
+      && !(c.systemd.services.cache-gc.serviceConfig ? User)
+      && c.systemd.paths ? nix-cache-alert
+      && c.systemd.paths.nix-cache-alert.pathConfig.PathExistsGlob == "/var/lib/nix-cache/alerts/*.json"
+      && !(c.systemd.paths.nix-cache-alert.pathConfig ? DirectoryNotEmpty)
+      && c.systemd.services ? "nix-cache-unit-failed@"
+      # Glob, not DirectoryNotEmpty: files the importer leaves in incoming/
+      # would re-trigger the path unit until its start limit trips.
+      && c.systemd.paths.cache-importer-flake-playground.pathConfig.PathExistsGlob == "/srv/cache-drop/flake-playground/incoming/*.tar.zst"
+      && !(c.systemd.paths.cache-importer-flake-playground.pathConfig ? DirectoryNotEmpty)
+      && c.systemd.services.cache-importer-flake-playground.unitConfig.OnFailure == ["nix-cache-unit-failed@%n.service"]
+      && lib.elem c.nix.package c.systemd.services.cache-pruner.path
+      && lib.elem c.nix.package c.systemd.services.cache-importer-flake-playground.path
+      && lib.all (s: lib.elem "/nix/var/nix/gcroots/cache" c.systemd.services.${s}.serviceConfig.ReadWritePaths) ["cache-pruner" "cache-importer-flake-playground"]
+      # All three hold the shared lock: a hung run must time out and alert.
+      && c.systemd.services.cache-importer-flake-playground.serviceConfig.TimeoutStartSec == "2h"
+      && c.systemd.services.cache-pruner.serviceConfig.TimeoutStartSec == "3h"
+      && c.systemd.services.cache-gc.serviceConfig.TimeoutStartSec == "1h"
+      && lib.elem "f /var/lib/nix-cache/lock 0600 nix-cache nix-cache -" c.systemd.tmpfiles.rules
+      && c.services.harmonia.cache.enable
+      && c.services.harmonia.cache.signKeyPaths == []
+      && c.services.harmonia.cache.settings.bind == "127.0.0.1:37450"
+      && c.services.nginx.virtualHosts."cache.example".basicAuthFile == "/run/secrets/nix-cache-htpasswd"
+      # Outside the allowlist: 404 in the content phase, after auth (a
+      # rewrite-phase `return` would answer anonymous probes before auth).
+      && c.services.nginx.virtualHosts."cache.example".locations."/".return == null
+      && c.services.nginx.virtualHosts."cache.example".locations."/".tryFiles == "/nix-cache-not-found =404"
+      && lib.all (l: lib.hasInfix "limit_except GET { deny all; }" l.extraConfig && lib.hasInfix "Cache-Control \"private\" always" l.extraConfig)
+      (map (n: c.services.nginx.virtualHosts."cache.example".locations.${n}) ["= /nix-cache-info" "~ \"^/[0-9a-df-np-sv-z]{32}\\.narinfo$\"" "^~ /nar/"])
+      && c.services.nginx.virtualHosts.nix-cache-default-server.rejectSSL
+      && lib.hasInfix "log_format nix_cache_json" c.services.nginx.commonHttpConfig
+      # The pruner reads the access log through SupplementaryGroups = nginx.
+      && c.users.groups ? ${c.services.nginx.group}
+      # Rotation the pruner can follow: rename + reopen, <log>.1 uncompressed.
+      && !(c.services.logrotate.settings.nginx.copytruncate or false)
+      && c.services.logrotate.settings.nginx.delaycompress
+      && !(c.services.logrotate.settings.header.dateext or false)
+      # The importer's per-repo caps: allowed set names and roots per bundle.
+      && (let
+        json = builtins.fromJSON c.services.nix-cache-host.configFile.text;
+        repo = json.repos.flake-playground;
+      in
+        repo.allowed_sets == ["gate" "bump-flake-lock"]
+        && repo.max_roots == 64
+        # The importer's free-space floor (default 10 GiB) and the pruner's
+        # disk-usage alert threshold (default 85%).
+        && json.import_min_free_bytes == 10737418240
+        && json.disk_alert_percent == 85);
+    message = "upload user, sshd Match block (AcceptEnv reset), daemon access, drop dirs, iptables egress, importer/pruner/GC/alert units, Harmonia on loopback, the nginx vhost (GET-only, private, content-phase 404), default server, nginx group, log rotation, importer/pruner start timeouts and the importer's set allowlist, root cap and free-space floor and the pruner's disk alert threshold must be configured, and an explicit allowed-users must not warn";
+  };
+  # fail2ban on: only the guess jail (unknown token users), with escalating
+  # bans, and fail2ban waits for nginx to create the error log.
+  nixos-nix-cache-host-fail2ban =
+    evalNixosAssert "nixos-nix-cache-host-fail2ban" "nix-cache-host" (lib.recursiveUpdate nixCacheHostCfg {
+      services.fail2ban.enable = true;
+    }) {
+      check = c: let
+        jail = c.services.fail2ban.jails.nix-cache-guess;
+      in
+        jail.settings.logpath
+        == "/var/log/nginx/nix-cache.error.log"
+        && jail.settings."bantime.increment"
+        && lib.hasPrefix "^\\s*\\[error\\] " jail.filter.Definition.failregex
+        # Colon-free user match: ".*" or ".*?" would let a forged Referer pick <HOST>.
+        && lib.hasInfix "user \"[^:]*\" was not found in \"[^\"]*\", client: <HOST>, server: \\S*, request: " jail.filter.Definition.failregex
+        && lib.filter (lib.hasPrefix "nix-cache") (lib.attrNames c.services.fail2ban.jails) == ["nix-cache-guess"]
+        && lib.elem "nginx.service" c.systemd.services.fail2ban.after;
+      message = "with fail2ban enabled the module must add only the nix-cache-guess jail (anchored failregex, bantime.increment) and order fail2ban after nginx";
+    };
+  # nftables branch of the egress block. The nftables start script is a build
+  # input, so the ruleset also goes through `nft --check` here.
+  nixos-nix-cache-host-nftables =
+    evalNixosAssert "nixos-nix-cache-host-nftables" "nix-cache-host" (lib.recursiveUpdate nixCacheHostCfg {
+      networking.nftables.enable = true;
+    }) {
+      check = c:
+        lib.hasInfix "meta skuid { 2001 } counter drop" c.networking.nftables.tables.nix-cache-egress.content
+        && c.networking.firewall.extraCommands == "";
+      message = "with nftables the egress drop must be an nftables table (no iptables commands)";
+      deps = c: lib.toList c.systemd.services.nftables.serviceConfig.ExecStart;
+    };
+  # The NixOS default allowed-users = ["*"] lets the upload users reach the
+  # daemon: warn. Reads config.warnings only (no toplevel), so the gate log
+  # stays free of the warning text.
+  nixos-nix-cache-host-warns-allowed-users = let
+    sys = lib.nixosSystem {
+      inherit system;
+      modules = [nixosModules.nix-cache-host nixosStub nixCacheHostCfg {nix.settings.allowed-users = lib.mkForce ["*"];}];
+    };
+  in
+    assert lib.assertMsg (lib.any (lib.hasInfix "allowed-users contains \"*\"") sys.config.warnings)
+    "nix-cache-host: allowed-users containing \"*\" must produce a warning";
+      pkgs.runCommand "eval-assert-nixos-nix-cache-host-warns-allowed-users" {} "touch $out";
+  nixos-nix-cache-host-needs-tls = expectAssertion "nixos-nix-cache-host-needs-tls" "nix-cache-host" {
+    services.nix-cache-host = {
+      enable = true;
+      hostName = "cache.example";
+      htpasswdFile = "/run/secrets/nix-cache-htpasswd";
+    };
+  } "needs either nginx.useACMEHost";
+  nixos-nix-cache-host-no-user-env = expectAssertion "nixos-nix-cache-host-no-user-env" "nix-cache-host" (lib.recursiveUpdate nixCacheHostCfg {
+    services.openssh.settings.PermitUserEnvironment = "BASH_ENV";
+  }) "PermitUserEnvironment must stay disabled";
+  # Option types that keep secrets out of the store and keep authorized_keys
+  # to one restricted line per key: each override must fail to evaluate.
+  nixos-nix-cache-host-rejects-unsafe-input = let
+    rejectsIn = base: override: sel: let
+      sys = lib.nixosSystem {
+        inherit system;
+        modules = [nixosModules.nix-cache-host nixosStub base override];
+      };
+    in
+      !(builtins.tryEval (builtins.deepSeq (sel sys.config.services.nix-cache-host) true)).success;
+    rejects = rejectsIn nixCacheHostCfg;
+    # The base config without repos.flake-playground.sets (it has no default).
+    withoutSets = lib.recursiveUpdate (removeAttrs nixCacheHostCfg ["services"]) {
+      services.nix-cache-host =
+        nixCacheHostCfg.services.nix-cache-host
+        // {repos.flake-playground = removeAttrs nixCacheHostCfg.services.nix-cache-host.repos.flake-playground ["sets"];};
+    };
+    sets = h: h.repos.flake-playground.sets;
+    signing = h: h.repos.flake-playground.signingPublicKeys;
+    badSets = v: {services.nix-cache-host.repos.flake-playground.sets = lib.mkForce v;};
+    badKey = key: {
+      services.nix-cache-host.repos.flake-playground.uploadKeys = [
+        {
+          inherit key;
+          expires = "20991231";
+        }
+      ];
+    };
+    keys = h: h.repos.flake-playground.uploadKeys;
+    good = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVtZXN0IGtleSBmb3IgZXZhbCBjaGVja3Mgb25seQ";
+  in
+    assert lib.assertMsg (
+      rejects (badKey "${good} ci\n${good} injected") keys
+      && rejects (badKey "command=\"/bin/sh\" ${good}") keys
+      && rejects (badKey "AAAAC3NzaC1lZDI1NTE5") keys
+      && rejects {services.nix-cache-host.htpasswdFile = lib.mkForce ./eval-modules.nix;} (h: h.htpasswdFile)
+      && rejects {services.nix-cache-host.htpasswdFile = lib.mkForce "${builtins.storeDir}/x-htpasswd";} (h: h.htpasswdFile)
+      && rejects {services.nix-cache-host.htpasswdFile = lib.mkForce "relative/htpasswd";} (h: h.htpasswdFile)
+      && rejects {services.nix-cache-host.nginx.sslCertificateKey = lib.mkForce ./eval-modules.nix;} (h: h.nginx.sslCertificateKey)
+      && rejects {services.nix-cache-host.alerts.command = "/bin/notify --token x";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "/bin/notify%n";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "/bin/a;b";} (h: h.alerts.command)
+      && rejects {services.nix-cache-host.alerts.command = "notify";} (h: h.alerts.command)
+      && !(rejects {services.nix-cache-host.alerts.command = "/run/current-system/sw/bin/ntfy-alert";} (h: h.alerts.command))
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce [];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["nocolon"];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["k-1:AA AA"];} signing
+      && rejects {services.nix-cache-host.repos.flake-playground.signingPublicKeys = lib.mkForce ["k-1:AAAA\n"];} signing
+      && rejectsIn withoutSets {} sets
+      && rejects (badSets []) sets
+      && rejects (badSets ["Gate"]) sets
+      && rejects (badSets ["a/b"]) sets
+      && rejects (badSets ["-gate"]) sets
+      && rejects {services.nix-cache-host.repos.flake-playground.maxRoots = 0;} (h: h.repos.flake-playground.maxRoots)
+      && !(rejects {} (h: [(keys h) (sets h) (signing h) h.htpasswdFile h.nginx.sslCertificateKey h.alerts.command]))
+    ) "nix-cache-host: upload keys with newlines/options/no type, store or path-literal secrets, alert commands that are not one absolute path, empty or malformed signing keys, and missing, empty or malformed repo set lists must be rejected";
+      pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-unsafe-input" {} "touch $out";
+
+  # uploadKeys.*.expires must be a real calendar date, not just 8 digits.
+  nixos-nix-cache-host-rejects-bad-expiry = let
+    failing = expires: let
+      sys = lib.nixosSystem {
+        inherit system;
+        modules = [
+          nixosModules.nix-cache-host
+          nixosStub
+          nixCacheHostCfg
+          {services.nix-cache-host.repos.flake-playground.uploadKeys = lib.mkForce [(builtins.head nixCacheHostCfg.services.nix-cache-host.repos.flake-playground.uploadKeys // {inherit expires;})];}
+        ];
+      };
+    in
+      lib.any (a: !a.assertion && lib.hasInfix "expires \"${expires}\" is not a real date" a.message) sys.config.assertions;
+  in
+    assert lib.assertMsg (
+      lib.all failing ["20991399" "20990001" "20990100" "20990230" "20990431" "20991132" "20990229" "21000229"]
+      && !(lib.any failing ["20991231" "20280229" "20000229" "20990131" "20990430"])
+    ) "nix-cache-host: an uploadKeys expiry with an impossible month or day must fail an assertion, real dates must not";
+      pkgs.runCommand "eval-assert-nixos-nix-cache-host-rejects-bad-expiry" {} "touch $out";
 
   hm-nvchad = evalHome "nvchad" {programs.nvchad.enable = true;};
   hm-cspell = evalHome "cspell" {programs.cspell.enable = true;};

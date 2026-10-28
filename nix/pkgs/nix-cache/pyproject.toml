@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nix-cache"
+version = "0.1.0"
+description = "Bundler, importer, pruner and helpers for a self-hosted Nix binary cache"
+requires-python = ">=3.12"
+
+[project.scripts]
+nix-cache-htpasswd-entry = "nix_cache.htpasswd:main"
+nix-cache-alert = "nix_cache.alert:main"
+cache-importer = "nix_cache.importer:main"
+cache-pruner = "nix_cache.pruner:main"
+nix-cache-bundle = "nix_cache.bundle:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

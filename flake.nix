@@ -89,6 +89,10 @@
       pkgs = windscribePkgs;
       devMode = false;
     };
+    # Tooling for the self-hosted binary cache on selene (nix/pkgs/nix-cache).
+    # In mainPackages so the gate builds it, which runs its test suite.
+    nixCache = pkgs.callPackage ./nix/pkgs/nix-cache {};
+    nixCacheAarch64 = pkgsAarch64.callPackage ./nix/pkgs/nix-cache {};
     # custom neovim plugins (nvfetcher-tracked) + the headless-nvim load test.
     customVimPlugins = import ./nix/pkgs/vimPlugins {inherit pkgs;};
     nvimLoads = import ./nix/tests/nvim-loads.nix {inherit pkgs;};
@@ -137,6 +141,7 @@
     # The first-class package set. Factored into a let-binding so both
     # `packages.x86_64-linux` and the `packages` check can consume it (DRY).
     mainPackages = {
+      nix-cache = nixCache;
       inherit
         linux-show-player
         cynthion
@@ -183,6 +188,10 @@
     # the PGlite cutover.
     #   nix build .#checks.x86_64-linux.zipline-latest-migration-vm -L
     ziplineLatestMigrationVmTest = import ./nix/tests/zipline-latest-migration-vm.nix {inherit pkgs self seedNixpkgs;};
+    # VM test for the self-hosted binary cache (services.nix-cache-host):
+    # selene + ci + consumer nodes, upload/import/serve/prune end to end.
+    #   nix build .#checks.x86_64-linux.nix-cache-vm -L
+    nixCacheVmTest = import ./nix/tests/nix-cache-vm.nix {inherit pkgs self;};
     # The heavy VM tests above, by check name. They stay in checks.x86_64-linux
     # (so `nix build .#checks.x86_64-linux.<name>` and `nix flake check` still
     # reach them), but the CI split below keeps them out of the merge gate.
@@ -191,7 +200,17 @@
       pingvin-share-vm = pingvinShareVmTest;
       zipline-latest-vm = ziplineLatestVmTest;
       zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
+      nix-cache-vm = nixCacheVmTest;
     };
+    # What each CI job pushes to the self-hosted cache: every output (dev,
+    # man, ... included) of the derivations that job builds. A list of paths,
+    # not a linkFarm built just for pinning: building a farm would force CI to
+    # download every already-cached input just to link it. See .github/actions/nix-cache-bundle.
+    outPathsOf = drvs: nixpkgs.lib.concatMap (d: map (o: d.${o}.outPath) (d.outputs or ["out"])) drvs;
+    ciGate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+    # Everything packages.aarch64-linux offers that actually builds there; CI
+    # builds it on ubuntu-24.04-arm so aarch64 hosts (selene) substitute it.
+    aarch64CiPackages = nixpkgs.lib.filterAttrs (_: d: nixpkgs.lib.meta.availableOn pkgsAarch64.stdenv.hostPlatform d) self.packages.aarch64-linux;
   in {
     # windscribe is exposed for on-demand `nix build .#windscribe` but kept OUT of
     # mainPackages so the heavy C++ build doesn't run in the packages/default CI aggregates.
@@ -226,6 +245,7 @@
     # hosts; like affine-server above, this needs an aarch64 builder to actually
     # build.
     packages.aarch64-linux = {
+      nix-cache = nixCacheAarch64;
       inherit
         (playgroundPkgsAarch64)
         affine-server
@@ -251,12 +271,33 @@
       #   ci.gate - every check except the VM tests: the merge gate, and what the
       #             daily bump workflows gate their commits on.
       #   ci.vm   - the VM tests, built by a separate CI job with its own timeout.
+      #   cacheRoots.<set> - output paths the cache push of that job uploads.
       # nix-fast-build over all of checks.x86_64-linux used to build the VM tests
       # inside the gate, which pushed CI past its 30-minute timeout.
       ci = {
-        gate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+        gate = ciGate;
         vm = vmChecks;
+        # Per CI set, the outputs nix-cache-bundle pushes (set name = cache
+        # namespace). Bump sets add what their workflow builds beyond the gate.
+        cacheRoots = let
+          gate = builtins.attrValues ciGate;
+        in {
+          gate = outPathsOf gate;
+          bump-vimplugins = outPathsOf gate;
+          bump-playground = outPathsOf gate;
+          bump-projectsend = outPathsOf gate;
+          bump-flake-lock = outPathsOf gate;
+          bump-picr = outPathsOf (gate ++ [picrPkgs.picr picrPkgs.picr-ping]);
+          bump-pingvin = outPathsOf (gate ++ [playgroundPkgs.pingvin-share-x playgroundPkgs.pingvin-share-x-beta vmChecks.pingvin-share-vm]);
+          bump-windscribe = outPathsOf (gate ++ [windscribe]);
+          bump-zipline = outPathsOf (gate ++ [zipline-latest vmChecks.zipline-latest-vm vmChecks.zipline-latest-migration-vm]);
+        };
       };
+    };
+
+    legacyPackages.aarch64-linux.ci = {
+      packages = aarch64CiPackages;
+      cacheRoots.gate = outPathsOf (builtins.attrValues aarch64CiPackages);
     };
 
     # CI gate (see .github/workflows). `vimplugins` builds every custom plugin
@@ -278,6 +319,7 @@
         pingvin-share-vm = pingvinShareVmTest;
         zipline-latest-vm = ziplineLatestVmTest;
         zipline-latest-migration-vm = ziplineLatestMigrationVmTest;
+        nix-cache-vm = nixCacheVmTest;
         # Aggregate of EVERYTHING, so `nix build .#checks.x86_64-linux.default`
         # exercises the full surface locally even without nix-fast-build.
         default = pkgs.linkFarmFromDrvs "checks-default" (
@@ -350,8 +392,9 @@
       pingvin-share = import ./nix/modules/nixos/pingvin-share inputs;
       arduino-flasher-cli = import ./nix/modules/nixos/arduino-flasher-cli inputs;
       zipline-extras = import ./nix/modules/nixos/zipline-extras inputs;
+      nix-cache-host = import ./nix/modules/nixos/nix-cache-host inputs;
     in {
-      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-extras;
+      inherit cynthion realsense zsa hyprpolkitagent tuwunel windscribe affine mcp projectsend picr pingvin-share arduino-flasher-cli zipline-extras nix-cache-host;
 
       # default imports every NixOS module under nix/modules/nixos.
       default = import ./nix/modules/nixos inputs;

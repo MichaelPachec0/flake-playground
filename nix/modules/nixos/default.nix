@@ -20,5 +20,6 @@ inputs: {
     (import ./pingvin-share inputs)
     (import ./arduino-flasher-cli inputs)
     (import ./zipline-extras inputs)
+    (import ./nix-cache-host inputs)
   ];
 }
