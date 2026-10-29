@@ -186,17 +186,17 @@
   };
   miniMove = {
     pname = "miniMove";
-    version = "57435a0f6654c232405424a78424bb3edbedfa7c";
+    version = "5207c4de3d7db84aadedf72e4a27048d9e46ccf9";
     src = fetchgit {
       url = "https://github.com/echasnovski/mini.move";
-      rev = "57435a0f6654c232405424a78424bb3edbedfa7c";
+      rev = "5207c4de3d7db84aadedf72e4a27048d9e46ccf9";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-MML6JXqof91FDr2UsTydaxjYH7gTX17ZNUCmQsn+eZ8=";
+      sha256 = "sha256-rlxQT0Cfb3E+oR/17hxtQaExhsvSQnPY0QNiJkKbw9w=";
     };
-    date = "2026-10-13";
+    date = "2026-10-27";
   };
   minty = {
     pname = "minty";
@@ -280,13 +280,13 @@
   };
   nvchadUi = {
     pname = "nvchadUi";
-    version = "f297bfb60c7e4a4a833f2837be79e04df2873c6a";
+    version = "07a2554e58fa982e2dcf8dd346291cefef00ca33";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "ui";
-      rev = "f297bfb60c7e4a4a833f2837be79e04df2873c6a";
+      rev = "07a2554e58fa982e2dcf8dd346291cefef00ca33";
       fetchSubmodules = false;
-      sha256 = "sha256-JVXZsApbknoJ/U9jjfob8/abxhilVRH8elKVNxXvMl8=";
+      sha256 = "sha256-Q2ycbpESqODQTT6I7F3l/u05YMMHUePlGxXJT99AV3U=";
     };
     date = "2026-10-26";
   };
@@ -446,15 +446,15 @@
   };
   volt = {
     pname = "volt";
-    version = "620de1321f275ec9d80028c68d1b88b409c0c8b1";
+    version = "4351c5cd790a0d39491c4d5c75dd62d7db3d3414";
     src = fetchFromGitHub {
       owner = "nvzone";
       repo = "volt";
-      rev = "620de1321f275ec9d80028c68d1b88b409c0c8b1";
+      rev = "4351c5cd790a0d39491c4d5c75dd62d7db3d3414";
       fetchSubmodules = false;
-      sha256 = "sha256-5Xao1+QXZOvqwCXL6zWpckJPO1LDb8I7wtikMRFQ3Jk=";
+      sha256 = "sha256-WJWI8qwg3HN8QgOUsSyfoJYamf9dF0JvtcZhlA9c7ec=";
     };
-    date = "2025-09-13";
+    date = "2026-10-26";
   };
   wtfNvim = {
     pname = "wtfNvim";
