@@ -57,7 +57,18 @@
     # absent too -- nix/pkgs/{playground,vimPlugins} are already
     # pkgs-parameterised imports and the overlay calls them directly.
     mkLocalPkgs = pkgs': {
-      inherit (pkgs') cynthion;
+      # nixpkgs bumped pyvcd to 0.5 but amaranth 0.5.10 pins pyvcd<0.5, which
+      # fails pythonRuntimeDepsCheck. Relax the pin for cynthion's Python set
+      # only; drop this once nixpkgs' amaranth accepts pyvcd 0.5.
+      cynthion = pkgs'.cynthion.override {
+        python3 = pkgs'.python3.override {
+          packageOverrides = _: super: {
+            amaranth = super.amaranth.overridePythonAttrs (old: {
+              pythonRelaxDeps = (old.pythonRelaxDeps or []) ++ ["pyvcd"];
+            });
+          };
+        };
+      };
       linux-show-player = pkgs'.callPackage ./nix/pkgs/linux-show-player.nix {};
       memtimings-linux = pkgs'.callPackage ./nix/pkgs/memtimings-linux {};
       ryzen-monitor-ng = pkgs'.callPackage ./nix/pkgs/ryzen-monitor-ng {};

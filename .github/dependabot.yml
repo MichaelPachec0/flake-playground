@@ -1,0 +1,23 @@
+# Keep Dependabot out of nvfetcher-generated sources.
+#
+# nix/pkgs/*/_sources/ holds files extracted verbatim from upstream releases
+# (package-lock.json included). Editing them is wrong twice over: the next
+# nvfetcher run overwrites the edit, and the matching npmDepsHash is not
+# updated, so the build fails with ENOTCACHED. Dependency updates arrive
+# through the upstream release instead (the update-*.yml bump workflows).
+#
+# Security updates are enabled repo-wide and honor `ignore` for the matching
+# ecosystem/directory entry; `exclude-paths` and a zero PR limit cover version
+# updates. All three are set so neither kind of PR is opened for these paths.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directories:
+      - "/nix/pkgs/*/_sources/*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - "**"
+    ignore:
+      - dependency-name: "*"

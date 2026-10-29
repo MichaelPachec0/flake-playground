@@ -36,8 +36,11 @@ jobs:
       # pingvin-share-x/-beta packages (excluded from the CI aggregate so
       # this heavy build doesn't serialize behind the daily playground
       # bump). Chain the explicit build onto nvfetcher so it runs before
-      # the composite action's own check pass.
-      - name: Regenerate sources + build pingvin
+      # the composite action's own check pass. heal-pnpm-hash.sh rewrites a
+      # nix/pkgs/pingvin-share/*-npm-deps.hash file when the new release
+      # changed that half's package-lock.json (warning, not failure); any
+      # other npmDeps failure is fatal.
+      - name: Regenerate sources + heal hashes + build pingvin
         id: checks
         uses: ./.github/actions/nix-checks
         with:
@@ -54,6 +57,14 @@ jobs:
             -c nix/pkgs/pingvin-share/nvfetcher.toml
             -o nix/pkgs/pingvin-share/_sources
             &&
+            scripts/heal-pnpm-hash.sh pingvin-share-x.backend nix/pkgs/pingvin-share/stable-backend-npm-deps.hash npmDeps
+            &&
+            scripts/heal-pnpm-hash.sh pingvin-share-x.frontend nix/pkgs/pingvin-share/stable-frontend-npm-deps.hash npmDeps
+            &&
+            scripts/heal-pnpm-hash.sh pingvin-share-x-beta.backend nix/pkgs/pingvin-share/beta-backend-npm-deps.hash npmDeps
+            &&
+            scripts/heal-pnpm-hash.sh pingvin-share-x-beta.frontend nix/pkgs/pingvin-share/beta-frontend-npm-deps.hash npmDeps
+            &&
             nix build -L
             .#packages.x86_64-linux.pingvin-share-x
             .#packages.x86_64-linux.pingvin-share-x-beta
@@ -68,7 +79,7 @@ jobs:
           commit_message: "chore: bump pingvin-share source"
           # ONE LINE only - see update-projectsend.yml: multi-line
           # file_pattern silently degrades to its first entry.
-          file_pattern: "nix/pkgs/pingvin-share/_sources/"
+          file_pattern: "nix/pkgs/pingvin-share/"
           skip_push: true
 
       - name: Push (rebase + retry)

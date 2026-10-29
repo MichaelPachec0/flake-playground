@@ -62,6 +62,10 @@ in rec {
     inherit (sources.nvchadUi) src;
     # Our tracked volt, not nixpkgs' nvzone-volt (same packdir name).
     dependencies = [ volt ];
+    # themes/api.lua (new upstream) requires base46 at load time, and base46
+    # depends on this plugin, so base46 cannot be on ui's own require-check
+    # path. Skip it like the other nvconfig-only modules.
+    nvimSkipModules = (old.nvimSkipModules or [ ]) ++ [ "nvchad.themes.api" ];
     # ui ships an opt-in blink.cmp spec (`{ import = "nvchad.blink.lazyspec" }`
     # replaces nvim-cmp); give its LuaSnip the nixpkgs plugin name, as the core
     # postPatch does.

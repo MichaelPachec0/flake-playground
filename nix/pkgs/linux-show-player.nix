@@ -124,10 +124,15 @@ in python3.pkgs.buildPythonApplication rec {
     gst-plugins-base
   ]) ++ [ cairo liblo rtmidi ola ];
 
-  # NOTE: assuming this is not the way to avoid double wrapping. This still works, so keep it for now.
+  # Wrap once with both Qt and GApps args (nixpkgs' standard pattern). The
+  # arrays only exist at fixup time, so append them in preFixup: a literal
+  # "${qtWrapperArgs[@]}" in makeWrapperArgs is not expanded under
+  # structuredAttrs and makeBinaryWrapper rejects it.
   dontWrapQtApps = true;
   dontWrapGApps = true;
-  makeWrapperArgs = [ "\${qtWrapperArgs[@]}" "\${gappsWrapperArgs[@]}" ];
+  preFixup = ''
+    makeWrapperArgs+=("''${qtWrapperArgs[@]}" "''${gappsWrapperArgs[@]}")
+  '';
 
   # TODO: fix this.
   # pythonImportsCheck = [ "linux_show_player" ];
