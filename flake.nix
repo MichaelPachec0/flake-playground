@@ -218,7 +218,14 @@
     # not a linkFarm built just for pinning: building a farm would force CI to
     # download every already-cached input just to link it. See .github/actions/nix-cache-bundle.
     outPathsOf = drvs: nixpkgs.lib.concatMap (d: map (o: d.${o}.outPath) (d.outputs or ["out"])) drvs;
-    ciGate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks);
+    # `default` is left out too: it is a linkFarm of every other gate entry, so
+    # in CI it only made nix-eval-jobs evaluate the whole surface a second time,
+    # as ONE attr in ONE worker. That worker peaked at 12.5-13.5 GB on the 16 GB
+    # runner (over --eval-max-memory-size, deep into swap) while the other
+    # worker sat idle. Dropping it cuts the peak worker by 25-45% and eval
+    # time by ~45%, with identical build coverage. The gate keeps growing
+    # with every module check; the lasting fix is sharding it across jobs.
+    ciGate = removeAttrs self.checks.x86_64-linux (builtins.attrNames vmChecks ++ ["default"]);
     # Everything packages.aarch64-linux offers that actually builds there; CI
     # builds it on ubuntu-24.04-arm so aarch64 hosts (selene) substitute it.
     aarch64CiPackages = nixpkgs.lib.filterAttrs (_: d: nixpkgs.lib.meta.availableOn pkgsAarch64.stdenv.hostPlatform d) self.packages.aarch64-linux;
