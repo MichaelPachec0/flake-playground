@@ -61,19 +61,22 @@ in
       import json
       import re
 
+      # Every curl carries --max-time: without it a request the server never
+      # answers blocks m.succeed forever and the run dies at the CI job
+      # timeout with no hint of which step hung.
       def seed_47(m):
           m.wait_for_unit("zipline.service")
           m.wait_for_open_port(8000, timeout=300)
-          m.succeed("curl -fs 127.0.0.1:8000/api/setup -X POST -H 'Content-Type: application/json' -d '{\"username\": \"administrator\", \"password\": \"password\"}'")
-          resp = m.succeed("curl -s 127.0.0.1:8000/api/auth/login -v -X POST -H 'Content-Type: application/json' -d '{\"username\": \"administrator\", \"password\": \"password\"}' 2>&1")
+          m.succeed("curl --max-time 30 -fs 127.0.0.1:8000/api/setup -X POST -H 'Content-Type: application/json' -d '{\"username\": \"administrator\", \"password\": \"password\"}'")
+          resp = m.succeed("curl --max-time 30 -s 127.0.0.1:8000/api/auth/login -v -X POST -H 'Content-Type: application/json' -d '{\"username\": \"administrator\", \"password\": \"password\"}' 2>&1")
           found = re.search(r"(?m)^< set-cookie: ([^;]*)", resp)
           assert found is not None, "no set-cookie in login response"
           cookie = found[1]
-          token = json.loads(m.succeed(f"curl -fs 127.0.0.1:8000/api/user/token -H 'Cookie: {cookie}'"))["token"]
+          token = json.loads(m.succeed(f"curl --max-time 30 -fs 127.0.0.1:8000/api/user/token -H 'Cookie: {cookie}'"))["token"]
           m.succeed("echo hello-zipline > /tmp/f.txt")
-          up = json.loads(m.succeed(f"curl -fs 127.0.0.1:8000/api/upload -H 'authorization: {token}' -F file=@/tmp/f.txt"))
+          up = json.loads(m.succeed(f"curl --max-time 30 -fs 127.0.0.1:8000/api/upload -H 'authorization: {token}' -F file=@/tmp/f.txt"))
           fname = up["files"][0]["url"].rstrip("/").split("/")[-1]
-          m.succeed(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
+          m.succeed(f"curl --max-time 30 -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline")
           return fname
 
       def switch(m, spec):
@@ -102,7 +105,7 @@ in
       migration.wait_until_succeeds("journalctl -u zipline -b --no-pager | grep -q 'will adopt a Zipline 4.7 database'", timeout=300)
       migration.wait_for_unit("zipline.service")
       migration.wait_for_open_port(8000, timeout=300)
-      migration.wait_until_succeeds(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
+      migration.wait_until_succeeds(f"curl --max-time 30 -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
       migration.succeed("ls /var/lib/private/zipline/backups/pre-drizzle-*.sql")
       assert psql(migration, "zipline", "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations") == "t"
 
@@ -114,6 +117,6 @@ in
       migration.succeed("test -d /var/lib/private/zipline/db")
       migration.succeed("ls /var/lib/private/zipline/backups/pre-pglite-*.sql")
       migration.succeed("systemctl show zipline -p Environment --value | grep -q 'DATABASE_URL=pglite:///var/lib/zipline/db'")
-      migration.wait_until_succeeds(f"curl -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
+      migration.wait_until_succeeds(f"curl --max-time 30 -fs 127.0.0.1:8000/raw/{fname} | grep -q hello-zipline", timeout=120)
     '';
   }
