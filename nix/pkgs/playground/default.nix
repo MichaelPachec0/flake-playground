@@ -56,10 +56,12 @@ in {
   };
   pingvin-share-x = pkgs.callPackage ./pingvin-share.nix {
     source = pingvinSources.pingvin-share-x;
+    backendNpmDepsHash = pkgs.lib.fileContents ../pingvin-share/stable-backend-npm-deps.hash;
+    frontendNpmDepsHash = pkgs.lib.fileContents ../pingvin-share/stable-frontend-npm-deps.hash;
   };
   pingvin-share-x-beta = pkgs.callPackage ./pingvin-share.nix {
     source = pingvinSources.pingvin-share-x-beta;
-    backendNpmDepsHash = "sha256-OkFQuDnYuNotlmM+i5e1qIdeKNDucGzPcRZSkGl1q4g=";
-    frontendNpmDepsHash = "sha256-olq3j0YdPB5vAnEtBeDmb8qNEujK/sETZWZEmcC5zI0=";
+    backendNpmDepsHash = pkgs.lib.fileContents ../pingvin-share/beta-backend-npm-deps.hash;
+    frontendNpmDepsHash = pkgs.lib.fileContents ../pingvin-share/beta-frontend-npm-deps.hash;
   };
 }

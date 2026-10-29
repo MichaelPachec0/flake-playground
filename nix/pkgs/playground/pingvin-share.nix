@@ -22,11 +22,12 @@
   fetchurl,
   node-gyp,
   source,
-  # Defaults are the stable channel's npmDepsHash. Beta has different
-  # package-lock files (different deps); callers building beta must
-  # override both.
-  backendNpmDepsHash ? "sha256-Yi3npuWNog9/KIXRm5OhymJ4aCxYeJfVLW10JGQac/4=",
-  frontendNpmDepsHash ? "sha256-9C+ZsbEGtHPxp60rGmOVfD0SHEMj6GylKaNbZ5PAqdM=",
+  # npmDepsHash per half. Each channel has its own package-lock files, so
+  # the caller passes both; they live in nix/pkgs/pingvin-share/*.hash,
+  # which update-pingvin.yml heals on every bump (nvfetcher pins the source
+  # but cannot compute these).
+  backendNpmDepsHash,
+  frontendNpmDepsHash,
 }: let
   nodejs = nodejs_24;
   version = lib.removePrefix "v" source.version;
@@ -208,7 +209,8 @@ in
       runHook postInstall
     '';
 
-    passthru = {inherit nodejs prismaEngines;};
+    # backend/frontend expose their npmDeps for scripts/heal-pnpm-hash.sh.
+    passthru = {inherit nodejs prismaEngines backend frontend;};
 
     meta = {
       description = "Self-hosted file sharing (pingvin-share-x fork), built from source";

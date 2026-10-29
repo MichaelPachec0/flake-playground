@@ -1,29 +1,32 @@
 #!/usr/bin/env bash
-# Recompute a package's pnpm deps hash when it is stale.
+# Recompute a package's dependency-store hash when it is stale.
 #
 # nvfetcher pins a package's source but cannot compute the fixed-output hash of
-# its pnpm dependency store, so that hash lives in a companion file next to the
-# package. When upstream changes pnpm-lock.yaml, the file falls behind. This
-# builds `.#<attr>.pnpmDeps`; on a hash mismatch it writes the hash Nix reports,
-# rebuilds to confirm, and emits a GitHub Actions warning. Any OTHER failure
-# (network, lockfile, pnpm) is fatal: here the heal step IS the dependency
-# fetch, so swallowing its errors would hide a broken bump.
+# its dependency store (pnpmDeps, npmDeps), so that hash lives in a companion
+# file next to the package. When upstream changes its lockfile, the file falls
+# behind. This builds `.#<attr>.<deps-attr>` (deps-attr defaults to pnpmDeps;
+# buildNpmPackage packages use npmDeps); on a hash mismatch it writes the hash
+# Nix reports, rebuilds to confirm, and emits a GitHub Actions warning. Any
+# OTHER failure (network, lockfile, package manager) is fatal: here the heal
+# step IS the dependency fetch, so swallowing its errors would hide a broken
+# bump.
 #
-# Usage: scripts/heal-pnpm-hash.sh <flake-attr> <hash-file>
+# Usage: scripts/heal-pnpm-hash.sh <flake-attr> <hash-file> [deps-attr]
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "usage: $0 <flake-attr> <hash-file>" >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+  echo "usage: $0 <flake-attr> <hash-file> [deps-attr]" >&2
   exit 2
 fi
 
 attr=$1
 hash_file=$2
+deps=${3:-pnpmDeps}
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 
 build() {
-  nix build -L --no-link ".#${attr}.pnpmDeps" >"$log" 2>&1
+  nix build -L --no-link ".#${attr}.${deps}" >"$log" 2>&1
 }
 
 if build; then
@@ -31,7 +34,7 @@ if build; then
 fi
 
 if ! grep -q 'hash mismatch in fixed-output derivation' "$log"; then
-  echo "::error::${attr} pnpmDeps failed for a reason other than a stale hash" >&2
+  echo "::error::${attr}.${deps} failed for a reason other than a stale hash" >&2
   tail -n 40 "$log" >&2
   exit 1
 fi
@@ -47,9 +50,9 @@ old=$(tr -d '[:space:]' <"$hash_file")
 printf '%s\n' "$new" >"$hash_file"
 
 if ! build; then
-  echo "::error::${attr} pnpmDeps still fails after writing ${new}" >&2
+  echo "::error::${attr}.${deps} still fails after writing ${new}" >&2
   tail -n 40 "$log" >&2
   exit 1
 fi
 
-echo "::warning::${attr} pnpm deps hash was stale (${old} -> ${new}); updated ${hash_file}"
+echo "::warning::${attr}.${deps} hash was stale (${old} -> ${new}); updated ${hash_file}"
