@@ -13,12 +13,12 @@
             "name": null,
             "owner": "smp46",
             "repo": "pingvin-share-x",
-            "rev": "v2.0.0",
-            "sha256": "sha256-oHIKt/X2Bw0p6Rn6juCBUvniBi5flaZ+Z9Xibr4Pe68=",
+            "rev": "v2.1.0",
+            "sha256": "sha256-DkRRWGmjw9Pqup1/dt5L9tDgdg43VTsNyjW4HA4hWOM=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v2.0.0"
+        "version": "v2.1.0"
     },
     "pingvin-share-x-beta": {
         "cargoLock": null,
@@ -34,11 +34,11 @@
             "name": null,
             "owner": "smp46",
             "repo": "pingvin-share-x",
-            "rev": "v2.0.0-beta.4",
-            "sha256": "sha256-3tllq+WCuG9rN4Nw/Ecz/Xe8FSkUAyw7vmJRa9HmkqI=",
+            "rev": "v2.1.0-beta.1",
+            "sha256": "sha256-CtCcdpormHMpwKnZrbvVelIJh8o3LEvV4JUPz458KJ4=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v2.0.0-beta.4"
+        "version": "v2.1.0-beta.1"
     }
 }
