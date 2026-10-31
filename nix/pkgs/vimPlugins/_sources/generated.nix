@@ -280,15 +280,15 @@
   };
   nvchadUi = {
     pname = "nvchadUi";
-    version = "07a2554e58fa982e2dcf8dd346291cefef00ca33";
+    version = "8cbf0dc1883b20a1df114149c187d250f0af0853";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "ui";
-      rev = "07a2554e58fa982e2dcf8dd346291cefef00ca33";
+      rev = "8cbf0dc1883b20a1df114149c187d250f0af0853";
       fetchSubmodules = false;
-      sha256 = "sha256-Q2ycbpESqODQTT6I7F3l/u05YMMHUePlGxXJT99AV3U=";
+      sha256 = "sha256-nL3kAPBUyOqfjgXZ3kALTD5aevOtYZz7fUpdutR175k=";
     };
-    date = "2026-10-26";
+    date = "2026-10-31";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";
