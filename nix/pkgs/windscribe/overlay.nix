@@ -1,18 +1,30 @@
 final: prev:
 {
-  # OpenSSL 4.0.1 + Windscribe super-large TLS padding (anti-censorship). ECH is native
-  # in 4.0.x (no flag). Built static so its symbols stay private when linked into wsnet,
+  # OpenSSL 4.1 + Windscribe super-large TLS padding (anti-censorship). ECH is native
+  # in 4.x (no flag). Built static so its symbols stay private when linked into wsnet,
   # avoiding any clash with nixpkgs qt6's openssl_3.
   #
-  # Note: nixpkgs pins openssl_4_0 at 4.0.1 (the vcpkg registry targets 4.0.0; the
-  # tls-padding patch was written for that commit but applies cleanly to 4.0.1 as well).
+  # Note: upstream's vcpkg registry targets 4.0.0, but nixpkgs dropped openssl_4_0, so
+  # the tls-padding patch is ported to 4.1: SSL_OP_TLSEXT_PADDING_SUPER moves to bit 42
+  # (4.1 took bit 41 for SSL_OP_GREASE), and the hunk gates on SUPER alone because 4.1
+  # made SSL_OP_TLSEXT_PADDING a no-op (0x0) and removed tls_construct_ctos_padding.
   # Using the nixpkgs-provided derivation avoids a separate source hash.
-  opensslEch = (prev.openssl_4_0.override { static = true; }).overrideAttrs (old: {
+  opensslEch = (prev.openssl_4_1.override { static = true; }).overrideAttrs (old: {
     patches = (old.patches or []) ++ [ ./patches/openssl-tls-padding.patch ];
+    # The patch can compile yet never fire (4.1 turned the flag it used to gate on into
+    # 0x0), so assert a padded ClientHello really grows by the 7000+ byte extension.
+    doInstallCheck = true;
+    installCheckPhase = ''
+      runHook preInstallCheck
+      $CC ${./tests/clienthello-padding.c} -o clienthello-padding \
+        -I$dev/include -L$out/lib -l:libssl.a -l:libcrypto.a -lpthread
+      ./clienthello-padding
+      runHook postInstallCheck
+    '';
   });
 
   # curl 8.19.0 + 2 Windscribe patches (super-large TLS padding, legacy EC point formats)
-  # + ECH enabled, built against opensslEch (OpenSSL 4.0.1 static, ECH-capable).
+  # + ECH enabled, built against opensslEch (OpenSSL 4.1 static, ECH-capable).
   # Pinned to 8.19.0 because the WS patches were written for that release.
   curlEch = ((prev.curl.override {
     openssl = final.opensslEch;
