@@ -28,7 +28,14 @@ jobs:
     # USEFUL: a timeout is a failure, so the `if: failure()` diagnostics and
     # artifact upload below actually run, whereas a manual cancel skips them
     # and throws away the evidence.
-    timeout-minutes: 30
+    #
+    # Temporarily 45: a cold cache (inputs moved off cache.nixos.org, e.g. a
+    # Python override that rebuilds a whole chain from source) took the job to
+    # 29m58s on a PR and past 30 on main. Only a successful main run pushes to
+    # the self-hosted cache, so a timeout there keeps the cache cold and every
+    # retry rebuilds and times out again. Back to 30 once the gate is sharded
+    # across jobs.
+    timeout-minutes: 45
     outputs:
       bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
       bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
