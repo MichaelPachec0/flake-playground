@@ -8,10 +8,10 @@
         "pinned": false,
         "src": {
             "name": null,
-            "sha256": "sha256-xrLHmtv7iVfoom1aE3GKX6GjQdZPwvtedTGsT3kTc04=",
+            "sha256": "sha256-xuEudlE92m5//5VghSlko35uXAYtjbRyK6UXwk3R3Ko=",
             "type": "url",
-            "url": "https://github.com/projectsend/projectsend/releases/download/v2.7.1/projectsend-2.7.1.zip"
+            "url": "https://github.com/projectsend/projectsend/releases/download/v2.8.0/projectsend-2.8.0.zip"
         },
-        "version": "2.7.1"
+        "version": "2.8.0"
     }
 }
