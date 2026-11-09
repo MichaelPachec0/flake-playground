@@ -13,11 +13,11 @@
             "name": null,
             "owner": "diced",
             "repo": "zipline",
-            "rev": "v4.8.2",
-            "sha256": "sha256-9ejS+hnUtUB5qA/44P8igArQujBwh1giXkxTYEHSu4k=",
+            "rev": "v4.8.3",
+            "sha256": "sha256-fM31BRRtGv/nI8BqzPlSvU5zVd164oDw0Gqhwk9a2HU=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v4.8.2"
+        "version": "v4.8.3"
     }
 }
