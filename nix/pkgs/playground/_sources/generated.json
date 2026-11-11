@@ -146,7 +146,7 @@
     },
     "powertop": {
         "cargoLock": null,
-        "date": "2026-10-23",
+        "date": "2026-11-10",
         "extract": null,
         "name": "powertop",
         "passthru": null,
@@ -156,13 +156,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "993dc340c43b51655fb43c4cfa64883348b30583",
-            "sha256": "sha256-ifo01yE3EMWBUSap5W9hUHtPQLAiX0qKc03N1hsELts=",
+            "rev": "74ee304268f5d07d2ba54aef71b948edb2730d52",
+            "sha256": "sha256-Ixdd5OWVSJwhhWViAglwWX3Nx5akozKFzvQxUsFnY9g=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/fenrus75/powertop"
         },
-        "version": "993dc340c43b51655fb43c4cfa64883348b30583"
+        "version": "74ee304268f5d07d2ba54aef71b948edb2730d52"
     },
     "workstyle": {
         "cargoLock": null,
