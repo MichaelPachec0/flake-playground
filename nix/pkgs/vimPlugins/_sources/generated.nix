@@ -280,15 +280,15 @@
   };
   nvchadUi = {
     pname = "nvchadUi";
-    version = "8cbf0dc1883b20a1df114149c187d250f0af0853";
+    version = "efb7edef6789548fd02ac88b8d47b3e344031c53";
     src = fetchFromGitHub {
       owner = "NvChad";
       repo = "ui";
-      rev = "8cbf0dc1883b20a1df114149c187d250f0af0853";
+      rev = "efb7edef6789548fd02ac88b8d47b3e344031c53";
       fetchSubmodules = false;
-      sha256 = "sha256-nL3kAPBUyOqfjgXZ3kALTD5aevOtYZz7fUpdutR175k=";
+      sha256 = "sha256-n8Hi6KaeKIeq8lkGJwgT7fljkCnOmNYiAs2ZSD8sDZc=";
     };
-    date = "2026-10-31";
+    date = "2026-11-11";
   };
   nvimDapReplHighlights = {
     pname = "nvimDapReplHighlights";
@@ -376,17 +376,17 @@
   };
   sgNvim = {
     pname = "sgNvim";
-    version = "775f22b75a9826eabf69b0094dd1d51d619fe552";
+    version = "ee5b5aaec0444ba2de057654b706208fca93f40e";
     src = fetchgit {
       url = "https://github.com/sourcegraph/sg.nvim";
-      rev = "775f22b75a9826eabf69b0094dd1d51d619fe552";
+      rev = "ee5b5aaec0444ba2de057654b706208fca93f40e";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-i5g+pzxB8pAORLbr1wlYWUTsrJJmVj9UwlCg8pU3Suw=";
+      sha256 = "sha256-WrPrFBeM2e5akE6aOh/MVfYdBcVgfDPkRTDdOFmy9c4=";
     };
-    date = "2025-01-21";
+    date = "2026-11-11";
   };
   stayCentered = {
     pname = "stayCentered";

@@ -405,7 +405,7 @@
     },
     "nvchadUi": {
         "cargoLock": null,
-        "date": "2026-10-31",
+        "date": "2026-11-11",
         "extract": null,
         "name": "nvchadUi",
         "passthru": null,
@@ -417,12 +417,12 @@
             "name": null,
             "owner": "NvChad",
             "repo": "ui",
-            "rev": "8cbf0dc1883b20a1df114149c187d250f0af0853",
-            "sha256": "sha256-nL3kAPBUyOqfjgXZ3kALTD5aevOtYZz7fUpdutR175k=",
+            "rev": "efb7edef6789548fd02ac88b8d47b3e344031c53",
+            "sha256": "sha256-n8Hi6KaeKIeq8lkGJwgT7fljkCnOmNYiAs2ZSD8sDZc=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "8cbf0dc1883b20a1df114149c187d250f0af0853"
+        "version": "efb7edef6789548fd02ac88b8d47b3e344031c53"
     },
     "nvimDapReplHighlights": {
         "cargoLock": null,
@@ -546,7 +546,7 @@
     },
     "sgNvim": {
         "cargoLock": null,
-        "date": "2025-01-21",
+        "date": "2026-11-11",
         "extract": null,
         "name": "sgNvim",
         "passthru": null,
@@ -556,13 +556,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "775f22b75a9826eabf69b0094dd1d51d619fe552",
-            "sha256": "sha256-i5g+pzxB8pAORLbr1wlYWUTsrJJmVj9UwlCg8pU3Suw=",
+            "rev": "ee5b5aaec0444ba2de057654b706208fca93f40e",
+            "sha256": "sha256-WrPrFBeM2e5akE6aOh/MVfYdBcVgfDPkRTDdOFmy9c4=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/sourcegraph/sg.nvim"
         },
-        "version": "775f22b75a9826eabf69b0094dd1d51d619fe552"
+        "version": "ee5b5aaec0444ba2de057654b706208fca93f40e"
     },
     "stayCentered": {
         "cargoLock": null,
