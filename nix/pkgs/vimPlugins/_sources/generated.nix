@@ -186,17 +186,17 @@
   };
   miniMove = {
     pname = "miniMove";
-    version = "5207c4de3d7db84aadedf72e4a27048d9e46ccf9";
+    version = "24d9bb2af6b6f747205fb5da0ec51a7d621077d7";
     src = fetchgit {
       url = "https://github.com/echasnovski/mini.move";
-      rev = "5207c4de3d7db84aadedf72e4a27048d9e46ccf9";
+      rev = "24d9bb2af6b6f747205fb5da0ec51a7d621077d7";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-rlxQT0Cfb3E+oR/17hxtQaExhsvSQnPY0QNiJkKbw9w=";
+      sha256 = "sha256-4+8wX5orE2Soj/lE/dxqimA1u5oB7OHbd/ne3gAx5ng=";
     };
-    date = "2026-10-27";
+    date = "2026-11-13";
   };
   minty = {
     pname = "minty";
