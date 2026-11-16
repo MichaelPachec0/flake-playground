@@ -64,6 +64,13 @@ inputs:
     description: "Base artifact name for the bundle (output bundle-artifact is the uploaded name)."
     required: false
     default: ""
+  skip-if-uncached:
+    description: >-
+      Space-separated package attr names (under packages.<system>) to drop from
+      the `packages` check, with a warning, when no binary cache holds them.
+      For packages too slow to build on a runner. Empty disables the guard.
+    required: false
+    default: "cynthion"
 
 outputs:
   bundle-ok:
@@ -72,6 +79,9 @@ outputs:
   bundle-artifact:
     description: "Name of the uploaded bundle artifact; pass it to the push workflow as artifact-name."
     value: ${{ steps.bundle.outputs.artifact-name }}
+  skipped-packages:
+    description: "Space-separated guarded packages left out of the packages check because no binary cache holds them; empty when none."
+    value: ${{ steps.cache-guard.outputs.skipped }}
 
 runs:
   using: composite
@@ -238,6 +248,20 @@ runs:
       run: |
         nix flake prefetch-inputs
         nix-instantiate --find-file nixpkgs >/dev/null || true
+
+    # After the cache setup and the pre-build command, so the answer reflects
+    # the substituters and the sources the build below will really use.
+    - name: Skip guarded packages no binary cache holds
+      id: cache-guard
+      if: ${{ inputs.skip-if-uncached != '' }}
+      shell: bash
+      env:
+        GUARDED: ${{ inputs.skip-if-uncached }}
+      run: |
+        # shellcheck disable=SC2086 # word splitting is the point
+        skip=$(scripts/ci-uncached-packages.sh $GUARDED)
+        echo "CI_SKIP_PACKAGES=$skip" >>"$GITHUB_ENV"
+        echo "skipped=$skip" >>"$GITHUB_OUTPUT"
 
     - name: Build all flake checks (nix-fast-build)
       shell: bash
