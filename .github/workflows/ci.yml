@@ -36,6 +36,11 @@ jobs:
     # retry rebuilds and times out again. Back to 30 once the gate is sharded
     # across jobs.
     timeout-minutes: 45
+    # pull-requests: write is for the cache guard comment below; nothing else
+    # in this job needs more than a read-only checkout.
+    permissions:
+      contents: read
+      pull-requests: write
     outputs:
       bundle-ok: ${{ steps.checks.outputs.bundle-ok }}
       bundle-artifact: ${{ steps.checks.outputs.bundle-artifact }}
@@ -55,6 +60,46 @@ jobs:
           cache-bundle-set: gate
           cache-bundle-roots: ".#legacyPackages.x86_64-linux.ci.cacheRoots.gate"
           cache-bundle-artifact: nix-cache-gate-x86_64-linux
+
+      # Report guarded packages (cynthion) the gate skipped because no binary
+      # cache holds them. One comment per PR, edited in place on later runs; a
+      # PR that never skipped anything gets no comment, and one that did gets
+      # the all-clear once the package is cached again. always(): the result is
+      # known before the build, so a failed or timed-out build still reports.
+      # Same-repo PRs only: a fork's token cannot write comments.
+      - name: Comment cache guard result on the PR
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SKIPPED: ${{ steps.checks.outputs.skipped-packages }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker='<!-- nix-cache-guard -->'
+          existing=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$marker\"))) | .id" | tail -n 1)
+          nl=$'\n'
+          if [ -n "$SKIPPED" ]; then
+            list=""
+            for name in $SKIPPED; do list+="- \`$name\`$nl"; done
+            body="$marker$nl**Cache guard: packages skipped in CI**$nl$nl"
+            body+="No binary cache (cache.nixos.org or the configured substituters) holds these, so the \`packages\` check left them out instead of building them from source:$nl$nl"
+            body+="$list$nl"
+            body+="They are NOT build-tested by this run. Usual cause: an override changed the hash, or Hydra has not built the package for this nixpkgs pin yet.$nl$nl"
+            body+="[Run]($RUN_URL)"
+          elif [ -n "$existing" ]; then
+            body="$marker$nl**Cache guard: all guarded packages are cached again**$nl$nl"
+            body+="Nothing was skipped in the latest run.${nl}${nl}[Run]($RUN_URL)"
+          else
+            exit 0
+          fi
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" --silent
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" --silent
+          fi
 
   # The NixOS VM integration tests (picr-vm, pingvin-share-vm, zipline-latest-vm,
   # zipline-latest-migration-vm). Separate from
