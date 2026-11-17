@@ -8,9 +8,69 @@
   wsnetSrc = import ./deps/wsnet.nix {inherit sources;};
   small = import ./deps/small/default.nix {inherit pkgs;};
 
-  # Windscribe Desktop C++ source. The build-time patches below are written
-  # against this tag's src/; a bump that breaks them fails the build.
+  # Windscribe Desktop C++ source, as upstream ships it.
   wsSrc = sources.windscribe.src;
+
+  # The source with every local change applied, as its own derivation. It
+  # needs no compiler and none of the heavy deps, so the bump workflow builds
+  # it FIRST (`.#windscribe.patchedSrc`): an upstream release that breaks a
+  # change below then fails in about a minute instead of after the patched
+  # openssl and curl have been built.
+  patchedSrc = pkgs.applyPatches {
+    name = "windscribe-${pkgs.lib.removePrefix "v" sources.windscribe.version}-patched";
+    src = wsSrc;
+    # Only the change that rewrites a block is a context diff. It is applied
+    # with -F0: a hunk that no longer matches exactly must fail rather than
+    # land a few lines off.
+    patches = [./patches/cmake-system-deps.patch];
+    patchFlags = ["-p1" "-F0"];
+    # One-line additions are anchored on a single upstream line instead of a
+    # diff: unrelated edits around them cannot break them, and --replace-fail
+    # stops the build if an anchor ever disappears.
+    postPatch =
+      ''
+        # dnschecker.cpp (utils/network_utils) calls into c-ares directly. Shared
+        # wsnet links c-ares PRIVATE, so its symbols are not re-exported: link it
+        # here. find_package(c-ares CONFIG) resolves in the vcpkg build too.
+        substituteInPlace src/client/client-common/CMakeLists.txt \
+          --replace-fail \
+          'find_package(Qt6 REQUIRED COMPONENTS Network)' \
+          'find_package(Qt6 REQUIRED COMPONENTS Network)
+        find_package(c-ares CONFIG)' \
+          --replace-fail \
+          'add_library(client-common STATIC ''${PROJECT_SOURCES})' \
+          'add_library(client-common STATIC ''${PROJECT_SOURCES})
+        if(TARGET c-ares::cares)
+            target_link_libraries(client-common PRIVATE c-ares::cares)
+        endif()'
+
+        # Boost >= 1.87 no longer pulls deadline_timer in via <boost/asio.hpp>.
+        # The header enables BOOST_ASIO_HAS_BOOST_DATE_TIME by itself when the
+        # Boost.Date_Time headers are present (they are in nixpkgs boost).
+        substituteInPlace src/helper/linux/split_tunneling/hostnames_manager/dns_resolver.h \
+          --replace-fail \
+          '#include <boost/asio.hpp>' \
+          '#include <boost/asio.hpp>
+        #include <boost/asio/deadline_timer.hpp>'
+
+        # struct timeval / gettimeofday: not included transitively with glibc.
+        substituteInPlace src/helper/linux/wireguard/kernelmodule/kernelmodulecommunicator.cpp \
+          --replace-fail \
+          '#include <sys/socket.h>' \
+          '#include <sys/socket.h>
+        #include <sys/time.h>'
+      ''
+      # In prod mode, make WS_LINUX_INSTALL_DIR a CACHE variable so the cmake -D flag
+      # (which creates a cache entry) takes precedence over the plain set() in windscribe.cmake.
+      # Without this, set(WS_LINUX_INSTALL_DIR "/opt/windscribe") creates a normal variable that
+      # shadows the cache entry, so -DWS_LINUX_INSTALL_DIR=... has no effect.
+      + pkgs.lib.optionalString (!devMode) ''
+        substituteInPlace cmake/integrations/windscribe.cmake \
+          --replace-fail \
+          'set(WS_LINUX_INSTALL_DIR "/opt/windscribe")' \
+          'set(WS_LINUX_INSTALL_DIR "/opt/windscribe" CACHE STRING "")'
+      '';
+  };
 
   # DNS / network helper scripts the helper invokes from WS_LINUX_INSTALL_DIR/scripts.
   scriptsDir = "${wsSrc}/src/installer/windscribe/linux/opt/windscribe/scripts";
@@ -40,19 +100,7 @@ in
   pkgs.stdenv.mkDerivation {
     pname = "windscribe";
     version = pkgs.lib.removePrefix "v" sources.windscribe.version;
-    src = wsSrc;
-    patches = [./patches/cmake-system-deps.patch ./patches/source-native-fixes.patch];
-
-    # In prod mode, make WS_LINUX_INSTALL_DIR a CACHE variable so the cmake -D flag
-    # (which creates a cache entry) takes precedence over the plain set() in windscribe.cmake.
-    # Without this, set(WS_LINUX_INSTALL_DIR "/opt/windscribe") creates a normal variable that
-    # shadows the cache entry, so -DWS_LINUX_INSTALL_DIR=... has no effect.
-    postPatch = pkgs.lib.optionalString (!devMode) ''
-      substituteInPlace cmake/integrations/windscribe.cmake \
-        --replace-fail \
-        'set(WS_LINUX_INSTALL_DIR "/opt/windscribe")' \
-        'set(WS_LINUX_INSTALL_DIR "/opt/windscribe" CACHE STRING "")'
-    '';
+    src = patchedSrc;
 
     nativeBuildInputs = with pkgs; [
       cmake
@@ -208,6 +256,9 @@ in
       done
     '';
     env.NIX_CFLAGS_COMPILE = " -Wno-error=deprecated-declarations";
+
+    # Built on its own by the bump workflow as a fast check; see patchedSrc.
+    passthru = {inherit patchedSrc;};
 
     meta = {
       description = "Windscribe Desktop VPN, native build (Nix-provided deps)";

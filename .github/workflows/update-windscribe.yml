@@ -48,6 +48,9 @@ jobs:
       # out of mainPackages: heavy C++ build on its own overlaid nixpkgs). Chain
       # the explicit build onto the nvfetcher run; ci.gate then still covers the
       # nixos-windscribe module eval.
+      # patchedSrc goes first: it is only the source with the local changes
+      # applied, so a release that breaks one fails here in about a minute,
+      # before the patched openssl and curl are built.
       - name: Regenerate sources + build windscribe
         id: checks
         uses: ./.github/actions/nix-checks
@@ -65,6 +68,8 @@ jobs:
             nvfetcher
             -c nix/pkgs/windscribe/nvfetcher.toml
             -o nix/pkgs/windscribe/_sources
+            &&
+            nix build -L .#windscribe.patchedSrc
             &&
             nix build -L .#windscribe
 
