@@ -3,8 +3,8 @@
         "cargoLock": null,
         "date": null,
         "extract": {
-            "package-lock.json": "sha256-t7iiWNZnGJxCNypDyL6N_aFLQp9lNch1ueN+6REbfQQ=/package-lock.json",
-            "package.json": "sha256-t7iiWNZnGJxCNypDyL6N_aFLQp9lNch1ueN+6REbfQQ=/package.json"
+            "package-lock.json": "sha256-7lDZWv5yxxid1fb70Gu+bZmccxWBk3Y+GUt8Z_7SJmk=/package-lock.json",
+            "package.json": "sha256-7lDZWv5yxxid1fb70Gu+bZmccxWBk3Y+GUt8Z_7SJmk=/package.json"
         },
         "name": "affine-mcp-server",
         "passthru": null,
@@ -16,12 +16,12 @@
             "name": null,
             "owner": "DAWNCR0W",
             "repo": "affine-mcp-server",
-            "rev": "v3.13.1",
-            "sha256": "sha256-t7iiWNZnGJxCNypDyL6N/aFLQp9lNch1ueN+6REbfQQ=",
+            "rev": "v3.14.0",
+            "sha256": "sha256-7lDZWv5yxxid1fb70Gu+bZmccxWBk3Y+GUt8Z/7SJmk=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "v3.13.1"
+        "version": "v3.14.0"
     },
     "affine-server": {
         "cargoLock": null,
