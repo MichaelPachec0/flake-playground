@@ -3,7 +3,9 @@
 # optional one-shot unit. Inert unless services.zipline-extras.enable.
 #
 # Running the latest upstream release instead of the nixpkgs one:
-#   services.zipline.package = pkgs.zipline-latest;  # overlays.zipline-latest
+#   services.zipline.package = pkgs.latest.zipline;
+# where pkgs.latest is a package set with overlays.zipline-latest applied (that
+# overlay replaces `zipline`), or use packages.<system>.zipline-latest directly.
 #
 # PGlite on a fresh install needs no helper:
 #   services.zipline.database.createLocally = false;
