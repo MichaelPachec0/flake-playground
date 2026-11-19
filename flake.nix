@@ -387,9 +387,12 @@
         # DEFERRED (spec section 8): top-level pkgs.picr vs pkgs.playground.picr.
         inherit (s) picr picr-ping;
       };
+      # Replaces pkgs.zipline with the latest upstream stable release. Meant
+      # for a separate package set (e.g. a `latest` overlay giving
+      # pkgs.latest.zipline), so the main set keeps the nixpkgs zipline.
       # Built from `final` so non-x86_64 hosts get their own build.
       zipline-latest = final: prev: {
-        zipline-latest = import ./nix/pkgs/zipline {pkgs = final;};
+        zipline = import ./nix/pkgs/zipline {pkgs = final;};
       };
     in {
       inherit playground vimPlugins picr zipline-latest;
