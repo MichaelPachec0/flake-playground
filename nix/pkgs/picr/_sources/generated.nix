@@ -8,13 +8,13 @@
 {
   picr = {
     pname = "picr";
-    version = "1.7.0";
+    version = "1.7.1";
     src = fetchFromGitHub {
       owner = "isaacinsoll";
       repo = "picr";
-      rev = "1.7.0";
+      rev = "1.7.1";
       fetchSubmodules = false;
-      sha256 = "sha256-URyWVVWhYfDMcuLybFd5JB/r3kAHVd6hBxvUFbFANLc=";
+      sha256 = "sha256-gTzG/9fX97h22SiHYxFep4gH/CQ5C2NqG+cHCjexohs=";
     };
   };
 }
