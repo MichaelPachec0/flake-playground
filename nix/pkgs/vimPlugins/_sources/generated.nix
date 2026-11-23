@@ -240,17 +240,17 @@
   };
   noneLs = {
     pname = "noneLs";
-    version = "0b281893e36fe147077b49f022bf9cd78af3ad12";
+    version = "df7be04d6de5781cc5546168aedbae854987f495";
     src = fetchgit {
       url = "https://github.com/nvimtools/none-ls.nvim";
-      rev = "0b281893e36fe147077b49f022bf9cd78af3ad12";
+      rev = "df7be04d6de5781cc5546168aedbae854987f495";
       fetchSubmodules = false;
       deepClone = false;
       leaveDotGit = false;
       sparseCheckout = [ ];
-      sha256 = "sha256-5K72YseU+NWb2hzK7JZVrkRuZn9pmGKUJKGP+yWtrgE=";
+      sha256 = "sha256-TXbG7lLIuDVmQPoZX4C6qArTv+2hFfX17fSL9zWMhuU=";
     };
-    date = "2026-11-06";
+    date = "2026-11-23";
   };
   noneLsExtras = {
     pname = "noneLsExtras";
