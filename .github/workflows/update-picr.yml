@@ -47,6 +47,7 @@ jobs:
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/picr/nvfetcher.toml
             -o nix/pkgs/picr/_sources
+            -k "$NVCHECKER_KEYFILE"
             &&
             nix build -L
             .#picr .#picr-ping

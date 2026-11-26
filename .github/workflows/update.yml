@@ -45,6 +45,7 @@ jobs:
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/vimPlugins/nvfetcher.toml
             -o nix/pkgs/vimPlugins/_sources
+            -k "$NVCHECKER_KEYFILE"
 
       - name: Commit bumped sources
         id: commit

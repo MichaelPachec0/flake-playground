@@ -68,6 +68,7 @@ jobs:
             nvfetcher
             -c nix/pkgs/windscribe/nvfetcher.toml
             -o nix/pkgs/windscribe/_sources
+            -k "$NVCHECKER_KEYFILE"
             &&
             nix build -L .#windscribe.patchedSrc
             &&
