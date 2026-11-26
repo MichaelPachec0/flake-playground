@@ -51,6 +51,7 @@ jobs:
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/projectsend/nvfetcher.toml
             -o nix/pkgs/projectsend/_sources
+            -k "$NVCHECKER_KEYFILE"
 
       - name: Commit bumped source
         id: commit

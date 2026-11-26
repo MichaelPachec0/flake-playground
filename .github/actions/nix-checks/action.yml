@@ -195,6 +195,23 @@ runs:
         purge-created: 0
         purge-primary-key: never
 
+    # nvfetcher checks versions through nvchecker, which calls api.github.com
+    # anonymously unless it is handed a keyfile: 60 requests per hour per IP,
+    # and runner IPs are shared, so bump runs fail at random with HTTP 403.
+    # nvchecker reads no token from the environment, only from the keyfile
+    # ([keys] github = ...), so write one and let the bump workflows pass it
+    # as `nvfetcher -k "$NVCHECKER_KEYFILE"`. The workflow token needs no
+    # extra permission to read public repositories.
+    - name: Write nvchecker keyfile (optional)
+      if: ${{ inputs.pre-build-command != '' }}
+      shell: bash
+      env:
+        NVCHECKER_TOKEN: ${{ github.token }}
+      run: |
+        keyfile="$RUNNER_TEMP/nvchecker-keys.toml"
+        (umask 077 && printf '[keys]\ngithub = "%s"\n' "$NVCHECKER_TOKEN" > "$keyfile")
+        echo "NVCHECKER_KEYFILE=$keyfile" >> "$GITHUB_ENV"
+
     - name: Regenerate inputs (optional)
       if: ${{ inputs.pre-build-command != '' }}
       shell: bash

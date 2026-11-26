@@ -50,6 +50,7 @@ jobs:
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/zipline/nvfetcher.toml
             -o nix/pkgs/zipline/_sources
+            -k "$NVCHECKER_KEYFILE"
             &&
             scripts/heal-pnpm-hash.sh zipline-latest nix/pkgs/zipline/pnpm-deps.hash
             &&

@@ -56,6 +56,7 @@ jobs:
             nix run nixpkgs#nvfetcher --
             -c nix/pkgs/pingvin-share/nvfetcher.toml
             -o nix/pkgs/pingvin-share/_sources
+            -k "$NVCHECKER_KEYFILE"
             &&
             scripts/heal-pnpm-hash.sh pingvin-share-x.backend nix/pkgs/pingvin-share/stable-backend-npm-deps.hash npmDeps
             &&
