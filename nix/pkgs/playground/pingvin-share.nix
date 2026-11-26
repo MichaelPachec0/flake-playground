@@ -153,7 +153,18 @@
 
     env.NEXT_TELEMETRY_DISABLED = "1";
 
-    preBuild = rebuildSharpFromSource;
+    # Next.js >= 15 takes the outermost directory holding a lockfile as the
+    # workspace root, and the repo has one above frontend/. The standalone
+    # output then nests one level down (.next/standalone/frontend/server.js)
+    # and the service cannot find server.js. Dropping the repo-root lockfile
+    # (only used for upstream's release tooling) makes frontend/ the root
+    # again, the flat layout Next 14 produced.
+    preBuild =
+      ''
+        chmod u+w ..
+        rm -f ../package-lock.json
+      ''
+      + rebuildSharpFromSource;
 
     buildPhase = ''
       runHook preBuild
@@ -165,6 +176,13 @@
     # .next/standalone, static files under .next/static, plus public/.
     installPhase = ''
       runHook preInstall
+      # Fail here, not 15 minutes into a VM test waiting on a unit that
+      # crash-loops, if a future Next.js moves the entry point again.
+      if [ ! -f .next/standalone/server.js ]; then
+        echo "pingvin-share-frontend: .next/standalone/server.js is missing; standalone layout:" >&2
+        find .next/standalone -maxdepth 2 -not -path '*/node_modules/*' >&2
+        exit 1
+      fi
       mkdir -p $out/frontend
       cp -r .next/standalone/. $out/frontend/
       mkdir -p $out/frontend/.next
