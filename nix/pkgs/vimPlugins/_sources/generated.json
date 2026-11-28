@@ -344,7 +344,7 @@
     },
     "noneLs": {
         "cargoLock": null,
-        "date": "2026-11-23",
+        "date": "2026-11-28",
         "extract": null,
         "name": "noneLs",
         "passthru": null,
@@ -354,13 +354,13 @@
             "fetchSubmodules": false,
             "leaveDotGit": false,
             "name": null,
-            "rev": "df7be04d6de5781cc5546168aedbae854987f495",
-            "sha256": "sha256-TXbG7lLIuDVmQPoZX4C6qArTv+2hFfX17fSL9zWMhuU=",
+            "rev": "838f6f9df491bf0d3e5afc91866a052ed5d6e680",
+            "sha256": "sha256-ewbCo9JFEBt9ksPcPi5mKgZ79l03ZOxEAg+lPLaGGus=",
             "sparseCheckout": [],
             "type": "git",
             "url": "https://github.com/nvimtools/none-ls.nvim"
         },
-        "version": "df7be04d6de5781cc5546168aedbae854987f495"
+        "version": "838f6f9df491bf0d3e5afc91866a052ed5d6e680"
     },
     "noneLsExtras": {
         "cargoLock": null,
